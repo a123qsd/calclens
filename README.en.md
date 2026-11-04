@@ -10,9 +10,8 @@ service is required.
 
 [Project home](https://github.com/a123qsd/calclens) · [한국어 안내](README.ko.md) · [English ZIP and installation](docs/DOWNLOADS.md#english) · [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) · [Development](docs/DEVELOPMENT.md) · [Validation record](docs/VALIDATION.md)
 
-This guide describes source version **0.2.0**. The linked published packages
-remain **v0.1.1**. Comparisons of multiple files, source identity in reports,
-and the contact-evidence changes below require the current source tree.
+This guide covers **CalcLens v0.2.0**, including comparisons of multiple files,
+source identity in reports, and contact evidence preserved outside detail tables.
 
 ![CalcLens structure, nearest-pair and gap inspection](docs/assets/calclens-overview.png)
 
@@ -28,7 +27,7 @@ and the contact-evidence changes below require the current source tree.
 For an English-default ZIP, choose the English asset on the
 [latest release](https://github.com/a123qsd/calclens/releases/latest) and follow
 the [download instructions](docs/DOWNLOADS.md#english). A standalone
-[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.1.1/CalcLens-Guide.en.md)
+[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.en.md)
 is also available. Python 3.12 and dependency
 installation are required; this is not a standalone executable.
 

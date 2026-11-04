@@ -13,12 +13,11 @@ JSON/CSV exports and comparisons of up to 20 CIF files with settings for each fi
 빈 간격을 확인합니다. 화면·사용 안내·결과 설명을 한국어와 영어로 제공하며,
 예제와 JSON·CSV 내보내기, 파일마다 조건을 정하는 최대 20개 CIF 비교를 지원합니다.
 
-This source tree is **v0.2.0**. The published ZIP links below are for **v0.1.1**;
-the new comparison, report-provenance, and contact-evidence features require
-the current source. No v0.2.0 release asset is linked here.
+**v0.2.0** includes per-file comparison settings, source identity in reports,
+and contact evidence that remains available when detail tables are truncated.
 
-현재 소스 버전은 **v0.2.0**이며, 아래에 연결된 공개 ZIP은 **v0.1.1**입니다.
-여러 파일 비교, 보고서의 원본 식별 정보, 접촉 근거 보강은 현재 소스에 포함된 기능입니다.
+**v0.2.0**에는 파일별 조건을 정하는 비교, 보고서의 원본 식별 정보,
+상세 표에서 생략되어도 보존되는 접촉 근거가 포함됩니다.
 
 ![CalcLens local structure inspection / 로컬 구조 검사 화면](docs/assets/calclens-overview.png)
 
@@ -29,10 +28,10 @@ the current source. No v0.2.0 release asset is linked here.
 
 [Latest release / 최신 배포](https://github.com/a123qsd/calclens/releases/latest)
 
-| Language | Source ZIP for v0.1.1 | Read guide | Download guide |
+| Language | Source ZIP for v0.2.0 | Read guide | Download guide |
 | --- | --- | --- | --- |
-| English | [calclens-0.1.1-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.1.1/calclens-0.1.1-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.1.1/CalcLens-Guide.en.md) |
-| 한국어 | [calclens-0.1.1-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.1.1/calclens-0.1.1-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.1.1/CalcLens-Guide.ko.md) |
+| English | [calclens-0.2.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.2.0/calclens-0.2.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.en.md) |
+| 한국어 | [calclens-0.2.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.2.0/calclens-0.2.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.ko.md) |
 
 Both ZIPs contain the same analysis engine and both interface languages. Each
 opens in its selected language by default. **Python 3.12 and dependency installation

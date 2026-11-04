@@ -6,7 +6,7 @@ This naming difference does not indicate a second application.
 
 ## Local workflow
 
-The current source version is 0.2.0; the linked published release is v0.1.1.
+The current release is v0.2.0; the source and linked packages use version 0.2.0.
 Use Python 3.12 or 3.13 and install the pinned runtime, build, and test dependencies:
 
 ```bash

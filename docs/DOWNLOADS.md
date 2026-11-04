@@ -2,28 +2,27 @@
 
 [Project home](../README.md) · [Full English guide](../README.en.md) · [한국어 전체 안내](../README.ko.md)
 
-The asset links below download published **v0.1.1**. The current source tree is
-**0.2.0** and adds multiple-file comparison, report source identity, and improved
-contact evidence. To use those changes, install the current source folder with
-the same commands below; no v0.2.0 release asset is linked here.
+**CalcLens v0.2.0** includes multiple-file comparison, report source identity,
+and contact evidence preserved outside detail tables. Choose a language-specific
+source ZIP and install it with the commands below.
 
-아래 배포 링크는 공개된 **v0.1.1** 파일입니다. 현재 소스 버전 **0.2.0**에는
-여러 파일 비교, 보고서의 원본 식별 정보, 접촉 근거 보강이 포함됩니다.
-새 기능을 사용하려면 현재 소스 폴더에서 아래와 같은 설치 명령을 실행하세요.
+**CalcLens v0.2.0**에는 여러 파일 비교, 보고서의 원본 식별 정보,
+상세 표에서 생략되어도 보존되는 접촉 근거가 포함됩니다.
+원하는 언어의 소스 ZIP을 받은 뒤 아래 명령으로 설치하세요.
 
 ## English
 
 Download a language-specific source package from
-[CalcLens v0.1.1](https://github.com/a123qsd/calclens/releases/tag/v0.1.1):
+[CalcLens v0.2.0](https://github.com/a123qsd/calclens/releases/tag/v0.2.0):
 
 | Asset | Initial interface and main guide |
 | --- | --- |
-| [calclens-0.1.1-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.1.1/calclens-0.1.1-en.zip) | English |
-| [calclens-0.1.1-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.1.1/calclens-0.1.1-ko.zip) | Korean |
+| [calclens-0.2.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.2.0/calclens-0.2.0-en.zip) | English |
+| [calclens-0.2.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.2.0/calclens-0.2.0-ko.zip) | Korean |
 
 You can also download the guides separately as Markdown files:
-[English guide](https://github.com/a123qsd/calclens/releases/download/v0.1.1/CalcLens-Guide.en.md) ·
-[Korean guide](https://github.com/a123qsd/calclens/releases/download/v0.1.1/CalcLens-Guide.ko.md).
+[English guide](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.en.md) ·
+[Korean guide](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.ko.md).
 These text files explain the app; they do not contain the program.
 
 Both packages contain the same geometry engine, examples, and English/Korean
@@ -88,7 +87,7 @@ and numerical results stay consistent for comparison and automated processing.
 Korean JSON retains the English source explanations alongside its Korean text.
 App and CLI Korean CSV files use UTF-8 with a BOM; JSON uses UTF-8 without a BOM.
 
-### Compare files in the 0.2.0 source version
+### Compare CIF files
 
 Choose **Compare CIF files**, upload up to 20 CIFs, and set each file's axis and
 cutoff. Each file keeps the 2 MiB and 400-site limits. Select a summary row for
@@ -108,17 +107,17 @@ CLI commands, and license conditions.
 
 ## 한국어
 
-[CalcLens v0.1.1 배포 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.1.1)에서
+[CalcLens v0.2.0 배포 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.2.0)에서
 원하는 언어의 소스 ZIP을 받으세요.
 
 | 파일 | 처음 열리는 화면과 기본 안내 |
 | --- | --- |
-| [calclens-0.1.1-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.1.1/calclens-0.1.1-ko.zip) | 한국어 |
-| [calclens-0.1.1-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.1.1/calclens-0.1.1-en.zip) | 영어 |
+| [calclens-0.2.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.2.0/calclens-0.2.0-ko.zip) | 한국어 |
+| [calclens-0.2.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.2.0/calclens-0.2.0-en.zip) | 영어 |
 
 안내 문서만 필요하면 Markdown 파일로 따로 받을 수 있습니다.
-[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.1.1/CalcLens-Guide.ko.md) ·
-[영어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.1.1/CalcLens-Guide.en.md).
+[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.ko.md) ·
+[영어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.en.md).
 안내 파일에는 프로그램이 들어 있지 않습니다.
 
 두 파일의 검사 엔진과 예제는 같습니다. 둘 다 한국어·영어 화면을 제공하며, ZIP 안의
@@ -179,7 +178,7 @@ Windows에서는 `.venv\Scripts\python.exe run_app.py --language ko`를 사용�
 함께 남깁니다. 앱과 명령행의 한국어 CSV는 BOM이 있는 UTF-8을 사용하며,
 JSON은 BOM 없는 UTF-8로 저장합니다.
 
-### 0.2.0 소스 버전에서 여러 파일 비교
+### 여러 CIF 비교
 
 **여러 CIF 비교**를 고르고 최대 20개 CIF를 올린 뒤 파일별 축과 기준을 정합니다.
 파일당 2 MiB·400개 원자 제한은 같습니다. 요약 표의 행을 선택하면 해당 구조와

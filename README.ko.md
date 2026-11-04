@@ -8,9 +8,8 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 
 [Project home](https://github.com/a123qsd/calclens) · [English guide](README.en.md) · [한국어 ZIP 받기·설치](docs/DOWNLOADS.md#한국어) · [계산 방법과 한계](docs/METHODS.md) · [예제 출처](docs/PROVENANCE.md) · [개발 안내](docs/DEVELOPMENT.md) · [검증 기록](docs/VALIDATION.md)
 
-이 안내는 **0.2.0 소스 버전**을 기준으로 합니다. 연결된 공개 배포 파일은
-**v0.1.1**입니다. 여러 파일 비교, 보고서의 원본 식별 정보, 접촉 근거 보강은
-현재 소스에 포함된 기능입니다.
+이 안내는 **CalcLens v0.2.0**을 기준으로 합니다. 여러 파일 비교와 보고서의
+원본 식별 정보, 상세 표에서 생략되어도 보존되는 접촉 근거를 설명합니다.
 
 ![CalcLens 원자 구조·최근접 원자쌍·간격 검사 화면](docs/assets/calclens-overview.png)
 
@@ -25,7 +24,7 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 
 [배포 파일](https://github.com/a123qsd/calclens/releases/latest)에서 한국어 기본 ZIP을 받으려면
 [다운로드·설치 안내](docs/DOWNLOADS.md#한국어)를 따르세요.
-[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.1.1/CalcLens-Guide.ko.md)만
+[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.ko.md)만
 따로 받을 수도 있습니다. Python 3.12와 의존성 설치가 필요합니다.
 독립 실행 프로그램은 아닙니다.
 
