@@ -10,9 +10,9 @@ service is required.
 
 [Project home](https://github.com/a123qsd/calclens) · [한국어 안내](README.ko.md) · [English ZIP and installation](docs/DOWNLOADS.md#english) · [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) · [Development](docs/DEVELOPMENT.md) · [Validation record](docs/VALIDATION.md)
 
-This guide covers **CalcLens v0.3.0**, including portable review projects,
-per-file comparison settings and filters, session caching, source identity in
-reports, and contact evidence preserved outside detail tables.
+This guide covers the **CalcLens v0.4.0 source**. Download links below still point
+to published v0.3.0 assets. Project editing, review history, chosen-pair
+measurements and side-by-side comparison are available in the updated source.
 
 ![CalcLens structure, nearest-pair and gap inspection](docs/assets/calclens-overview.png)
 
@@ -111,6 +111,33 @@ Opening a project rejects corrupt or missing CIF payloads and SHA-256 mismatches
 If its saved engine version differs from the current engine, the app warns and
 recomputes the reports with the current version. A project restores your work;
 the JSON/CSV reports remain analysis exports and cannot be opened as projects.
+
+In saved work, expand **Add, replace or remove project CIFs** to edit the file
+list. Replacement preserves the entry's notes and settings; changed bytes clear
+review completion and saved pair selections. Removing an entry does not delete
+the original file from your computer. A project must retain at least one entry.
+
+Use **Review progress** to filter **Unreviewed / Reviewed** independently of
+geometry flags. Marking a file reviewed leaves its geometry warnings visible.
+Review stamps record the original hash, axis, cutoff, analysis revision and ASE
+version. Changed analysis conditions require rechecking; historical stamps
+survive saving. Schema-1 projects from v0.3.0 open with their notes and original
+files, but require rechecking because they lack an analysis revision. A change
+to the app version alone does not invalidate a current stamp.
+
+## Chosen-pair measurements and comparison
+
+Enable **Measure a chosen atom pair** in the review panel and choose two site
+numbers. Optionally specify each displayed image's integer `[a,b,c]` shift.
+The app shows both the distance between those images and the minimum-image
+distance; choose which line to draw. Save up to 50 pair selections per entry.
+Selections are recalculated from the original on reopening. Single-file and
+sample mode can also save a project containing these selections.
+
+Enable **Compare two structures side by side** above the detail view to inspect
+two 3D structures, composition, site count, cell vectors, minimum distance,
+nuclear span/gap and added or removed flags. Changes mean after minus before.
+Check each file's axis and cutoff. Atom correspondence and RMSD are not calculated.
 
 ## Command line
 

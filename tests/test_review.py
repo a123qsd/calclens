@@ -8,6 +8,7 @@ import pytest
 
 from slab_preflight import batch, review
 from slab_preflight.batch import BatchInput
+from slab_preflight.project import PairSelection, mark_reviewed
 
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
@@ -28,9 +29,10 @@ class Upload:
 def test_recreated_upload_wrappers_preserve_duplicate_file_settings(remaining_ids):
     originals = [Upload(file_id) for file_id in ("first", "second", "third")]
     records = review.reconcile_uploads(originals, [])
-    records = [(upload, replace(entry, normal_axis="abc"[index],
-                                short_distance=1.0 + index * 0.5,
-                                note=f"File {index} was reviewed", reviewed=True))
+    records = [(upload, mark_reviewed(replace(
+        entry, normal_axis="abc"[index], short_distance=1.0 + index * 0.5,
+        note=f"File {index} was reviewed",
+    )))
                for index, (upload, entry) in enumerate(records)]
     expected = {upload.file_id: entry for upload, entry in records}
     assert len({entry.id for _, entry in records}) == 3
@@ -58,6 +60,23 @@ def test_upload_adapters_without_file_ids_keep_distinct_object_identities():
     assert survivor[0][1] == records[1][1]
     new_record = review.reconcile_uploads([Upload()], survivor)[0][1]
     assert new_record.id not in (first_entry.id, second_entry.id)
+
+
+def test_changed_upload_clears_completion_and_measurements_but_keeps_review_stamp():
+    upload = Upload("stable")
+    records = review.reconcile_uploads([upload], [])
+    old = mark_reviewed(replace(
+        records[0][1], note="keep", measurements=(PairSelection(0, 1),),
+    ))
+    stamp = old.review_stamp
+    upload.data = b"changed uploaded bytes"
+
+    changed = review.reconcile_uploads([upload], [(upload, old)])[0][1]
+
+    assert changed.reviewed is False
+    assert changed.review_stamp == stamp
+    assert changed.measurements == ()
+    assert changed.note == "keep"
 
 
 def test_cached_reports_have_current_filenames_and_independent_mutable_data(monkeypatch):

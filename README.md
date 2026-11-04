@@ -1,5 +1,13 @@
 # CalcLens
 
+The source tree is preparing **v0.4.0**: project file editing, review provenance,
+chosen-pair measurement, side-by-side comparison and a Windows launch manager.
+Published download links below remain **v0.3.0** until the next release is built.
+
+현재 소스는 **v0.4.0** 업데이트입니다. 프로젝트 파일 편집, 검토 이력, 원자쌍 측정,
+두 구조 비교와 Windows 실행 관리 창을 추가했습니다. 아래 다운로드는 새 버전이
+배포되기 전까지 **v0.3.0**을 가리킵니다.
+
 **Windows x64: no Python installation needed / Python 설치 없이 실행**
 
 [한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-0.3.0-windows-x64-ko.exe) ·

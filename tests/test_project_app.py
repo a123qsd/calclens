@@ -11,7 +11,7 @@ from streamlit.delta_generator import DeltaGenerator
 from streamlit.testing.v1 import AppTest
 
 from slab_preflight import __version__, batch
-from slab_preflight.project import Project, ProjectEntry, dumps_project, loads_project
+from slab_preflight.project import Project, ProjectEntry, dumps_project, loads_project, mark_reviewed
 from test_batch_state import ROOT, Upload, select_row
 
 
@@ -71,8 +71,8 @@ def saved_project():
     return Project(
         [
             ProjectEntry("first", "graphene.cif", example_bytes("graphene.cif")),
-            ProjectEntry("second", "mos2.cif", example_bytes("mos2.cif"), short_distance=2.5,
-                         note="저장한 메모\n원본 확인", reviewed=True),
+            mark_reviewed(ProjectEntry("second", "mos2.cif", example_bytes("mos2.cif"), short_distance=2.5,
+                                       note="저장한 메모\n원본 확인")),
         ],
         selected_id="second", review_focus="minimum",
     )
@@ -139,7 +139,7 @@ def test_batch_save_reopens_fresh_with_raw_bytes_failures_duplicates_and_review_
     assert not reopened.button(key="load_project").disabled
     open_project(reopened)
 
-    assert analyses == originals
+    assert analyses == [example_bytes("graphene.cif"), *originals]
     assert project_download(downloads) == saved
     assert reopened.session_state["project_selected_id"] == saved.selected_id
     assert reopened.radio(key="batch_filter_ko").value == "needs_review"
@@ -243,7 +243,10 @@ def test_old_engine_versions_warn_and_current_results_and_versions_are_exported(
     upload_state, downloads,
 ):
     saved = replace(saved_project(), calclens_version="0.0.1", ase_version="3.0.0")
-    upload_state["project_upload"] = Upload("old.calclens.json", dumps_project(saved))
+    old_document = json.loads(dumps_project(saved))
+    old_stamp = old_document["entries"][1]["review_stamp"]
+    old_stamp.update(analysis_revision="old-engine", ase_version="3.0.0", calclens_version="0.0.1")
+    upload_state["project_upload"] = Upload("old.calclens.json", json.dumps(old_document).encode())
     at = open_project(new_app())
     warnings = "\n".join(item.value for item in at.warning)
     assert "저장 당시 버전" in warnings
@@ -255,7 +258,15 @@ def test_old_engine_versions_warn_and_current_results_and_versions_are_exported(
     resaved = project_download(downloads)
     assert resaved.calclens_version == __version__
     assert resaved.ase_version == ase.__version__
-    assert resaved.entries == saved.entries
+    assert resaved.entries[1].reviewed is False
+    assert resaved.entries[1].review_stamp.analysis_revision == "old-engine"
+    assert resaved.entries[1].review_stamp.calclens_version == "0.0.1"
+    assert not done_widget(at).value
+    # Saving with the current app must not wash away the earlier review record.
+    upload_state["project_upload"] = Upload("resaved.json", dumps_project(resaved))
+    reopened = open_project(new_app())
+    assert not done_widget(reopened).value
+    assert project_download(downloads).entries[1].review_stamp == resaved.entries[1].review_stamp
 
 
 def test_selected_failed_file_can_save_notes_and_progress_without_stale_measurements(

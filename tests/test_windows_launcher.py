@@ -91,6 +91,7 @@ def test_main_runs_cli_in_process_with_required_flags_and_locale(
         (package / "DEFAULT_LANGUAGE.txt").write_text(marker, encoding="utf-8")
     monkeypatch.setenv("CALCLENS_LANGUAGE", "existing-parent-value")
     monkeypatch.setenv("STREAMLIT_GLOBAL_DEVELOPMENT_MODE", "true")
+    monkeypatch.setenv("STREAMLIT_SERVER_BASE_URL_PATH", "inherited-prefix")
     monkeypatch.setattr(sys, "executable", "CalcLens.exe")
     monkeypatch.setattr(subprocess, "Popen", forbid_process)
     monkeypatch.setattr(launcher, "choose_port", lambda requested: 43123)
@@ -119,7 +120,8 @@ def test_main_runs_cli_in_process_with_required_flags_and_locale(
     assert {
         "--global.developmentMode=false", "--server.address=127.0.0.1",
         "--server.port=43123", "--server.fileWatcherType=none",
-        "--server.headless=true", "--browser.gatherUsageStats=false",
+        "--server.headless=true", "--server.baseUrlPath=",
+        "--browser.gatherUsageStats=false",
     }.issubset(command)
     assert calls[0]["standalone_mode"] is False
     assert calls[0]["prog_name"] == "CalcLens"
@@ -128,15 +130,20 @@ def test_main_runs_cli_in_process_with_required_flags_and_locale(
     assert Path.cwd() == previous_cwd
     assert os.environ["CALCLENS_LANGUAGE"] == "existing-parent-value"
     assert os.environ["STREAMLIT_GLOBAL_DEVELOPMENT_MODE"] == "true"
+    assert os.environ["STREAMLIT_SERVER_BASE_URL_PATH"] == "inherited-prefix"
 
 
-def test_run_cli_marks_own_server_ready_only_after_startup_callback(monkeypatch):
+def test_run_cli_marks_own_server_ready_only_after_startup_callback(tmp_path, monkeypatch):
     ready = threading.Event()
+    ready_file = tmp_path / "manager.ready"
+    monkeypatch.setenv("CALCLENS_READY_FILE", str(ready_file))
 
     def cli_main(**kwargs):
         assert not ready.is_set()
+        assert not ready_file.exists()
         bootstrap._on_server_start(object())
         assert ready.is_set()
+        assert ready_file.read_text(encoding="utf-8") == "ready\n"
 
     bootstrap = fake_streamlit(monkeypatch, cli_main)
     assert launcher._run_streamlit(["streamlit", "run", "app.py"], ready) == 0
@@ -160,6 +167,88 @@ def test_streamlit_import_occurs_after_development_mode_is_disabled(package, mon
     monkeypatch.setattr(launcher, "choose_port", lambda requested: 43123)
     assert launcher.main(["--no-browser"], project_dir=package) == 0
     assert observed
+
+
+def test_frozen_windows_default_uses_manager_but_no_browser_keeps_cli(package, monkeypatch):
+    (package / "DEFAULT_LANGUAGE.txt").write_text("ko\n", encoding="utf-8")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(launcher, "_should_use_manager", lambda *, no_browser: not no_browser)
+    monkeypatch.setattr(launcher, "choose_port", lambda requested: 43123)
+    managed = []
+    monkeypatch.setattr(
+        launcher, "_run_windows_manager",
+        lambda url, port, language: managed.append((url, port, language)) or 9,
+    )
+    monkeypatch.setattr(launcher, "_run_streamlit", lambda arguments, started: 4)
+
+    assert launcher.main([], project_dir=package) == 9
+    assert managed == [("http://127.0.0.1:43123", 43123, "ko")]
+    assert launcher.main(["--no-browser"], project_dir=package) == 4
+
+
+def test_manager_child_command_reuses_frozen_executable(monkeypatch):
+    monkeypatch.setattr(sys, "executable", r"C:\\Apps\\CalcLens.exe")
+    assert launcher._manager_command(43123, "ko") == [
+        r"C:\\Apps\\CalcLens.exe", "--port", "43123", "--language", "ko", "--no-browser",
+    ]
+
+
+def test_browser_capture_hook_records_exact_local_url(tmp_path, monkeypatch):
+    capture = tmp_path / "opened.txt"
+    monkeypatch.setenv("CALCLENS_BROWSER_CAPTURE_FILE", str(capture))
+    monkeypatch.setattr(launcher.webbrowser, "open", forbid_process)
+    assert launcher._open_browser("http://127.0.0.1:43123")
+    assert capture.read_text(encoding="utf-8") == "http://127.0.0.1:43123\n"
+
+
+def test_manager_failure_falls_back_to_existing_console_launch(package, monkeypatch, capsys):
+    (package / "DEFAULT_LANGUAGE.txt").write_text("en\n", encoding="utf-8")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(launcher, "_should_use_manager", lambda *, no_browser: True)
+    monkeypatch.setattr(launcher, "choose_port", lambda requested: 43123)
+    monkeypatch.setattr(
+        launcher, "_run_windows_manager",
+        lambda *args: (_ for _ in ()).throw(OSError("desktop unavailable")),
+    )
+    monkeypatch.setattr(launcher, "_run_streamlit", lambda arguments, started: 6)
+    assert launcher.main([], project_dir=package) == 6
+    assert "using console mode" in capsys.readouterr().err
+
+
+def test_managed_server_gets_graceful_stop_before_termination():
+    calls = []
+    process = SimpleNamespace(
+        poll=lambda: None,
+        send_signal=lambda requested: calls.append(("signal", requested)),
+        wait=lambda timeout: calls.append(("wait", timeout)) or 0,
+        terminate=lambda: calls.append(("terminate",)),
+        kill=lambda: calls.append(("kill",)),
+    )
+    assert launcher._stop_managed_process(process, timeout=2.0) == "graceful"
+    assert calls == [("signal", launcher.signal.SIGINT), ("wait", 2.0)]
+
+
+def test_managed_server_termination_fallback_is_reported():
+    calls = []
+
+    def wait(timeout):
+        calls.append(("wait", timeout))
+        if timeout == 2.0:
+            raise subprocess.TimeoutExpired("CalcLens", timeout)
+        return 0
+
+    process = SimpleNamespace(
+        poll=lambda: None,
+        send_signal=lambda requested: calls.append(("signal", requested)),
+        wait=wait,
+        terminate=lambda: calls.append(("terminate",)),
+        kill=lambda: calls.append(("kill",)),
+    )
+    assert launcher._stop_managed_process(process, timeout=2.0) == "terminated"
+    assert calls == [
+        ("signal", launcher.signal.SIGINT), ("wait", 2.0),
+        ("terminate",), ("wait", 3.0),
+    ]
 
 
 def test_free_port_selection_and_occupied_explicit_port():
@@ -300,7 +389,7 @@ def test_source_and_embedded_build_information_are_inspectable_offline(package, 
     assert json.loads(capsys.readouterr().out) == info
 
 
-@pytest.mark.parametrize("content", ["not-json", "[]", '{"version":"0.3.0"}'])
+@pytest.mark.parametrize("content", ["not-json", "[]", '{"version":"0.4.0"}'])
 def test_damaged_build_metadata_is_reported(package, content, capsys):
     (package / "WINDOWS_BUILD_INFO.json").write_text(content, encoding="utf-8")
     assert launcher.main(["--build-info"], project_dir=package) == 1

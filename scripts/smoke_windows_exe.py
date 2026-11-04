@@ -25,11 +25,11 @@ import tempfile
 import time
 import traceback
 import urllib.error
+import urllib.parse
 import urllib.request
 
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.3.0"
 NOTE = "Windows executable smoke: checked the a-normal layer.\n원본 CIF와 주기 이미지를 확인함."
 LABELS = {
     "ko": {"language": "한국어", "title": "구조 개요", "batch": "여러 CIF 비교",
@@ -59,6 +59,9 @@ def child_environment():
         environment["PATH"] = os.pathsep.join((str(windows / "System32"), str(windows)))
     else:
         environment["PATH"] = "/usr/bin:/bin"
+    # Prove the launcher pins the app to the root URL instead of inheriting a
+    # machine-wide Streamlit prefix from the user's environment.
+    environment["STREAMLIT_SERVER_BASE_URL_PATH"] = "inherited-prefix-must-not-apply"
     return environment
 
 
@@ -70,7 +73,7 @@ def executable_json(executable, flag, cwd, environment, output):
     try:
         stdout, stderr = process.communicate(timeout=180)
     except subprocess.TimeoutExpired:
-        stop_process_tree(process, output)
+        stop_process_tree(process, output, label=flag.removeprefix("--") + "-timeout")
         stdout, stderr = process.communicate(timeout=10)
         (output / f"{flag.removeprefix('--')}.timeout.log").write_bytes(stdout + stderr)
         raise
@@ -105,15 +108,36 @@ def wait_health(process, base_url):
     raise TimeoutError(f"Frozen server did not become healthy: {last_error}")
 
 
-def stop_process_tree(process, output):
+def stop_process_tree(process, output, *, label, require_graceful=False):
     if process is None:
-        return
+        return "not-started"
+    shutdown_log = output / f"{label}-shutdown.log"
+    forced = False
+    if process.poll() is None:
+        try:
+            process.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGINT)
+            process.wait(timeout=20)
+            shutdown_log.write_text(
+                f"outcome=graceful\nexit_code={process.returncode}\n", encoding="utf-8"
+            )
+            return "graceful"
+        except (OSError, subprocess.TimeoutExpired) as error:
+            forced = True
+            shutdown_log.write_text(
+                f"outcome=force-fallback\nreason={type(error).__name__}: {error}\n",
+                encoding="utf-8",
+            )
+    else:
+        shutdown_log.write_text(
+            f"outcome=already-stopped\nexit_code={process.returncode}\n", encoding="utf-8"
+        )
+        return "already-stopped"
     if os.name == "nt":
         taskkill = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32/taskkill.exe"
         stopped = subprocess.run([str(taskkill), "/PID", str(process.pid), "/T", "/F"],
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                  timeout=30, check=False)
-        (output / "process-cleanup.log").write_bytes(stopped.stdout)
+        (output / f"{label}-force-cleanup.log").write_bytes(stopped.stdout)
     elif process.poll() is None:
         os.killpg(process.pid, signal.SIGTERM)
     try:
@@ -124,6 +148,162 @@ def stop_process_tree(process, output):
         else:
             process.kill()
         process.wait(timeout=10)
+    if require_graceful and forced:
+        raise AssertionError(f"{label} required force termination; inspect {shutdown_log.name}.")
+    return "forced"
+
+
+def wait_port_closed(base_url, *, timeout=30.0):
+    parsed = urllib.parse.urlsplit(base_url)
+    require(parsed.hostname == "127.0.0.1" and parsed.port, "Invalid local URL for port check.")
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection((parsed.hostname, parsed.port), timeout=1):
+                pass
+        except OSError:
+            return
+        time.sleep(0.2)
+    raise AssertionError(f"Local server port remained open after shutdown: {base_url}")
+
+
+def descendant_process_ids(root_pid, parent_by_pid):
+    """Return one process tree without admitting unrelated or cyclic branches."""
+    descendants = {int(root_pid)}
+    for _ in range(len(parent_by_pid)):
+        added = {
+            int(pid) for pid, parent in parent_by_pid.items()
+            if int(pid) not in descendants and int(parent) in descendants
+        }
+        if not added:
+            break
+        descendants.update(added)
+    return descendants
+
+
+def windows_process_parents():
+    """Snapshot the current Windows PID-to-parent-PID relationships."""
+    require(os.name == "nt", "Process snapshots are Windows-only.")
+    import ctypes
+    from ctypes import wintypes
+
+    class ProcessEntry32W(ctypes.Structure):
+        _fields_ = [
+            ("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
+            ("th32ProcessID", wintypes.DWORD), ("th32DefaultHeapID", wintypes.WPARAM),
+            ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
+            ("th32ParentProcessID", wintypes.DWORD), ("pcPriClassBase", wintypes.LONG),
+            ("dwFlags", wintypes.DWORD), ("szExeFile", wintypes.WCHAR * 260),
+        ]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    create_snapshot = kernel32.CreateToolhelp32Snapshot
+    create_snapshot.argtypes = (wintypes.DWORD, wintypes.DWORD)
+    create_snapshot.restype = wintypes.HANDLE
+    process_first = kernel32.Process32FirstW
+    process_first.argtypes = (wintypes.HANDLE, ctypes.POINTER(ProcessEntry32W))
+    process_first.restype = wintypes.BOOL
+    process_next = kernel32.Process32NextW
+    process_next.argtypes = (wintypes.HANDLE, ctypes.POINTER(ProcessEntry32W))
+    process_next.restype = wintypes.BOOL
+    close_handle = kernel32.CloseHandle
+    close_handle.argtypes = (wintypes.HANDLE,)
+    close_handle.restype = wintypes.BOOL
+    snapshot = create_snapshot(0x00000002, 0)  # TH32CS_SNAPPROCESS
+    if snapshot == wintypes.HANDLE(-1).value:
+        error = ctypes.get_last_error()
+        raise OSError(error, "CreateToolhelp32Snapshot failed")
+    parents = {}
+    try:
+        entry = ProcessEntry32W()
+        entry.dwSize = ctypes.sizeof(entry)
+        if process_first(snapshot, ctypes.byref(entry)):
+            while True:
+                parents[int(entry.th32ProcessID)] = int(entry.th32ParentProcessID)
+                entry.dwSize = ctypes.sizeof(entry)
+                if not process_next(snapshot, ctypes.byref(entry)):
+                    break
+        else:
+            error = ctypes.get_last_error()
+            if error != 18:  # ERROR_NO_MORE_FILES
+                raise OSError(error, "Process32FirstW failed")
+    finally:
+        close_handle(snapshot)
+    return parents
+
+
+def windows_manager_window(process, language, *, timeout=60.0):
+    """Find the actual Tk top-level window owned by the frozen manager process."""
+    require(os.name == "nt", "Manager window enumeration is Windows-only.")
+    import ctypes
+    from ctypes import wintypes
+
+    expected = "CalcLens · 한국어" if language == "ko" else "CalcLens · English"
+    user32 = ctypes.windll.user32
+    callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    user32.EnumWindows.argtypes = (callback_type, wintypes.LPARAM)
+    user32.EnumWindows.restype = wintypes.BOOL
+    user32.GetWindowThreadProcessId.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.DWORD))
+    user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+    user32.IsWindowVisible.argtypes = (wintypes.HWND,)
+    user32.IsWindowVisible.restype = wintypes.BOOL
+    user32.GetWindowTextLengthW.argtypes = (wintypes.HWND,)
+    user32.GetWindowTextLengthW.restype = ctypes.c_int
+    user32.GetWindowTextW.argtypes = (wintypes.HWND, wintypes.LPWSTR, ctypes.c_int)
+    user32.GetWindowTextW.restype = ctypes.c_int
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        require(process.poll() is None, "Default launch exited before its manager window appeared.")
+        allowed_pids = descendant_process_ids(process.pid, windows_process_parents())
+        matches = []
+
+        @callback_type
+        def inspect_window(handle, _parameter):
+            owner = wintypes.DWORD()
+            user32.GetWindowThreadProcessId(handle, ctypes.byref(owner))
+            if owner.value not in allowed_pids or not user32.IsWindowVisible(handle):
+                return True
+            length = user32.GetWindowTextLengthW(handle)
+            title = ctypes.create_unicode_buffer(length + 1)
+            user32.GetWindowTextW(handle, title, len(title))
+            if title.value == expected:
+                matches.append((int(handle), title.value))
+            return True
+
+        user32.EnumWindows(inspect_window, 0)
+        if matches:
+            require(len(matches) == 1, "Multiple CalcLens manager windows were found.")
+            return matches[0]
+        time.sleep(0.2)
+    raise AssertionError("The default launch did not create the CalcLens manager window.")
+
+
+def close_windows_manager(process, handle):
+    """Exercise the manager's real WM_DELETE close handler and require clean exit."""
+    import ctypes
+    from ctypes import wintypes
+
+    post_message = ctypes.windll.user32.PostMessageW
+    post_message.argtypes = (wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
+    post_message.restype = wintypes.BOOL
+    require(post_message(handle, 0x0010, 0, 0),
+            "Could not post WM_CLOSE to the CalcLens manager.")
+    try:
+        process.wait(timeout=30)
+    except subprocess.TimeoutExpired as error:
+        raise AssertionError("CalcLens manager did not exit after WM_CLOSE.") from error
+    require(process.returncode == 0,
+            f"CalcLens manager exited {process.returncode} after WM_CLOSE instead of cleanly.")
+
+
+def wait_for_no_pyinstaller_extractions(temp_root, *, timeout=30.0):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        leftovers = list(temp_root.glob("_MEI*"))
+        if not leftovers:
+            return
+        time.sleep(0.25)
+    raise AssertionError(f"PyInstaller extraction directories remain: {leftovers}")
 
 
 def remove_isolated_directory(directory, *, timeout=30.0):
@@ -149,7 +329,7 @@ def isolated_work_directory():
         remove_isolated_directory(directory)
 
 
-def browser_flow(base_url, language, output, originals, browser_events):
+def browser_flow(base_url, language, version, output, originals, browser_events):
     # Import only in the CI harness, never in the frozen application.
     from playwright.sync_api import expect, sync_playwright
 
@@ -293,7 +473,7 @@ def browser_flow(base_url, language, output, originals, browser_events):
             require(report["provenance"]["original_filename"] == "mos2_a_normal.cif"
                     and report["provenance"]["sha256"] == selected_hash,
                     "Downloaded JSON has the wrong source identity.")
-            require(report["provenance"]["calclens_version"] == VERSION, "Wrong exported engine version.")
+            require(report["provenance"]["calclens_version"] == version, "Wrong exported engine version.")
             page.screenshot(path=str(output / "batch-reviewed.png"), full_page=True)
 
             radio(page, "batch_filter", "unsupported")
@@ -314,7 +494,7 @@ def browser_flow(base_url, language, output, originals, browser_events):
             for name, data in originals.items():
                 row = by_name[name]
                 require(row[field["sha256"]] == hashlib.sha256(data).hexdigest(), "CSV source hash mismatch.")
-                require(row[field["calclens_version"]] == VERSION and row[field["ase_version"]],
+                require(row[field["calclens_version"]] == version and row[field["ase_version"]],
                         "CSV lacks engine versions, including for failed input.")
             failed = by_name["partial_occupancy.cif"]
             require(failed[field["status"]] == "unsupported" and failed[field["minimum"]] == "",
@@ -400,7 +580,11 @@ def main():
         environment = child_environment()
         result["child_path"] = environment["PATH"]
         with isolated_work_directory() as isolated:
-            app = isolated / "copied-application"
+            pyinstaller_temp = isolated / "PyInstaller 임시 추출"
+            pyinstaller_temp.mkdir()
+            environment["TMP"] = str(pyinstaller_temp)
+            environment["TEMP"] = str(pyinstaller_temp)
+            app = isolated / "복사한 CalcLens application"
             if (source.parent / "_internal").is_dir():
                 shutil.copytree(source.parent, app)
                 result["layout"] = "onedir"
@@ -409,13 +593,14 @@ def main():
                 shutil.copy2(source, app / source.name)
                 result["layout"] = "onefile"
             executable = app / source.name
-            cwd = isolated / "unrelated-empty-working-directory"
+            cwd = isolated / "한글 및 공백 작업 폴더"
             cwd.mkdir()
             diagnostic = executable_json(executable, "--self-test", cwd, environment, output)
             result["self_test"] = diagnostic
             require(diagnostic.get("status") == "ok" and diagnostic.get("frozen") is True,
                     "Self-test did not prove a successful frozen execution.")
-            require(diagnostic.get("language") == args.language and diagnostic.get("version") == VERSION,
+            version = diagnostic.get("version")
+            require(diagnostic.get("language") == args.language and isinstance(version, str) and version,
                     "Executable has the wrong embedded locale or version.")
             require(os.path.normcase(os.path.realpath(diagnostic["executable"]))
                     == os.path.normcase(os.path.realpath(executable)), "Self-test ran a different executable.")
@@ -428,6 +613,64 @@ def main():
             info = executable_json(executable, "--build-info", cwd, environment, output)
             require(info == diagnostic.get("build_info"), "Build-info CLI differs from frozen self-test metadata.")
             result["build_info"] = info
+            capture = isolated / "captured-browser-url.txt"
+            manager_environment = dict(environment)
+            manager_environment["CALCLENS_BROWSER_CAPTURE_FILE"] = str(capture)
+            manager_environment["LOCALAPPDATA"] = str(isolated / "로컬 앱 데이터")
+            options = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt"
+                       else {"start_new_session": True})
+            started_at = time.monotonic()
+            with (output / "default-launch.log").open("wb") as default_log:
+                default_process = subprocess.Popen(
+                    [str(executable)], cwd=cwd, env=manager_environment,
+                    stdout=default_log, stderr=subprocess.STDOUT, **options,
+                )
+                try:
+                    manager_handle, manager_title = windows_manager_window(
+                        default_process, args.language
+                    )
+                    deadline = time.monotonic() + 180
+                    while not capture.is_file() and time.monotonic() < deadline:
+                        require(default_process.poll() is None,
+                                "Default launch exited before opening its browser URL.")
+                        time.sleep(0.25)
+                    require(capture.is_file(), "Default launch did not open a browser URL.")
+                    default_url = capture.read_text(encoding="utf-8").strip()
+                    require(default_url.startswith("http://127.0.0.1:") and "/inherited-prefix" not in default_url,
+                            "Default launch used the wrong local URL.")
+                    wait_health(default_process, default_url)
+                    result["default_launch"] = {
+                        "url": default_url,
+                        "startup_seconds": round(time.monotonic() - started_at, 3),
+                        "automatic_port": True,
+                        "browser_request_captured": True,
+                        "manager_window": manager_title,
+                    }
+                    close_windows_manager(default_process, manager_handle)
+                    wait_port_closed(default_url)
+                    wait_for_no_pyinstaller_extractions(pyinstaller_temp)
+                    logs = list((isolated / "로컬 앱 데이터" / "CalcLens" / "logs").glob("*.log"))
+                    ready_files = list(
+                        (isolated / "로컬 앱 데이터" / "CalcLens" / "logs").glob("*.ready")
+                    )
+                    require(len(logs) == 1, "Manager did not create exactly one diagnostic log.")
+                    require(not ready_files, "Manager readiness marker was not cleaned up.")
+                    manager_log = logs[0].read_text(encoding="utf-8", errors="replace")
+                    for marker in (
+                        "manager: starting url=", "manager: server process started pid=",
+                        "manager: server ready; browser open requested",
+                        "manager: close requested", "manager: server stop outcome=graceful",
+                        "manager: manager finished",
+                    ):
+                        require(marker in manager_log,
+                                f"Diagnostic log is missing lifecycle marker: {marker}")
+                    result["default_launch"]["manager_close"] = "graceful"
+                    result["default_launch"]["diagnostic_log"] = logs[0].name
+                finally:
+                    if default_process.poll() is None:
+                        stop_process_tree(
+                            default_process, output, label="default-manager-emergency"
+                        )
             port = free_port()
             base_url = f"http://127.0.0.1:{port}"
             with (output / "server.log").open("wb") as server_log:
@@ -438,11 +681,17 @@ def main():
                                            stderr=subprocess.STDOUT, **options)
                 try:
                     wait_health(process, base_url)
-                    result["browser"] = browser_flow(base_url, args.language, output, originals, events)
+                    result["browser"] = browser_flow(
+                        base_url, args.language, version, output, originals, events,
+                    )
                     require(process.poll() is None, "Frozen server exited during the browser smoke.")
                 finally:
-                    stop_process_tree(process, output)
+                    stop_process_tree(
+                        process, output, label="no-browser", require_graceful=True
+                    )
+                    wait_port_closed(base_url)
                     process = None
+            wait_for_no_pyinstaller_extractions(pyinstaller_temp)
         result["status"] = "passed"
     except Exception as error:
         result["error"] = str(error)
@@ -451,7 +700,7 @@ def main():
     finally:
         if process is not None:
             try:
-                stop_process_tree(process, output)
+                stop_process_tree(process, output, label="emergency-cleanup")
             except Exception as error:
                 result["status"] = "failed"
                 result["cleanup_error"] = str(error)

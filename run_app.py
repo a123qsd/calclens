@@ -50,6 +50,7 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
     command = [
         sys.executable, "-m", "streamlit", "run", str(root / "streamlit_app.py"),
         "--server.address=127.0.0.1", f"--server.port={args.port}",
+        "--server.baseUrlPath=",
         "--browser.gatherUsageStats=false",
     ]
     try:

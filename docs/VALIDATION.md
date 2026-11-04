@@ -1,5 +1,42 @@
 # Validation record
 
+## v0.4.0 local verification — 2026-11-05
+
+The baseline at `0219f84` passed 444 tests before edits. The updated source
+passed **518 tests** on macOS arm64 with Python 3.12. The existing 11 ASE/NumPy
+deprecation warnings remain. Ruff, dependency consistency, all 16 generated
+CIFs, the public graphite source/hash/independent-geometry check and
+`git diff --check` passed.
+
+New regressions cover cached single/example results and errors; review stamps
+across byte, condition, analysis-revision and ASE changes; schema-1 migration;
+atomic project add/replace/remove; independent human-progress filtering;
+chosen atom/image selections and their saved-work round trip; optional
+side-by-side views; and inherited launcher URL prefixes. The distance rewrite
+was also compared with the old implementation over 90 randomized cases with
+identical results.
+
+A seven-repeat local distance-engine benchmark for 400 graphene atoms
+(79,800 unordered pairs) measured median times of 0.032215 s for the update
+and 0.051209 s for `0219f84`, about 1.59 times faster. This measures the distance
+kernel on one machine, not complete CIF parsing, browser rendering or Windows
+startup. The public 400-site limit remains unchanged. Reproduce with
+`python scripts/benchmark_distances.py --atoms 400 --repeats 7 --compare-ref 0219f84`.
+
+The real local browser opened a two-CIF project, displayed both 3D structures,
+saved a chosen pair and downloaded a schema-2 project containing the expected
+originals, selection and pair definition. Single-example measurement persistence
+and language changes were also covered by the Streamlit test harness.
+
+Windows-only checks have been added for the native manager window, graceful
+WM_CLOSE and console shutdown, closed server ports, Korean/space paths,
+isolated PyInstaller extraction cleanup, folder-ZIP extraction and startup
+timings. **The updated Windows EXEs have not been built or run in this local
+macOS verification.** These checks require the Windows workflow. Browser URL
+capture proves the requested URL, not Windows default-browser integration.
+
+The older records below describe their named versions.
+
 Date: 2026-11-04. Local environment: macOS arm64, Python 3.12.16.
 
 Before the 0.2.0 changes, the v0.1.1 baseline passed **210 tests** with the

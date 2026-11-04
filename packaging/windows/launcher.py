@@ -11,7 +11,9 @@ import multiprocessing
 import os
 from pathlib import Path
 import platform
+import signal
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -87,7 +89,7 @@ def streamlit_arguments(root: Path, port: int) -> list[str]:
         "streamlit", "run", str(root / "streamlit_app.py"),
         "--global.developmentMode=false",
         f"--server.address={HOST}", f"--server.port={port}",
-        "--server.fileWatcherType=none", "--server.headless=true",
+        "--server.baseUrlPath=", "--server.fileWatcherType=none", "--server.headless=true",
         "--browser.gatherUsageStats=false",
     ]
 
@@ -134,6 +136,18 @@ def _health_is_ready(url: str) -> bool:
         return False
 
 
+def _open_browser(url: str) -> bool:
+    """Open the UI, with a file capture hook for the frozen Windows smoke test."""
+    capture = os.environ.get("CALCLENS_BROWSER_CAPTURE_FILE")
+    if capture:
+        try:
+            Path(capture).write_text(url + "\n", encoding="utf-8")
+            return True
+        except OSError:
+            return False
+    return bool(webbrowser.open(url))
+
+
 def open_browser_when_ready(
     url: str, started: threading.Event, stopped: threading.Event,
     *, timeout: float = 45.0, poll_interval: float = 0.2,
@@ -144,7 +158,7 @@ def open_browser_when_ready(
         # A different process can win the port after choose_port's probe closes.
         # In that case our startup callback never fires, even if its health is ok.
         if started.is_set() and _health_is_ready(url) and not stopped.is_set():
-            return bool(webbrowser.open(url))
+            return _open_browser(url)
         stopped.wait(min(poll_interval, max(0.0, deadline - time.monotonic())))
     return False
 
@@ -159,6 +173,12 @@ def _run_streamlit(arguments: list[str], started: threading.Event) -> int:
 
     def on_server_start(server):
         original_callback(server)
+        ready_file = os.environ.get("CALCLENS_READY_FILE")
+        if ready_file:
+            try:
+                Path(ready_file).write_text("ready\n", encoding="utf-8")
+            except OSError as error:
+                print(f"Could not write manager readiness file: {error}", file=sys.stderr)
         started.set()
 
     bootstrap._on_server_start = on_server_start
@@ -215,7 +235,9 @@ def self_test(root: Path, language: str) -> dict:
     from slab_preflight import __version__, analyze_cif
     from slab_preflight.batch import BatchInput, analyze_batch
     from slab_preflight.plotting import profile_figure, structure_figure
-    from slab_preflight.project import Project, ProjectEntry, dumps_project, loads_project
+    from slab_preflight.project import (
+        Project, ProjectEntry, dumps_project, loads_project, mark_reviewed,
+    )
 
     def close(actual, expected):
         return math.isclose(actual, expected, rel_tol=0.0, abs_tol=1e-8)
@@ -255,8 +277,10 @@ def self_test(root: Path, language: str) -> dict:
              "a valid file must survive an invalid batch entry")
 
     project = Project(entries=[
-        ProjectEntry("graphene", "graphene.cif", graphene_bytes,
-                     note="Bundled review / 번들 검토\nOriginal bytes preserved.", reviewed=True),
+        mark_reviewed(ProjectEntry(
+            "graphene", "graphene.cif", graphene_bytes,
+            note="Bundled review / 번들 검토\nOriginal bytes preserved.",
+        )),
         ProjectEntry("mos2-b", "mos2_b_normal.cif",
                      (root / "examples" / "mos2_b_normal.cif").read_bytes(),
                      normal_axis="b", short_distance=1.25, note="Axis b / b축"),
@@ -330,6 +354,193 @@ def _console_directions(url: str, language: str) -> None:
               flush=True)
 
 
+def _manager_command(port: int, language: str) -> list[str]:
+    """Start a second copy of the frozen app as the managed server process."""
+    return [
+        sys.executable, "--port", str(port), "--language", language, "--no-browser",
+    ]
+
+
+def _should_use_manager(*, no_browser: bool) -> bool:
+    return os.name == "nt" and bool(getattr(sys, "frozen", False)) and not no_browser
+
+
+def _set_console_visible(visible: bool) -> bool:
+    """Hide the bundled console while the Windows manager owns the lifecycle."""
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        get_console = ctypes.windll.kernel32.GetConsoleWindow
+        get_console.restype = wintypes.HWND
+        show_window = ctypes.windll.user32.ShowWindow
+        show_window.argtypes = (wintypes.HWND, ctypes.c_int)
+        show_window.restype = wintypes.BOOL
+        handle = get_console()
+        if not handle:
+            return False
+        show_window(handle, 5 if visible else 0)
+        return True
+    except (AttributeError, OSError):
+        return False
+
+
+def _manager_log_path() -> Path:
+    local = os.environ.get("LOCALAPPDATA")
+    base = Path(local) if local else Path.home() / "AppData" / "Local"
+    folder = base / "CalcLens" / "logs"
+    folder.mkdir(parents=True, exist_ok=True)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    return folder / f"calclens-{stamp}-{os.getpid()}.log"
+
+
+def _manager_log_event(stream, message: str) -> None:
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    stream.write(f"[{stamp}] manager: {message}\n".encode("utf-8", errors="backslashreplace"))
+
+
+def _stop_managed_process(process: subprocess.Popen, *, timeout: float = 8.0) -> str:
+    """Ask the managed server to stop before falling back to termination."""
+    if process.poll() is not None:
+        return "already-stopped"
+    try:
+        if os.name == "nt":
+            process.send_signal(signal.CTRL_BREAK_EVENT)
+        else:
+            process.send_signal(signal.SIGINT)
+        process.wait(timeout=timeout)
+        return "graceful"
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    process.terminate()
+    try:
+        process.wait(timeout=3.0)
+        return "terminated"
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=3.0)
+        return "killed"
+
+
+def _run_windows_manager(url: str, port: int, language: str) -> int:
+    """Show a small native manager for starting, reopening, and stopping CalcLens."""
+    import tkinter as tk
+    from tkinter import messagebox
+
+    window = None
+    log_stream = None
+    process = None
+    ready_path = None
+    ready = False
+    requested_stop = False
+    try:
+        window = tk.Tk()
+        window.title("CalcLens · 한국어" if language == "ko" else "CalcLens · English")
+        window.geometry("460x220")
+        window.resizable(False, False)
+        status = tk.StringVar(value="CalcLens를 준비하고 있습니다…" if language == "ko"
+                              else "Preparing CalcLens…")
+        details = tk.StringVar(value=url)
+        log_path = _manager_log_path()
+        ready_path = log_path.with_suffix(".ready")
+        log_stream = log_path.open("ab", buffering=0)
+        _manager_log_event(log_stream, f"starting url={url}")
+        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+        server_environment = os.environ.copy()
+        server_environment["CALCLENS_READY_FILE"] = str(ready_path)
+        process = subprocess.Popen(
+            _manager_command(port, language), cwd=Path(sys.executable).resolve().parent,
+            env=server_environment, stdout=log_stream, stderr=subprocess.STDOUT,
+            creationflags=creationflags,
+        )
+        _manager_log_event(log_stream, f"server process started pid={process.pid}")
+
+        tk.Label(window, text="CalcLens", font=("Segoe UI", 20, "bold")).pack(pady=(18, 5))
+        tk.Label(window, textvariable=status, font=("Segoe UI", 11)).pack()
+        tk.Label(window, textvariable=details, font=("Segoe UI", 9), fg="#555555").pack(
+            pady=(5, 14)
+        )
+        buttons = tk.Frame(window)
+        buttons.pack()
+        open_label = "CalcLens 열기" if language == "ko" else "Open CalcLens"
+        stop_label = "종료" if language == "ko" else "Quit"
+        log_label = "진단 기록" if language == "ko" else "Diagnostics"
+        open_button = tk.Button(buttons, text=open_label, width=15, state=tk.DISABLED,
+                                command=lambda: _open_browser(url))
+        open_button.grid(row=0, column=0, padx=5)
+
+        def open_log() -> None:
+            _manager_log_event(log_stream, "diagnostics requested")
+            if hasattr(os, "startfile"):
+                try:
+                    os.startfile(log_path)  # type: ignore[attr-defined]
+                except OSError as error:
+                    messagebox.showerror(log_label, str(error))
+            else:
+                messagebox.showinfo(log_label, str(log_path))
+
+        tk.Button(buttons, text=log_label, width=15, command=open_log).grid(
+            row=0, column=1, padx=5
+        )
+
+        def close() -> None:
+            nonlocal requested_stop
+            requested_stop = True
+            _manager_log_event(log_stream, "close requested")
+            status.set("종료하는 중…" if language == "ko" else "Stopping…")
+            window.update_idletasks()
+            outcome = _stop_managed_process(process)
+            _manager_log_event(log_stream, f"server stop outcome={outcome}")
+            window.destroy()
+
+        tk.Button(buttons, text=stop_label, width=10, command=close).grid(
+            row=0, column=2, padx=5
+        )
+        window.protocol("WM_DELETE_WINDOW", close)
+
+        def poll() -> None:
+            nonlocal ready
+            code = process.poll()
+            if code is not None:
+                if not requested_stop:
+                    _manager_log_event(log_stream, f"server exited unexpectedly code={code}")
+                    status.set("시작하지 못했습니다" if language == "ko" else "CalcLens stopped")
+                    details.set(str(log_path))
+                    open_button.configure(state=tk.DISABLED)
+                return
+            if not ready and ready_path.is_file() and _health_is_ready(url):
+                ready = True
+                _manager_log_event(log_stream, "server ready; browser open requested")
+                status.set("실행 중" if language == "ko" else "Running")
+                open_button.configure(state=tk.NORMAL)
+                _open_browser(url)
+            window.after(250, poll)
+
+        _set_console_visible(False)
+        window.after(100, poll)
+        window.mainloop()
+    except tk.TclError as error:
+        raise OSError(f"Windows manager failed: {error}") from error
+    finally:
+        if process is not None and process.poll() is None:
+            outcome = _stop_managed_process(process)
+            if log_stream is not None:
+                _manager_log_event(log_stream, f"finalizer stop outcome={outcome}")
+        if ready_path is not None:
+            ready_path.unlink(missing_ok=True)
+        if log_stream is not None and not log_stream.closed:
+            _manager_log_event(log_stream, "manager finished")
+            log_stream.close()
+        if window is not None:
+            try:
+                window.destroy()
+            except tk.TclError:
+                pass
+    return 0 if requested_stop else int(process.returncode or 0)
+
+
 def _configure_text_streams() -> None:
     # Windows redirects otherwise inherit an ANSI encoding such as cp1252.
     # The isolated executable cannot rely on the build runner's PYTHONUTF8.
@@ -343,6 +554,27 @@ def _configure_text_streams() -> None:
                 pass
 
 
+def _configure_shutdown_signal():
+    """Turn a Windows CTRL_BREAK group signal into the normal KeyboardInterrupt path."""
+    if os.name != "nt" or not hasattr(signal, "SIGBREAK"):
+        return None
+    try:
+        previous = signal.getsignal(signal.SIGBREAK)
+        signal.signal(signal.SIGBREAK, signal.default_int_handler)
+        return previous
+    except (OSError, ValueError):
+        return None
+
+
+def _restore_shutdown_signal(previous) -> None:
+    if previous is None or os.name != "nt" or not hasattr(signal, "SIGBREAK"):
+        return
+    try:
+        signal.signal(signal.SIGBREAK, previous)
+    except (OSError, ValueError):
+        pass
+
+
 def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> int:
     _configure_text_streams()
     parser = argparse.ArgumentParser(description=__doc__)
@@ -353,6 +585,7 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
     inspection.add_argument("--self-test", action="store_true", help="Run offline bundle checks.")
     inspection.add_argument("--build-info", action="store_true", help="Print build metadata as JSON.")
     args = parser.parse_args(argv)
+    previous_shutdown_signal = _configure_shutdown_signal()
     stopped = threading.Event()
     language = args.language or "en"
     try:
@@ -375,6 +608,13 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
                 return 0
             port = choose_port(args.port)
             url = f"http://{HOST}:{port}"
+            if _should_use_manager(no_browser=args.no_browser):
+                try:
+                    return _run_windows_manager(url, port, language)
+                except (ImportError, OSError, RuntimeError) as error:
+                    _set_console_visible(True)
+                    print(f"Windows manager unavailable; using console mode: {error}",
+                          file=sys.stderr)
             _console_directions(url, language)
             started = threading.Event()
             if not args.no_browser:
@@ -391,6 +631,7 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
         return 1
     finally:
         stopped.set()
+        _restore_shutdown_signal(previous_shutdown_signal)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,6 @@ import io
 import math
 import re
 import warnings
-from bisect import insort
 from typing import Any
 
 import numpy as np
@@ -265,6 +264,49 @@ def _contact_order(contact: dict[str, Any]) -> tuple:
     )
 
 
+def _contact_record(
+    i: int,
+    j: int,
+    elements: list[str],
+    shift: np.ndarray,
+    distance: float,
+    *,
+    is_self_image: bool = False,
+) -> dict[str, Any]:
+    """Build one retained JSON contact after numeric screening is complete."""
+    return {
+        "i": int(i),
+        "j": int(j),
+        "element_i": elements[int(i)],
+        "element_j": elements[int(j)],
+        "shift": np.asarray(shift, dtype=int).tolist(),
+        "distance_angstrom": float(distance),
+        "is_self_image": is_self_image,
+    }
+
+
+def _pair_chunks(count: int, chunk_size: int = 2048):
+    """Yield upper-triangle index pairs without allocating quadratic arrays."""
+    if chunk_size < 1:
+        raise ValueError("Pair chunk size must be positive.")
+    buffer_i = np.empty(chunk_size, dtype=np.intp)
+    buffer_j = np.empty(chunk_size, dtype=np.intp)
+    used = 0
+    for i in range(max(0, count - 1)):
+        start = i + 1
+        while start < count:
+            take = min(chunk_size - used, count - start)
+            buffer_i[used:used + take] = i
+            buffer_j[used:used + take] = np.arange(start, start + take, dtype=np.intp)
+            used += take
+            start += take
+            if used == chunk_size:
+                yield buffer_i.copy(), buffer_j.copy()
+                used = 0
+    if used:
+        yield buffer_i[:used].copy(), buffer_j[:used].copy()
+
+
 def _distances(atoms: Atoms, threshold: float) -> tuple[dict[str, Any], list[dict[str, Any]], int, list[dict[str, Any]]]:
     cell = np.asarray(atoms.cell)
     elements = atoms.get_chemical_symbols()
@@ -274,18 +316,18 @@ def _distances(atoms: Atoms, threshold: float) -> tuple[dict[str, Any], list[dic
     # would otherwise omit along its zero diagonal.
     index = int(np.argmin(np.linalg.norm(reduced, axis=1)))
     self_distance = float(np.linalg.norm(reduced[index]))
-    self_shift = np.asarray(operation[index], dtype=int).tolist()
-    self_representative = {"i": 0, "j": 0, "element_i": elements[0], "element_j": elements[0], "shift": self_shift, "distance_angstrom": self_distance, "is_self_image": True}
+    self_shift = np.asarray(operation[index], dtype=int)
+    self_representative = _contact_record(
+        0, 0, elements, self_shift, self_distance, is_self_image=True
+    )
     minimum = self_representative
     contacts: list[dict[str, Any]] = []
 
-    def retain_contact(entry: dict[str, Any]) -> None:
+    def retain_contacts(entries: list[dict[str, Any]]) -> None:
         # Keep memory bounded independently of the number of screened pairs.
-        # A later overlap or shorter pair can displace an earlier ordinary one.
-        if len(contacts) < MAX_CONTACTS or _contact_order(entry) < _contact_order(contacts[-1]):
-            insort(contacts, entry, key=_contact_order)
-            if len(contacts) > MAX_CONTACTS:
-                contacts.pop()
+        # Later overlaps or shorter pairs can displace earlier ordinary ones.
+        nonlocal contacts
+        contacts = sorted([*contacts, *entries], key=_contact_order)[:MAX_CONTACTS]
 
     contact_count = 0
     overlap_count = 0
@@ -295,34 +337,67 @@ def _distances(atoms: Atoms, threshold: float) -> tuple[dict[str, Any], list[dic
     overlap_sites: set[int] = set()
     short_sites: set[int] = set()
     inverse = np.linalg.inv(cell)
-    pairs_i, pairs_j = np.triu_indices(len(atoms), k=1)
-    # Chunking bounds temporary arrays even for the maximum 400 sites.
-    for offset in range(0, len(pairs_i), 2048):
-        ii = pairs_i[offset:offset + 2048]
-        jj = pairs_j[offset:offset + 2048]
+    for ii, jj in _pair_chunks(len(atoms)):
         original = atoms.positions[jj] - atoms.positions[ii]
         vectors, lengths = find_mic(original, reduced, pbc=True)
         shifts = np.rint((vectors - original) @ inverse).astype(int)
-        for i, j, length, shift in zip(ii, jj, lengths, shifts):
-            entry = {"i": int(i), "j": int(j), "element_i": elements[i], "element_j": elements[j], "shift": shift.tolist(), "distance_angstrom": float(length), "is_self_image": False}
-            if length < minimum["distance_angstrom"]:
-                minimum = entry
-            if length <= OVERLAP_TOLERANCE:
-                overlap_count += 1
-                overlap_sites.update((int(i), int(j)))
-                if overlap_representative is None or length < overlap_representative["distance_angstrom"]:
-                    overlap_representative = entry
-            if length < threshold:
-                short_pair_count += 1
-                short_sites.update((int(i), int(j)))
-                contact_count += 1
-                if short_representative is None or length < short_representative["distance_angstrom"]:
-                    short_representative = entry
-                retain_contact(entry)
+
+        nearest_index = int(np.argmin(lengths))
+        if lengths[nearest_index] < minimum["distance_angstrom"]:
+            minimum = _contact_record(
+                ii[nearest_index], jj[nearest_index], elements, shifts[nearest_index],
+                lengths[nearest_index]
+            )
+
+        overlap_mask = lengths <= OVERLAP_TOLERANCE
+        if np.any(overlap_mask):
+            overlap_indices = np.flatnonzero(overlap_mask)
+            overlap_count += len(overlap_indices)
+            overlap_sites.update(map(int, ii[overlap_indices]))
+            overlap_sites.update(map(int, jj[overlap_indices]))
+            candidate = overlap_indices[int(np.argmin(lengths[overlap_indices]))]
+            if (overlap_representative is None
+                    or lengths[candidate] < overlap_representative["distance_angstrom"]):
+                overlap_representative = _contact_record(
+                    ii[candidate], jj[candidate], elements, shifts[candidate], lengths[candidate]
+                )
+
+        short_mask = lengths < threshold
+        if np.any(short_mask):
+            short_indices = np.flatnonzero(short_mask)
+            short_pair_count += len(short_indices)
+            contact_count += len(short_indices)
+            short_sites.update(map(int, ii[short_indices]))
+            short_sites.update(map(int, jj[short_indices]))
+            candidate = short_indices[int(np.argmin(lengths[short_indices]))]
+            if (short_representative is None
+                    or lengths[candidate] < short_representative["distance_angstrom"]):
+                short_representative = _contact_record(
+                    ii[candidate], jj[candidate], elements, shifts[candidate], lengths[candidate]
+                )
+
+            # Only the best MAX_CONTACTS entries in a chunk can enter the
+            # bounded global result. Numeric arrays carry all other pairs.
+            order = np.lexsort((
+                shifts[short_indices, 2],
+                shifts[short_indices, 1],
+                shifts[short_indices, 0],
+                jj[short_indices],
+                ii[short_indices],
+                lengths[short_indices],
+                ~overlap_mask[short_indices],
+            ))
+            retained = short_indices[order[:MAX_CONTACTS]]
+            retain_contacts([
+                _contact_record(ii[k], jj[k], elements, shifts[k], lengths[k])
+                for k in retained
+            ])
     if self_distance < threshold:
-        for i in range(len(atoms)):
-            contact_count += 1
-            retain_contact({"i": i, "j": i, "element_i": elements[i], "element_j": elements[i], "shift": self_shift, "distance_angstrom": self_distance, "is_self_image": True})
+        contact_count += len(atoms)
+        retain_contacts([
+            _contact_record(i, i, elements, self_shift, self_distance, is_self_image=True)
+            for i in range(min(len(atoms), MAX_CONTACTS))
+        ])
     # Neither dense overlaps nor many shorter self-images may hide another
     # distance issue's witness. These witnesses include the global minimum,
     # and need at most two distinct records (shortest pair and self-image).
@@ -342,6 +417,98 @@ def _distances(atoms: Atoms, threshold: float) -> tuple[dict[str, Any], list[dic
     if self_distance < threshold:
         issues.append(_issue("SELF_IMAGE_CONTACT", "warning", f"Each site has a periodic image only {self_distance:.6g} angstrom away. Inspect the cell dimensions and units.", atom_indices=list(range(len(atoms))), contact_count=len(atoms), representative_contact=self_representative))
     return minimum, contacts, contact_count, issues
+
+
+def _image_shift(value: Any, description: str) -> np.ndarray:
+    """Validate one absolute display-image shift."""
+    array = np.asarray(value)
+    if array.shape != (3,):
+        raise ValueError(f"{description} must contain exactly three integers.")
+    try:
+        numeric = array.astype(float)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError(f"{description} must contain exactly three integers.") from None
+    if not np.isfinite(numeric).all() or not np.equal(numeric, np.rint(numeric)).all():
+        raise ValueError(f"{description} must contain exactly three integers.")
+    return np.rint(numeric).astype(int)
+
+
+def measure_atom_pair(
+    report: dict[str, Any],
+    i: int,
+    j: int,
+    first_shift: tuple[int, int, int] | list[int] = (0, 0, 0),
+    second_shift: tuple[int, int, int] | list[int] = (0, 0, 0),
+) -> dict[str, Any]:
+    """Measure two displayed images and the sites' true minimum image.
+
+    The two nested contact records can be passed directly to
+    :func:`slab_preflight.plotting.structure_figure` as ``selected_contact``.
+    Their ``shift`` is the relative original-lattice image shift from ``i`` to
+    ``j``; ``start_shift`` and ``end_shift`` locate the displayed endpoints.
+    """
+    positions = np.asarray(report.get("positions"), dtype=float)
+    cell = np.asarray(report.get("cell"), dtype=float)
+    elements = report.get("elements")
+    if (positions.ndim != 2 or positions.shape[1:] != (3,) or cell.shape != (3, 3)
+            or not isinstance(elements, list) or len(elements) != len(positions)
+            or not np.isfinite(positions).all() or not np.isfinite(cell).all()):
+        raise ValueError("Measurement requires a complete finite CalcLens report.")
+    for index, name in ((i, "First atom index"), (j, "Second atom index")):
+        if (isinstance(index, (bool, np.bool_))
+                or not isinstance(index, (int, np.integer))
+                or not 0 <= int(index) < len(positions)):
+            raise ValueError(f"{name} is outside the report's atom index range.")
+    i, j = int(i), int(j)
+    if i == j:
+        raise ValueError("Select two distinct atom indices for a pair measurement.")
+    first = _image_shift(first_shift, "First display shift")
+    second = _image_shift(second_shift, "Second display shift")
+    pbc = np.asarray(report.get("periodic_axes", [True, True, True]), dtype=bool)
+    if pbc.shape != (3,):
+        raise ValueError("The report's periodic-axis metadata must contain three values.")
+    try:
+        inverse = np.linalg.inv(cell)
+    except np.linalg.LinAlgError:
+        raise ValueError("Measurement requires a nonsingular cell.") from None
+
+    base = positions[j] - positions[i]
+    displayed_shift = second - first
+    displayed_vector = base + displayed_shift @ cell
+    mic_vector, mic_distance = find_mic(base, cell, pbc=pbc)
+    mic_shift = np.rint((mic_vector - base) @ inverse).astype(int)
+
+    def contact(
+        relative_shift: np.ndarray,
+        start_shift: np.ndarray,
+        end_shift: np.ndarray,
+        vector: np.ndarray,
+        distance: float,
+        kind: str,
+    ) -> dict[str, Any]:
+        record = _contact_record(i, j, elements, relative_shift, distance)
+        record.update({
+            "start_shift": start_shift.tolist(),
+            "end_shift": end_shift.tolist(),
+            "displacement_cartesian": np.asarray(vector, dtype=float).tolist(),
+            "distance_kind": kind,
+        })
+        return record
+
+    return {
+        "i": i,
+        "j": j,
+        "element_i": elements[i],
+        "element_j": elements[j],
+        "displayed": contact(
+            displayed_shift, first, second, displayed_vector,
+            float(np.linalg.norm(displayed_vector)), "displayed"
+        ),
+        "minimum_image": contact(
+            mic_shift, first, first + mic_shift, mic_vector,
+            float(mic_distance), "minimum_image"
+        ),
+    }
 
 
 def analyze_cif(data: str | bytes, short_distance: float = 1.0, normal_axis: str = "c") -> dict[str, Any]:

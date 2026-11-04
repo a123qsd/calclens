@@ -12,27 +12,41 @@ from slab_preflight import project as project_module
 from slab_preflight.project import (
     FILTER_MODES,
     MAX_FILE_BYTES,
+    MAX_IMAGE_SHIFT,
     MAX_NOTE_LENGTH,
+    MAX_PAIR_SELECTIONS,
     MAX_PROJECT_FILES,
+    PROGRESS_FILTERS,
     REVIEW_FOCUSES,
+    PairSelection,
     Project,
     ProjectEntry,
     ProjectError,
+    add_entries,
     dumps_project,
     loads_project,
+    mark_reviewed,
+    refresh_review,
+    remove_entry,
+    replace_entry,
+    review_is_current,
 )
 
 
 def sample_project():
+    reviewed = mark_reviewed(ProjectEntry(
+        "first", "같은 이름.cif", b"data_original\r\n\xff\x00", "a", 0.1,
+        "첫 번째 구조\n원본 보존",
+        measurements=(PairSelection(0, 1, mode="displayed"),),
+    ))
     return Project(
         entries=[
-            ProjectEntry("first", "같은 이름.cif", b"data_original\r\n\xff\x00", "a", 0.1,
-                         "첫 번째 구조\n원본 보존", True),
+            reviewed,
             ProjectEntry("second", "같은 이름.cif", b"different\ncontent", "b", 3.0,
                          "Review <script> as plain text", False),
         ],
         selected_id="second", review_focus="short", filter_mode="needs_review",
-        calclens_version="0.1.0", ase_version="3.26.0",
+        progress_filter="reviewed",
     )
 
 
@@ -52,7 +66,7 @@ def test_roundtrip_preserves_binary_originals_duplicate_names_identity_and_revie
     assert reopened.entries[0].data != reopened.entries[1].data
     saved_document = json.loads(saved)
     assert saved_document["format"] == "calclens.project"
-    assert saved_document["schema_version"] == 1
+    assert saved_document["schema_version"] == 2
     for entry, embedded in zip(original.entries, saved_document["entries"]):
         assert base64.b64decode(embedded["cif_base64"]) == entry.data
         assert embedded["sha256"] == hashlib.sha256(entry.data).hexdigest()
@@ -78,8 +92,12 @@ def test_json_punctuation_in_notes_is_preserved_as_text(note):
 
 @pytest.mark.parametrize("focus", REVIEW_FOCUSES)
 @pytest.mark.parametrize("filter_mode", FILTER_MODES)
-def test_each_supported_review_position_and_filter_survives(focus, filter_mode):
-    original = replace(sample_project(), review_focus=focus, filter_mode=filter_mode)
+@pytest.mark.parametrize("progress_filter", PROGRESS_FILTERS)
+def test_each_supported_review_position_and_filter_survives(
+    focus, filter_mode, progress_filter,
+):
+    original = replace(sample_project(), review_focus=focus, filter_mode=filter_mode,
+                       progress_filter=progress_filter)
     assert loads_project(dumps_project(original)) == original
 
 
@@ -150,7 +168,7 @@ def test_json_size_is_checked_before_parsing(monkeypatch):
         dumps_project(sample_project())
 
 
-@pytest.mark.parametrize("version", [2, 0, True, 1.0, "1", None])
+@pytest.mark.parametrize("version", [3, 0, True, 1.0, "1", None])
 def test_unknown_or_wrongly_typed_schema_is_rejected(version):
     value = document()
     value["schema_version"] = version
@@ -247,6 +265,7 @@ def test_nonfinite_or_extreme_numeric_settings_are_rejected(cutoff):
 
 @pytest.mark.parametrize("field,invalid", [
     ("review_focus", "unknown"), ("review_focus", []), ("filter_mode", "unknown"),
+    ("progress_filter", "unknown"),
     ("selected_id", []), ("calclens_version", 2), ("ase_version", ""),
     ("ase_version", "x" * 81),
 ])
@@ -271,3 +290,144 @@ def test_input_must_be_json_bytes(data):
 def test_save_requires_bounded_original_bytes(data):
     with pytest.raises(ProjectError, match="original CIF bytes"):
         dumps_project(Project([ProjectEntry("one", "sample.cif", data)]))
+
+
+def test_review_stamp_tracks_engine_inputs_but_not_ui_only_app_version():
+    reviewed = mark_reviewed(ProjectEntry("one", "sample.cif", b"data"))
+    assert review_is_current(reviewed)
+    ui_version_changed = replace(
+        reviewed,
+        review_stamp=replace(reviewed.review_stamp, calclens_version="999.0-ui-only"),
+    )
+    assert review_is_current(ui_version_changed)
+
+    for changed in (
+        replace(reviewed, data=b"different"),
+        replace(reviewed, normal_axis="a"),
+        replace(reviewed, short_distance=2.0),
+        replace(reviewed, review_stamp=replace(
+            reviewed.review_stamp, analysis_revision="older-engine",
+        )),
+        replace(reviewed, review_stamp=replace(reviewed.review_stamp, ase_version="0.0")),
+    ):
+        refreshed = refresh_review(changed)
+        assert refreshed.reviewed is False
+        assert refreshed.review_stamp == changed.review_stamp
+
+
+def test_reviewed_without_current_stamp_is_rejected_on_save_and_cleared_on_load():
+    unstamped = Project([ProjectEntry("one", "sample.cif", b"data", reviewed=True)])
+    with pytest.raises(ProjectError, match="review stamp"):
+        dumps_project(unstamped)
+
+    value = document()
+    value["entries"][0]["review_stamp"] = None
+    reopened = loads_project(encode(value))
+    assert reopened.entries[0].reviewed is False
+    assert reopened.entries[0].review_stamp is None
+
+
+def test_schema_one_review_migrates_to_unreviewed_legacy_evidence_without_washout():
+    value = document()
+    value["schema_version"] = 1
+    del value["tools"]["analysis_revision"]
+    del value["state"]["progress_filter"]
+    for entry in value["entries"]:
+        del entry["review_stamp"]
+        del entry["measurements"]
+    assert value["entries"][0]["reviewed"] is True
+
+    migrated = loads_project(encode(value))
+
+    first = migrated.entries[0]
+    assert first.reviewed is False
+    assert first.review_stamp is not None
+    assert first.review_stamp.analysis_revision is None
+    assert first.review_stamp.sha256 == hashlib.sha256(first.data).hexdigest()
+    assert migrated.progress_filter == "all"
+    assert migrated.analysis_revision is None
+
+    reopened = loads_project(dumps_project(migrated))
+    assert reopened.entries[0].reviewed is False
+    assert reopened.entries[0].review_stamp == first.review_stamp
+
+
+def test_pair_selections_roundtrip_without_computed_distances_and_are_bounded():
+    original = sample_project()
+    encoded = dumps_project(original)
+    value = json.loads(encoded)
+    pair = value["entries"][0]["measurements"][0]
+    assert set(pair) == {"i", "j", "first_shift", "second_shift", "mode"}
+    assert "distance" not in json.dumps(pair)
+    assert loads_project(encoded) == original
+
+    value["entries"][0]["measurements"][0]["second_shift"] = [MAX_IMAGE_SHIFT + 1, 0, 0]
+    with pytest.raises(ProjectError, match="image shifts"):
+        loads_project(encode(value))
+
+    value = document()
+    value["entries"][0]["measurements"] = [
+        {"i": 0, "j": 1, "first_shift": [0, 0, 0], "second_shift": [0, 0, 0],
+         "mode": "minimum_image"}
+    ] * (MAX_PAIR_SELECTIONS + 1)
+    with pytest.raises(ProjectError, match="at most"):
+        loads_project(encode(value))
+
+
+def test_project_file_edits_are_atomic_and_preserve_unaffected_review_state():
+    original = sample_project()
+    addition = ProjectEntry("third", "new.cif", b"new data")
+    added = add_entries(original, [addition])
+    assert original.entries == sample_project().entries
+    assert added.entries[-1] == addition
+
+    reviewed = original.entries[0]
+    renamed = replace_entry(original, reviewed.id, "renamed.cif", reviewed.data)
+    assert renamed.entries[0].reviewed is True
+    assert renamed.entries[0].review_stamp == reviewed.review_stamp
+    assert renamed.entries[0].measurements == reviewed.measurements
+
+    replaced_project = replace_entry(original, reviewed.id, "replacement.cif", b"replacement")
+    replaced_entry = replaced_project.entries[0]
+    assert replaced_entry.id == reviewed.id
+    assert replaced_entry.note == reviewed.note
+    assert replaced_entry.normal_axis == reviewed.normal_axis
+    assert replaced_entry.reviewed is False
+    assert replaced_entry.review_stamp == reviewed.review_stamp
+    assert replaced_entry.measurements == ()
+
+    removed = remove_entry(original, "second")
+    assert [entry.id for entry in removed.entries] == ["first"]
+    assert removed.selected_id == "first"
+    with pytest.raises(ProjectError, match="at least one"):
+        remove_entry(removed, "first")
+    with pytest.raises(ProjectError, match="does not identify"):
+        replace_entry(original, "missing", "x.cif", b"x")
+    with pytest.raises(ProjectError, match="does not identify"):
+        remove_entry(original, "missing")
+
+
+def test_add_entries_rejects_duplicate_or_excess_files_without_mutating_source():
+    original = sample_project()
+    before = list(original.entries)
+    with pytest.raises(ProjectError, match="IDs must be unique"):
+        add_entries(original, [replace(original.entries[0], filename="duplicate.cif")])
+    assert original.entries == before
+
+    full = Project([
+        ProjectEntry(str(index), f"{index}.cif", b"data")
+        for index in range(MAX_PROJECT_FILES)
+    ])
+    with pytest.raises(ProjectError, match="between 1 and 20"):
+        add_entries(full, [ProjectEntry("extra", "extra.cif", b"data")])
+
+
+def test_pair_selection_requires_distinct_sites_on_save_and_load():
+    original = sample_project()
+    invalid = replace(original.entries[0], measurements=(PairSelection(0, 0),))
+    with pytest.raises(ProjectError, match="distinct"):
+        dumps_project(replace(original, entries=[invalid], selected_id=invalid.id))
+    value = json.loads(dumps_project(original))
+    value["entries"][0]["measurements"][0]["j"] = 0
+    with pytest.raises(ProjectError, match="distinct"):
+        loads_project(encode(value))

@@ -7,9 +7,8 @@ from uuid import uuid4
 
 import ase
 
-from . import __version__
 from .batch import MAX_BATCH_FILES, BatchInput, analyze_batch
-from .project import ProjectEntry
+from .project import ANALYSIS_REVISION, ProjectEntry, refresh_review
 from .provenance import with_provenance
 
 MAX_CACHED_RESULTS = 40
@@ -33,8 +32,12 @@ def reconcile_uploads(uploads, previous: list[tuple[object, ProjectEntry]]):
                  else ProjectEntry(uuid4().hex, upload.name, upload.getvalue()))
         raw = upload.getvalue()
         changed = raw != entry.data
-        records.append((upload, replace(entry, filename=upload.name, data=raw,
-                                        reviewed=False if changed else entry.reviewed)))
+        updated = replace(
+            entry, filename=upload.name, data=raw,
+            reviewed=False if changed else entry.reviewed,
+            measurements=() if changed else entry.measurements,
+        )
+        records.append((upload, refresh_review(updated)))
     return records
 
 
@@ -49,7 +52,7 @@ def cached_batch(inputs: list[BatchInput], cache: dict) -> list[dict]:
     results = []
     for item in inputs:
         key = (hashlib.sha256(item.data).hexdigest(), item.normal_axis,
-               item.short_distance, __version__, ase.__version__)
+               item.short_distance, ANALYSIS_REVISION, ase.__version__)
         if key not in cache:
             cache[key] = analyze_batch([
                 BatchInput("", item.data, item.normal_axis, item.short_distance)

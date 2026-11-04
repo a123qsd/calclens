@@ -9,7 +9,7 @@ import pytest
 
 from ase import Atoms
 
-from slab_preflight.core import UnsupportedStructure, _distances, analyze_cif
+from slab_preflight.core import UnsupportedStructure, _distances, _pair_chunks, analyze_cif
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -37,6 +37,19 @@ def brute_periodic_minimum(cell, fractional, extent=3):
             vectors = (second - first + valid_shifts) @ np.asarray(cell)
             best = min(best, float(np.linalg.norm(vectors, axis=1).min()))
     return best
+
+
+@pytest.mark.parametrize("count,chunk_size", [(1, 3), (2, 3), (7, 4), (400, 2048)])
+def test_pair_chunks_cover_upper_triangle_once_with_bounded_arrays(count, chunk_size):
+    chunks = list(_pair_chunks(count, chunk_size=chunk_size))
+    pairs = [
+        (int(i), int(j))
+        for ii, jj in chunks
+        for i, j in zip(ii, jj)
+    ]
+
+    assert all(len(ii) == len(jj) <= chunk_size for ii, jj in chunks)
+    assert pairs == [(i, j) for i in range(count) for j in range(i + 1, count)]
 
 
 @pytest.mark.parametrize(

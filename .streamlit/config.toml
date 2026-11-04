@@ -9,4 +9,8 @@ headless = true
 [theme]
 base = "light"
 primaryColor = "#009D91"
+textColor = "#172331"
+
+[theme.sidebar]
+textColor = "#172331"
 

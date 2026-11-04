@@ -7,16 +7,21 @@ import json
 import os
 from dataclasses import replace
 from pathlib import Path
+from uuid import uuid4
 
 import ase
+import numpy as np
 import streamlit as st
 
 from slab_preflight import __version__
 from slab_preflight.batch import MAX_BATCH_FILES, BatchInput, batch_csv, batch_rows
-from slab_preflight.core import UnsupportedStructure, analyze_cif
+from slab_preflight.core import UnsupportedStructure, measure_atom_pair
 from slab_preflight.plotting import profile_figure, structure_figure
-from slab_preflight.project import Project, ProjectError, dumps_project, loads_project
-from slab_preflight.provenance import with_provenance
+from slab_preflight.project import (
+    ANALYSIS_REVISION, PairSelection, Project, ProjectEntry, ProjectError,
+    add_entries, dumps_project, loads_project,
+    mark_reviewed, refresh_review, remove_entry, replace_entry,
+)
 from slab_preflight.review import cached_batch, reconcile_uploads
 from slab_preflight.reporting import (
     localized_error_message,
@@ -44,6 +49,7 @@ h3 {font-size:1.12rem !important;}
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"],[data-testid="stSidebar"] summary {color:#d6e0ec !important;}
 [data-testid="stSidebar"] [data-baseweb="select"] > div,[data-testid="stSidebar"] [data-baseweb="input"] {background:#1a3046; color:#f3f7fc; border-color:#334b61;}
 [data-testid="stSidebar"] input {color:#172331 !important;}
+[data-testid="stSidebar"] button p {color:#172331 !important;}
 [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] * {color:#172331 !important;}
 #overview, #review-checks, #method-notes {scroll-margin-top:5rem;}
 [data-testid="stSidebar"] hr {border-color:#32475c;}
@@ -149,6 +155,8 @@ def sync_entry(widget_key: str, entry_source: str, entry_id: str, field: str) ->
     def update(entry):
         if entry.id != entry_id:
             return entry
+        if field == "reviewed":
+            return mark_reviewed(entry, value)
         changes = {field: value}
         if field in ("normal_axis", "short_distance") and getattr(entry, field) != value:
             changes["reviewed"] = False
@@ -162,6 +170,212 @@ def sync_entry(widget_key: str, entry_source: str, entry_id: str, field: str) ->
         st.session_state["project_entries"] = [
             update(entry) for entry in st.session_state["project_entries"]
         ]
+
+
+def restore_project(project: Project) -> None:
+    """Install a validated snapshot before its entry widgets are rendered."""
+    st.session_state["project_entries"] = [refresh_review(item) for item in project.entries]
+    st.session_state["project_selected_id"] = project.selected_id
+    st.session_state["batch_filter"] = project.filter_mode
+    st.session_state["progress_filter"] = project.progress_filter
+    st.session_state["review_focus"] = project.review_focus
+    st.session_state["project_generation"] = st.session_state.get("project_generation", 0) + 1
+
+
+def project_snapshot() -> Project:
+    return Project(
+        st.session_state["project_entries"],
+        selected_id=st.session_state.get("project_selected_id"),
+        review_focus=st.session_state.get("review_focus", "overview"),
+        filter_mode=st.session_state.get("batch_filter", "all"),
+        progress_filter=st.session_state.get("progress_filter", "all"),
+    )
+
+
+def project_editor() -> None:
+    with st.expander(t("작업의 CIF 추가·교체·삭제", "Add, replace or remove project CIFs")):
+        current = project_snapshot()
+        generation = st.session_state.get("project_generation", 0)
+        additions = st.file_uploader(
+            t("추가할 CIF", "CIFs to add"), type=["cif"], accept_multiple_files=True,
+            max_upload_size=2, key=f"project_add_upload_{generation}",
+        )
+        if st.button(t("파일 추가", "Add files"), key="project_add", disabled=not additions):
+            try:
+                changed = add_entries(current, [
+                    ProjectEntry(uuid4().hex, item.name, item.getvalue()) for item in additions
+                ])
+            except ProjectError as exc:
+                st.error(str(exc))
+            else:
+                restore_project(changed)
+                st.rerun()
+        names_by_id = {item.id: f"{i + 1}. {item.filename}"
+                       for i, item in enumerate(current.entries)}
+        target_id = localized_selectbox(
+            t("편집할 파일", "File to edit"), list(names_by_id), key="project_edit_target",
+            format_func=names_by_id.get,
+        )
+        replacement = st.file_uploader(
+            t("교체할 CIF", "Replacement CIF"), type=["cif"], max_upload_size=2,
+            key=f"project_replace_upload_{generation}",
+        )
+        if st.button(t("선택 파일 교체", "Replace selected file"), key="project_replace",
+                     disabled=replacement is None):
+            try:
+                changed = replace_entry(current, target_id, replacement.name, replacement.getvalue())
+            except ProjectError as exc:
+                st.error(str(exc))
+            else:
+                restore_project(changed)
+                st.rerun()
+        st.caption(t("교체 시 메모와 조건은 유지하고, 원본이 바뀌면 검토 완료와 저장한 거리 선택을 초기화합니다.", "Replacement keeps notes and settings. Changed bytes clear review completion and saved pair selections."))
+        if st.button(t("선택 파일을 작업에서 삭제", "Remove selected file from project"),
+                     key="project_remove", disabled=len(current.entries) <= 1):
+            restore_project(remove_entry(current, target_id))
+            st.rerun()
+        st.caption(t("원본 파일은 지우지 않습니다. 작업에는 파일을 하나 이상 남겨 주세요.", "Original files are not deleted. Keep at least one file in the project."))
+
+
+def compare_structures(entries, results) -> None:
+    available = {item.id: result for item, result in zip(entries, results) if result["report"]}
+    if len(available) < 2:
+        return
+    if not st.checkbox(t("두 구조 나란히 비교", "Compare two structures side by side"),
+                       key="show_comparison"):
+        return
+    labels = {item.id: f"{i + 1}. {item.filename}" for i, item in enumerate(entries)}
+    left, right = st.columns(2)
+    with left:
+        before_id = localized_selectbox(t("변경 전 / 기준", "Before / reference"),
+                                        list(available), key="compare_before", format_func=labels.get)
+    with right:
+        after_id = localized_selectbox(t("변경 후 / 비교", "After / comparison"),
+                                       [key for key in available if key != before_id],
+                                       key="compare_after", format_func=labels.get)
+    before, after = available[before_id]["report"], available[after_id]["report"]
+    for column, item, side in ((left, before, "before"), (right, after, "after")):
+        column.write(f"**{item['formula']} · {item['atom_count']} " + t("개 원자**", "sites**"))
+        column.caption(t(f"선택 축 {item['normal_axis']} · 기준 {item['short_distance_threshold_angstrom']:g} Å",
+                         f"Normal {item['normal_axis']} · cutoff {item['short_distance_threshold_angstrom']:g} Å"))
+        column.plotly_chart(structure_figure(item, 1, True, ko), width="stretch",
+                            key=f"comparison_{side}_plot", config={"displaylogo": False})
+    comparisons = []
+    for key, korean, english in (
+        ("minimum_distance_angstrom", "최소 주기적 거리 / Å", "Minimum periodic distance / Å"),
+        ("nuclei_thickness_angstrom", "핵 두께 / Å", "Nuclear-span thickness / Å"),
+        ("nuclei_gap_angstrom", "핵 간격 / Å", "Nuclear gap / Å"),
+    ):
+        a, b = before["metrics"][key], after["metrics"][key]
+        comparisons.append({t("지표", "Metric"): t(korean, english), t("기준", "Before"): a,
+                            t("비교", "After"): b, t("변화량", "Change"): b - a})
+    for axis, a, b in zip("abc", np.linalg.norm(before["cell"], axis=1),
+                          np.linalg.norm(after["cell"], axis=1)):
+        comparisons.append({t("지표", "Metric"): f"{axis} / Å", t("기준", "Before"): float(a),
+                            t("비교", "After"): float(b), t("변화량", "Change"): float(b - a)})
+    st.dataframe(comparisons, hide_index=True, width="stretch")
+    with st.expander(t("셀 벡터 비교 / Å", "Compare cell vectors / Å")):
+        st.json({"before": before["cell"], "after": after["cell"]})
+    before_codes = {item["code"] for item in before["issues"] if item["severity"] in ("error", "warning")}
+    after_codes = {item["code"] for item in after["issues"] if item["severity"] in ("error", "warning")}
+    st.write(t("새 경고: ", "Added flags: ") + (", ".join(sorted(after_codes - before_codes)) or "—"))
+    st.write(t("사라진 경고: ", "Removed flags: ") + (", ".join(sorted(before_codes - after_codes)) or "—"))
+    st.caption(t("변화량은 비교 − 기준입니다. 파일별 축·거리 기준을 확인하세요. 원자 대응이나 RMSD를 계산하지 않습니다.", "Change is after minus before. Check each file's axis and cutoff. Atom correspondence and RMSD are not calculated."))
+
+
+def pair_measurement(report, original, filename):
+    """Keep pair definitions in work; calculate their values from current geometry."""
+    if not st.checkbox(t("원하는 두 원자 거리 측정", "Measure a chosen atom pair"),
+                       key="measure_pair_enabled"):
+        return None
+    if report["atom_count"] < 2:
+        st.info(t("서로 다른 원자가 두 개 이상 필요합니다. 자기 주기상은 최근접 원자쌍에서 확인하세요.", "Choose a structure with at least two distinct sites. Use Nearest atom pair for self images."))
+        return None
+    if source in ("batch", "project"):
+        current = entries[selected_index]
+    else:
+        current = st.session_state.get("single_measurement_entry")
+        if current is None or current.data != original:
+            current = ProjectEntry(uuid4().hex, filename, original)
+        current = refresh_review(replace(current, filename=filename, normal_axis=normal_axis,
+                                         short_distance=float(threshold)))
+        st.session_state["single_measurement_entry"] = current
+    prefix = f"measure_{current.id}"
+
+    def store_pairs(pairs):
+        changed = replace(current, measurements=tuple(pairs))
+        if source == "batch":
+            st.session_state["upload_records"] = [
+                (upload, changed if item.id == current.id else item)
+                for upload, item in st.session_state["upload_records"]
+            ]
+        elif source == "project":
+            st.session_state["project_entries"] = [
+                changed if item.id == current.id else item
+                for item in st.session_state["project_entries"]
+            ]
+        else:
+            st.session_state["single_measurement_entry"] = changed
+
+    if current.measurements:
+        saved_index = st.selectbox(
+            t("저장한 거리 선택", "Saved pair selection"), list(range(len(current.measurements))),
+            format_func=lambda index: f"{index + 1}. {current.measurements[index].i + 1}–{current.measurements[index].j + 1}",
+            key=f"{prefix}_saved",
+        )
+        saved = current.measurements[saved_index]
+        if st.button(t("저장한 선택 보기", "Show saved selection"), key=f"{prefix}_load"):
+            if max(saved.i, saved.j) >= report["atom_count"] or saved.i == saved.j:
+                st.warning(t("이 원자 선택은 현재 구조에서 사용할 수 없습니다.", "This pair selection is unavailable in the current structure."))
+            else:
+                st.session_state[f"{prefix}_i"] = saved.i
+                st.session_state[f"{prefix}_j"] = saved.j
+                st.session_state[f"{prefix}_mode"] = saved.mode
+                for endpoint, shift in (("first", saved.first_shift), ("second", saved.second_shift)):
+                    for axis, value in zip("abc", shift):
+                        st.session_state[f"{prefix}_{endpoint}_{axis}"] = value
+        if st.button(t("저장한 거리 선택 비우기", "Clear saved pair selections"), key=f"{prefix}_clear"):
+            store_pairs(())
+            st.rerun()
+    def label(index):
+        return f"{report['elements'][index]}{index + 1}"
+    i = st.selectbox(t("첫 번째 원자", "First site"), list(range(report["atom_count"])),
+                     format_func=label, key=f"{prefix}_i")
+    options = [index for index in range(report["atom_count"]) if index != i]
+    if st.session_state.get(f"{prefix}_j") not in options:
+        st.session_state[f"{prefix}_j"] = options[0]
+    j = st.selectbox(t("두 번째 원자", "Second site"), options, format_func=label, key=f"{prefix}_j")
+    shifts = []
+    with st.expander(t("표시할 주기상 선택 [a,b,c]", "Choose displayed images [a,b,c]")):
+        st.caption(t("0,0,0은 입력 셀입니다. 각 이동은 입력 셀 벡터의 정수 배입니다.", "0,0,0 denotes the input cell. Each shift is an integer multiple of a cell vector."))
+        for endpoint, text in (("first", t("첫 원자", "First site")), ("second", t("둘째 원자", "Second site"))):
+            columns = st.columns(3)
+            shifts.append(tuple(int(column.number_input(
+                f"{text} · {axis}", min_value=-9, max_value=9, value=0, step=1,
+                key=f"{prefix}_{endpoint}_{axis}",
+            )) for column, axis in zip(columns, "abc")))
+    measured = measure_atom_pair(report, i, j, shifts[0], shifts[1])
+    modes = {"minimum_image": t("가장 짧은 주기적 거리", "Minimum-image distance"),
+             "displayed": t("선택한 두 이미지의 거리", "Distance between selected images")}
+    mode = st.selectbox(t("그림에 표시할 거리", "Distance to draw"), list(modes),
+                        format_func=modes.get, key=f"{prefix}_mode")
+    for kind in modes:
+        st.write(f"**{modes[kind]}: {measured[kind]['distance_angstrom']:.6f} Å**")
+    st.caption(t(f"최단 거리 상대 이동 [a,b,c]: {measured['minimum_image']['shift']}",
+                     f"Minimum-image relative shift [a,b,c]: {measured['minimum_image']['shift']}"))
+    selection = PairSelection(i, j, shifts[0], shifts[1], mode)
+    if st.button(t("이 거리 선택을 작업에 기록", "Save this pair selection to work"),
+                 key=f"{prefix}_save", disabled=selection in current.measurements or len(current.measurements) >= 50):
+        store_pairs((*current.measurements, selection))
+        st.rerun()
+    st.caption(t(f"{len(current.measurements)}/50개 기록 · 저장한 선택은 작업을 열 때 현재 엔진으로 다시 계산합니다.",
+                     f"{len(current.measurements)}/50 saved · Saved selections are recalculated with the current engine on reopening."))
+    if source not in ("batch", "project"):
+        st.download_button(t("거리 선택을 포함한 작업 저장", "Save work with pair selections"),
+                           data=dumps_project(Project([current], selected_id=current.id)),
+                           file_name="calclens_work.calclens.json", mime="application/json",
+                           key="download_single_project")
+    return measured[mode]
 
 
 header[0].title(t("구조 개요", "Structure overview"), anchor="overview")
@@ -217,15 +431,10 @@ with st.sidebar:
             except ProjectError as exc:
                 st.error(t("작업 파일을 열 수 없습니다: ", "Cannot open project: ") + str(exc))
             else:
-                st.session_state["project_entries"] = project.entries
-                st.session_state["project_selected_id"] = project.selected_id
-                st.session_state["batch_filter"] = project.filter_mode
-                st.session_state["review_focus"] = project.review_focus
-                st.session_state["project_versions"] = (project.calclens_version, project.ase_version)
-                st.session_state["project_generation"] = st.session_state.get("project_generation", 0) + 1
-                for entry in project.entries:
-                    for prefix, value in (("batch_axis", entry.normal_axis), ("batch_cutoff", entry.short_distance), ("review_note", entry.note), ("review_done", entry.reviewed)):
-                        st.session_state[f"{prefix}_project_{entry.id}"] = value
+                restore_project(project)
+                st.session_state["project_versions"] = (
+                    project.calclens_version, project.ase_version, project.analysis_revision,
+                )
                 st.success(t("저장한 작업을 불러왔습니다.", "Saved work opened."))
         st.caption(t("원본 CIF와 측정 조건·메모를 복원합니다. 결과는 현재 버전으로 계산합니다.", "Restores original CIFs, conditions and notes. Results use the current analysis version."))
     if source != "examples":
@@ -268,12 +477,14 @@ if source in ("batch", "project"):
         st.session_state["upload_records"] = records
         entries = [entry for _, entry in records]
     else:
+        if st.session_state.get("project_entries"):
+            project_editor()
         entries = st.session_state.get("project_entries", [])
         versions = st.session_state.get("project_versions")
-        if versions and versions != (__version__, ase.__version__):
+        if versions and versions != (__version__, ase.__version__, ANALYSIS_REVISION):
             st.warning(t(
-                f"저장 당시 버전은 CalcLens {versions[0]} · ASE {versions[1]}입니다. 현재 CalcLens {__version__} · ASE {ase.__version__}로 다시 분석합니다.",
-                f"Saved with CalcLens {versions[0]} · ASE {versions[1]}. Reanalyzing with current CalcLens {__version__} · ASE {ase.__version__}.",
+                f"저장 당시 버전은 CalcLens {versions[0]} · ASE {versions[1]} · 계산 {versions[2] or '기록 없음'}입니다. 현재 CalcLens {__version__} · ASE {ase.__version__} · 계산 {ANALYSIS_REVISION}로 다시 분석합니다.",
+                f"Saved with CalcLens {versions[0]} · ASE {versions[1]} · analysis {versions[2] or 'unrecorded'}. Reanalyzing with current CalcLens {__version__} · ASE {ase.__version__} · analysis {ANALYSIS_REVISION}.",
             ))
     if not entries:
         st.info(t("왼쪽에서 CIF 파일이나 저장한 작업을 선택하세요.", "Choose CIF files or open saved work in the sidebar."))
@@ -313,19 +524,32 @@ if source in ("batch", "project"):
     batch_language = "ko" if ko else "en"
     filters = {"all": t("전체", "All"), "needs_review": t("검토 필요", "Needs review"), "unsupported": t("입력 오류", "Input errors")}
     filter_mode = localized_radio(t("표시할 파일", "Files to show"), list(filters), key="batch_filter", format_func=filters.get, horizontal=True)
+    progress_labels = {"all": t("전체", "All"), "unreviewed": t("미검토", "Unreviewed"),
+                       "reviewed": t("검토 완료", "Reviewed")}
+    progress_filter = localized_radio(
+        t("검토 진행 상황", "Review progress"), list(progress_labels), key="progress_filter",
+        format_func=progress_labels.get, horizontal=True,
+    )
     all_rows = batch_rows(results, "en")
     visible_indices = [i for i, row in enumerate(all_rows)
-                       if filter_mode == "all"
+                       if (filter_mode == "all"
                        or (filter_mode == "needs_review" and row["status"] == "review_required")
-                       or (filter_mode == "unsupported" and row["status"] == "unsupported")]
+                       or (filter_mode == "unsupported" and row["status"] == "unsupported"))
+                       and (progress_filter == "all"
+                            or (progress_filter == "reviewed" and entries[i].reviewed)
+                            or (progress_filter == "unreviewed" and not entries[i].reviewed))]
     visible_results = [results[i] for i in visible_indices]
     rows = batch_rows(visible_results, batch_language)
     detail_fields = {"formula", "atom_count", "sha256", "calclens_version", "ase_version", "error"} if not ko else {"조성", "원자 수", "SHA-256", "CalcLens 버전", "ASE 버전", "입력 오류"}
     rows = [{key: value for key, value in row.items() if key not in detail_fields} for row in rows]
+    for row, index in zip(rows, visible_indices):
+        row[t("검토 진행", "Review progress")] = progress_labels[
+            "reviewed" if entries[index].reviewed else "unreviewed"
+        ]
     # A remounted table discards positional events. The logical selection lives
     # separately as an entry ID, so changed settings/order do not change files.
     fingerprint = hashlib.sha256(json.dumps([
-        source, filter_mode, st.session_state.get("project_generation", 0),
+        source, filter_mode, progress_filter, st.session_state.get("project_generation", 0),
         [(entries[i].id, results[i]["sha256"], inputs[i].normal_axis, inputs[i].short_distance)
          for i in visible_indices],
     ]).encode()).hexdigest()[:16]
@@ -362,11 +586,19 @@ if source in ("batch", "project"):
                                     on_change=sync_entry, args=(done_key, source, entry.id, "reviewed"))
             entries[selected_index] = replace(entry, note=note, reviewed=reviewed)
             keep_entries()
+            if entry.review_stamp is not None:
+                stamp = entry.review_stamp
+                st.caption(t(
+                    f"검토 기록: CalcLens {stamp.calclens_version} · ASE {stamp.ase_version} · 계산 {stamp.analysis_revision or '기록 없음'}",
+                    f"Review record: CalcLens {stamp.calclens_version} · ASE {stamp.ase_version} · analysis {stamp.analysis_revision or 'unrecorded'}",
+                ))
+                if not entry.reviewed:
+                    st.info(t("이전 검토 기록을 보존하고 있습니다. 현재 결과를 확인한 뒤 검토 완료를 표시하세요.", "The previous review record is preserved. Review the current result before marking it complete."))
             st.caption(t(f"{sum(item.reviewed for item in entries)}/{len(entries)}개 검토 완료 · 입력이나 측정 조건을 바꾸면 완료 표시가 해제됩니다.", f"{sum(item.reviewed for item in entries)}/{len(entries)} reviewed · Input or measurement changes clear the completion mark."))
     try:
         project_data = dumps_project(Project(entries, selected_id=st.session_state[selected_key],
                                              review_focus=st.session_state.get("review_focus", "overview"),
-                                             filter_mode=filter_mode))
+                                             filter_mode=filter_mode, progress_filter=progress_filter))
     except ProjectError as exc:
         save_col.warning(t("작업을 저장할 수 없습니다: ", "Cannot save project: ") + str(exc))
     else:
@@ -376,6 +608,7 @@ if source in ("batch", "project"):
     if not visible_indices:
         st.info(t("이 필터에 해당하는 파일이 없습니다.", "No files match this filter."))
         st.stop()
+    compare_structures(entries, results)
     selected = results[selected_index]
     filename = selected["filename"]
     data = inputs[selected_index].data
@@ -402,7 +635,13 @@ if len(data) > MAX_BYTES:
     st.stop()
 try:
     if report is None:
-        report = with_provenance(analyze_cif(data, short_distance=float(threshold), normal_axis=normal_axis), data, filename)
+        single_result = cached_batch(
+            [BatchInput(filename, data, normal_axis, float(threshold))],
+            st.session_state.setdefault("analysis_cache", {}),
+        )[0]
+        report = single_result["report"]
+        if report is None:
+            raise UnsupportedStructure(single_result["error"])
 except (UnsupportedStructure, ValueError) as exc:
     st.error(t("이 입력은 현재 지원 범위에서 해석할 수 없습니다.", "This input cannot be interpreted within the supported scope."))
     original_reason = str(exc)
@@ -504,6 +743,10 @@ with review, st.container(border=True, key="review_card"):
     if focus == "overview":
         flag_count = sum(item["severity"] in ("error", "warning") for item in issues)
         st.caption(t(f"검토 경고 {flag_count}개 · 겹침 기준 {overlap_tolerance:g} Å", f"{flag_count} review flags · overlap tolerance {overlap_tolerance:g} Å"))
+    measured_contact = pair_measurement(report, data, filename)
+    if measured_contact is not None:
+        selected_contact = measured_contact
+        highlighted_atoms = [selected_contact["i"], selected_contact["j"]]
     st.markdown("**" + t(f"{normal_axis} 방향 원자 분포", f"Nuclei along {normal_axis}") + "**")
     st.plotly_chart(profile_figure(report, ko, highlight_gap=focus == "gap"), width="stretch", key="profile_plot", config={"displayModeBar": False})
     st.caption(t("색 영역은 최대 순환 핵 간격입니다. 선택 축과 실제 층 방향이 맞는지 확인하세요.", "Shading marks the largest cyclic nuclear gap. Check that the selected axis matches the physical layer normal."))

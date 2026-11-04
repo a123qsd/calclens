@@ -77,19 +77,41 @@ def structure_figure(
     if selected_contact is not None:
         i, j = selected_contact["i"], selected_contact["j"]
         shift = np.asarray(selected_contact["shift"], dtype=int)
-        start = positions[i]
-        end = positions[j] + shift @ cell
+        start_shift = np.asarray(selected_contact.get("start_shift", [0, 0, 0]), dtype=int)
+        end_shift = np.asarray(
+            selected_contact.get("end_shift", start_shift + shift), dtype=int
+        )
+        start = positions[i] + start_shift @ cell
+        end = positions[j] + end_shift @ cell
+        distance_kind = selected_contact.get("distance_kind")
+        kind_label = (
+            ("표시된 이미지 거리" if korean else "Displayed-image distance")
+            if distance_kind == "displayed"
+            else ("최단 주기 거리" if korean else "Minimum-image distance")
+            if distance_kind == "minimum_image"
+            else ("거리" if korean else "Distance")
+        )
         fig.add_trace(go.Scatter3d(
             x=[start[0], end[0]], y=[start[1], end[1]], z=[start[2], end[2]], mode="lines",
             line=dict(color="#D45B61", width=7), name="선택 거리" if korean else "Selected distance",
-            meta={"role": "contact_line", "i": i, "j": j, "shift": shift.tolist()},
-            hovertemplate=f"{elements[i]}{i+1} → {elements[j]}{j+1} {shift.tolist()}<br>{selected_contact['distance_angstrom']:.6f} Å<extra></extra>",
+            meta={
+                "role": "contact_line", "i": i, "j": j, "shift": shift.tolist(),
+                "start_shift": start_shift.tolist(), "end_shift": end_shift.tolist(),
+            },
+            hovertemplate=(
+                f"{elements[i]}{i+1} + {start_shift.tolist()} → "
+                f"{elements[j]}{j+1} + {end_shift.tolist()}<br>"
+                f"{kind_label}: {selected_contact['distance_angstrom']:.6f} Å<extra></extra>"
+            ),
         ))
         fig.add_trace(go.Scatter3d(
             x=[end[0]], y=[end[1]], z=[end[2]], mode="markers", name="거리 측정 상대상" if korean else "Distance partner image",
             marker=dict(size=13, color="#D45B61", symbol="diamond-open", line=dict(color="#D45B61", width=3)),
-            meta={"role": "contact_image", "atom_index": j, "shift": shift.tolist()},
-            hovertemplate=f"{elements[j]}{j+1} + {shift.tolist()}<br>x %{{x:.4f}} Å · y %{{y:.4f}} Å · z %{{z:.4f}} Å<extra></extra>",
+            meta={
+                "role": "contact_image", "atom_index": j, "shift": shift.tolist(),
+                "end_shift": end_shift.tolist(),
+            },
+            hovertemplate=f"{elements[j]}{j+1} + {end_shift.tolist()}<br>x %{{x:.4f}} Å · y %{{y:.4f}} Å · z %{{z:.4f}} Å<extra></extra>",
         ))
         midpoint = (start + end) / 2
         fig.add_trace(go.Scatter3d(

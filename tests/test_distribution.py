@@ -87,6 +87,7 @@ def test_launcher_resolves_locale_and_keeps_parent_environment(tmp_path, monkeyp
     if marker:
         (tmp_path / "DEFAULT_LANGUAGE.txt").write_text(marker + "\n")
     monkeypatch.setenv("CALCLENS_LANGUAGE", "parent-value")
+    monkeypatch.setenv("STREAMLIT_SERVER_BASE_URL_PATH", "inherited-prefix")
     calls = []
 
     def fake_run(command, **options):
@@ -102,6 +103,7 @@ def test_launcher_resolves_locale_and_keeps_parent_environment(tmp_path, monkeyp
     assert command[:4] == [sys.executable, "-m", "streamlit", "run"]
     assert "--server.address=127.0.0.1" in command
     assert "--server.port=8501" in command
+    assert "--server.baseUrlPath=" in command
     assert "--browser.gatherUsageStats=false" in command
     assert options["cwd"] == tmp_path.resolve()
     assert options["env"]["CALCLENS_LANGUAGE"] == expected

@@ -6,7 +6,8 @@ This naming difference does not indicate a second application.
 
 ## Local workflow
 
-The current release is v0.2.0; the source and linked packages use version 0.2.0.
+The source tree is v0.4.0. Published v0.3.0 downloads remain available until the
+new release is built and published; changing the source version does not publish it.
 Use Python 3.12 or 3.13 and install the pinned runtime, build, and test dependencies:
 
 ```bash
@@ -32,11 +33,15 @@ source of truth for how tests locate the code.
 | `src/slab_preflight/reporting.py` | English/Korean report descriptions and CSV export with criteria, units, findings, and numbering conventions |
 | `src/slab_preflight/provenance.py` | Exact-byte SHA-256, original filename, and CalcLens/ASE runtime identity at file-delivery boundaries |
 | `src/slab_preflight/batch.py` | Up to 20 independent per-file checks, preserved failures, comparison rows, and summary CSV |
+| `src/slab_preflight/project.py` | Bounded portable projects, schema migration, review provenance, pair selections and atomic file edits |
+| `src/slab_preflight/review.py` | Stable upload identities and bounded session cache shared by every input mode |
 | `src/slab_preflight/plotting.py` | Visual representation of the report, including selected sites and periodic images |
 | `streamlit_app.py` | Korean/English interaction, single/batch CIF input, nearest-pair and issue views, per-file settings, and downloads |
 | `scripts/generate_examples.py` | Reproducible analytical fixtures; no remote data retrieval |
 | `run_app.py` | Local launch and initial interface language |
 | `scripts/build_release.py` | Reproducible language-specific source packages from a clean committed tree |
+| `packaging/windows/launcher.py` | Loopback server, optional Windows manager, readiness and graceful shutdown |
+| `scripts/benchmark_distances.py` | Repeatable distance-engine timing against a named Git revision |
 | `tests/` | Analytical, periodic-image, input-scope, CLI, and interface checks |
 
 Keep scientific definitions in the core and reuse its output in the interface.
@@ -75,6 +80,26 @@ at a file boundary. Pass the original `bytes`, not text encoded after parsing:
 line endings and other byte changes are part of the SHA-256 identity. Keep
 package versions synchronized in `pyproject.toml`, `__init__.py`, and `uv.lock`.
 Do not confuse the package version with the JSON schema version.
+
+Project schema 2 stores a review stamp tied to the original SHA-256, axis,
+cutoff, analysis revision and ASE version. The app version is informational.
+Increment `ANALYSIS_REVISION` when analysis semantics change; display-only
+changes do not invalidate review completion. Keep historical stamps when an
+input or engine change clears completion. Schema-1 reviews have no analysis
+revision and require rechecking after migration.
+
+Pair measurements store bounded atom/image selections, not trusted numeric
+results. Recalculate from the embedded original on reopening. Distinguish
+the distance between chosen images from the minimum-image distance. File
+replacement clears pair selections when the bytes change.
+
+The distance engine generates pair indexes in bounded chunks and materializes
+only retained contact evidence. Its worst-case arithmetic is still quadratic;
+the 400-site public input limit has not changed. Run a local comparison with:
+
+```bash
+PYTHONPATH=src python scripts/benchmark_distances.py --atoms 400 --repeats 7 --compare-ref 0219f84
+```
 
 Batch checks accept 1–20 files and reuse the single-file input contract for each.
 Preserve input order, per-file axis/cutoff, source hashes, and failed entries.

@@ -44,7 +44,7 @@ a = Analysis(
     hookspath=[], runtime_hooks=[],
     hooksconfig={'matplotlib': {'backends': ['Agg']}},
     excludes=['pytest', '_pytest', 'ruff', 'playwright', 'IPython', 'notebook',
-              'tkinter', 'PyQt5', 'PyQt6', 'PySide2', 'PySide6'],
+              'PyQt5', 'PyQt6', 'PySide2', 'PySide6'],
     noarchive=False,
 )
 pyz = PYZ(a.pure)

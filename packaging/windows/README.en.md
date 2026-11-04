@@ -1,17 +1,18 @@
 # CalcLens for Windows
 
-CalcLens 0.3.0 runs on Windows 10 or 11, x64. The Windows executable includes
+CalcLens 0.4.0 runs on Windows 10 or 11, x64. The Windows executable includes
 Python and its required packages. You do not need to install Python.
 
-1. Open the [CalcLens release page](https://github.com/a123qsd/calclens/releases/tag/v0.3.0).
-2. Download `CalcLens-0.3.0-windows-x64-en.exe` for English or
-   `CalcLens-0.3.0-windows-x64-ko.exe` for Korean.
-3. Double-click the file. A console opens, followed by a tab in your default
-   browser. The executable unpacks its included files at startup; this can take
-   several seconds. If the browser does not open, use the local address printed
-   in the console.
-4. Keep the console open while using CalcLens. Close it, or press `Ctrl+C` there,
-   to stop the app. Closing the browser tab alone does not stop it.
+1. Open the [CalcLens release page](https://github.com/a123qsd/calclens/releases/tag/v0.4.0).
+2. Download `CalcLens-0.4.0-windows-x64-en.exe` for English or
+   `CalcLens-0.4.0-windows-x64-ko.exe` for Korean.
+3. Double-click the file. A small manager window shows startup status and opens
+   CalcLens in your default browser. The standalone executable unpacks its
+   included files at startup, which can take several seconds. For faster repeat
+   launches, extract the matching `-folder.zip` and run the executable inside it.
+4. Use `Open CalcLens` to reopen the page and `Diagnostics` to inspect the startup
+   log. `Quit` or closing the manager stops the local server too. Closing only the
+   browser tab leaves the app running.
 
 The app listens only on `127.0.0.1`. Your CIF files are processed on your own
 computer; this executable does not run a service for other computers. External
@@ -36,14 +37,14 @@ Download `WINDOWS-SHA256SUMS.txt` from the same release. In PowerShell, compare
 the value below with the entry for your downloaded file:
 
 ```powershell
-Get-FileHash .\CalcLens-0.3.0-windows-x64-en.exe -Algorithm SHA256
+Get-FileHash .\CalcLens-0.4.0-windows-x64-en.exe -Algorithm SHA256
 ```
 
 ## Notices, source, and rebuilding
 
 The source ZIPs on the release page require a separate Python installation.
 Use an `.exe` file above when you want to run CalcLens without installing Python.
-`CalcLens-0.3.0-windows-support.zip` contains third-party notices, the exact ASE
+`CalcLens-0.4.0-windows-support.zip` contains third-party notices, the exact ASE
 source archive, dependency details, and the CalcLens source used for the build.
 Keep that support ZIP with the executable when redistributing it. Its checksum
 is listed in `WINDOWS-SHA256SUMS.txt`.
