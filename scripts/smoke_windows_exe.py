@@ -255,6 +255,8 @@ def browser_flow(base_url, language, output, originals, browser_events):
             expect(done.get_by_role("checkbox")).to_be_checked()
             idle(page)
             page.locator(".st-key-show_minimum_pair").get_by_role("button").click()
+            expect(page.locator('[class*="st-key-review_focus_"]').get_by_role(
+                "radio", name=LABELS[language]["minimum"], exact=True)).to_be_checked()
             idle(page)
             radio(page, "batch_filter", "needs_review")
             saved_path = download(page, "download_project", "review.calclens.json")
