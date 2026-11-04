@@ -1,5 +1,62 @@
 # Validation record
 
+## v0.5.0 native Windows release verification — 2026-11-05
+
+Release source: [`84f6444`](https://github.com/a123qsd/calclens/commit/84f6444ee04f3193646ff6c6f1ec45d991738f28).
+[Source CI run 41931805193](https://github.com/a123qsd/calclens/actions/runs/41931805193)
+passed on Ubuntu and Windows with Python 3.12 and 3.13: **547 tests per
+environment**, 11 existing ASE/NumPy deprecation warnings, the frontend build
+and 10 frontend tests. The Ubuntu/Python 3.12 job also passed the focused real
+Chromium regression harness. The initial Windows attempt exposed two tests
+that assumed POSIX signals; the corrected tests exercise both POSIX and Windows
+shutdown paths on every platform. The launcher behavior was unchanged.
+
+[Windows run 41931807986](https://github.com/a123qsd/calclens/actions/runs/41931807986)
+passed both language jobs. Each built and exercised a directory bundle and a
+standalone EXE, then checked an extracted folder ZIP. All four smoke reports
+identify version 0.5.0, the source above, the expected language/build mode and
+frozen Windows execution. The checks cover:
+
+- A real launch-manager window, automatic port selection, requested browser
+  URL capture, graceful manager close, closed server port, removed readiness
+  marker and no remaining PyInstaller extraction directories.
+- Korean and space-containing paths, with external Python removed from PATH.
+- Actual WebGL 2 drawing and offscreen buffers, three CIF uploads, language
+  switching, saved atom pairs, comparison, unsupported inputs and schema-2
+  project export/import/export. Embedded original CIF bytes and hashes match.
+- The legacy Streamlit interface and its graceful console shutdown; both
+  extracted folder archives also pass their frozen self-tests.
+
+The four workspace event logs contain no console errors, JavaScript exceptions,
+failed requests, HTTP errors or external requests. Legacy browser logs contain
+only Canvas2D/GPU performance warnings. Default-browser URL dispatch is tested
+with a capture hook; browser interactions use Chromium, so this does not verify
+every Windows default-browser association or hardware/OS combination.
+
+One default-launch readiness measurement per Windows CI build, after its
+self-tests, was:
+
+| Distribution | Korean | English |
+| --- | ---: | ---: |
+| Folder | 1.700 s | 1.714 s |
+| Standalone EXE | 8.050 s | 8.022 s |
+
+These are single measurements on the hosted Windows runner, not cold-start
+benchmarks, averages or complete browser-page load times. They support offering
+the folder distribution for repeated use without promising these times on a
+user's PC.
+
+The downloaded EXEs match their build-metadata SHA-256 and sizes. Both folder
+ZIPs carry the expected source/version/locale metadata and exact browser asset
+hashes. The support ZIP's dependency manifest matches the tested commit; its
+source archive matches `git archive` of that commit with the Windows
+`core.autocrlf=true` conversion, including unchanged binary and `-text` data.
+The [release validation record](https://github.com/a123qsd/calclens/releases/download/v0.5.0/VALIDATION-0.5.0.json)
+records the four distributions and seven Windows asset hashes.
+
+The local-only record below predates this native verification and remains as
+historical evidence for its stated environment.
+
 ## v0.5.0 local verification — 2026-11-05
 
 The final Python source passed **545 tests** on macOS arm64 with Python 3.12.
