@@ -6,8 +6,8 @@ This naming difference does not indicate a second application.
 
 ## Local workflow
 
-The source tree is v0.5.0. Published v0.3.0 downloads remain available until the
-new release is built and published; changing the source version does not publish it.
+The source tree is v0.5.0. Release package names and installation instructions
+are listed in [DOWNLOADS.md](DOWNLOADS.md).
 Use Python 3.12 or 3.13 and install the pinned runtime, build, and test dependencies:
 
 ```bash
@@ -27,7 +27,7 @@ source of truth for how tests locate the code.
 The default browser workspace is React/TypeScript with a locally bundled
 3Dmol.js viewer. Checked-in browser assets are included in source archives and
 Python wheels, so end users do not need Node.js. To change the frontend, use
-Node 26.7 and the locked packages:
+Node 26.7.0 and the locked packages:
 
 ```bash
 cd frontend
@@ -71,7 +71,7 @@ a project to continue later. The bounded API contract is in
 | `scripts/generate_examples.py` | Reproducible analytical fixtures; no remote data retrieval |
 | `run_app.py` | Local launch and initial interface language |
 | `scripts/build_release.py` | Reproducible language-specific source packages from a clean committed tree |
-| `packaging/windows/launcher.py` | Loopback server, optional Windows manager, readiness and graceful shutdown |
+| `packaging/windows/launcher.py` | Loopback server, Windows launch manager, diagnostics, readiness and graceful shutdown |
 | `scripts/benchmark_distances.py` | Repeatable distance-engine timing against a named Git revision |
 | `tests/` | Analytical, periodic-image, input-scope, CLI, and interface checks |
 
@@ -164,11 +164,13 @@ python -m playwright install chromium
 python scripts/smoke_workspace_regressions.py --output build/workspace-regressions
 ```
 
-The Windows release harness additionally exercises full bilingual upload,
-project round-trip, saved measurements, reports and unsupported inputs through
-`scripts/smoke_workspace.py` against the packaged executable.
-See [VALIDATION.md](VALIDATION.md) for observed local results; adding a matrix
-does not establish that its remote jobs have passed.
+The Windows release workflow builds and checks each locale in both one-file and
+folder forms. It verifies the extracted folder ZIP before collecting release
+assets. The harness checks the launch manager, readiness, diagnostics and shutdown,
+then exercises bilingual upload, project round-trip, saved measurements, reports
+and unsupported inputs through `scripts/smoke_workspace.py` against the packaged
+executable. See [VALIDATION.md](VALIDATION.md) for observed results; the presence
+of workflow steps does not establish that their remote jobs have passed.
 
 ## Source release packages
 
@@ -183,7 +185,19 @@ It produces English and Korean source ZIPs, standalone language guides, and
 `SHA256SUMS.txt` under `dist/`. Both packages contain the same calculation code
 and dependency lockfiles. Their initial language and entry guide differ.
 They require Python and dependency installation; they are not bundled executables.
+The committed browser assets are included, so using a source package does not
+require Node.js or a frontend build.
 See [DOWNLOADS.md](DOWNLOADS.md) for setup instructions.
+
+Windows release assets are `CalcLens-0.5.0-windows-x64-ko.exe`,
+`CalcLens-0.5.0-windows-x64-en.exe`, matching `-folder.zip` archives,
+`CalcLens-0.5.0-windows-support.zip` and `WINDOWS-SHA256SUMS.txt`. The support
+archive records the dependency versions and source commit and includes the
+CalcLens source and required third-party notices and source materials.
+Executable build metadata and support manifests identify their own build commit;
+check those records when comparing them with separately built source archives.
+The EXEs are unsigned. See the [Windows guide](../packaging/windows/README.en.md)
+for usage and rebuilding.
 
 The internal module name may be changed later, but public CLI behavior and report
 semantics need a deliberate compatibility decision. Do not silently change a

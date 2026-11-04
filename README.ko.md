@@ -8,9 +8,8 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 
 [Project home](https://github.com/a123qsd/calclens) · [English guide](README.en.md) · [한국어 ZIP 받기·설치](docs/DOWNLOADS.md#한국어) · [계산 방법과 한계](docs/METHODS.md) · [예제 출처](docs/PROVENANCE.md) · [개발 안내](docs/DEVELOPMENT.md) · [검증 기록](docs/VALIDATION.md)
 
-이 안내는 **CalcLens v0.5.0 소스**를 기준으로 합니다. 아래 배포 링크는 현재 공개된
-v0.3.0 파일입니다. v0.5.0의 프로젝트 편집, 검토 이력, 선택 거리 측정과 두 구조 비교는
-새 입체 구조 화면과 함께 업데이트된 소스에서 사용할 수 있습니다.
+**CalcLens v0.5.0**에는 프로젝트 편집, 검토 이력, 선택 거리 측정, 두 구조 비교,
+입체 구조 작업공간과 Windows 실행 관리 창이 포함됩니다.
 
 ![CalcLens 입체 구조 작업공간](docs/assets/calclens-workspace.png)
 
@@ -24,15 +23,20 @@ v0.3.0 파일입니다. v0.5.0의 프로젝트 편집, 검토 이력, 선택 거
 ## 빠르게 실행하기
 
 Windows x64에서는
-[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-0.3.0-windows-x64-ko.exe)를
+[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-ko.exe)를
 받아 더블클릭하세요. Python과 필요한 라이브러리가 포함되어 있습니다.
-브라우저에서 사용하는 동안 함께 열린 실행 창은 유지하세요.
+실행 관리 창에서 브라우저 화면을 열고 **CalcLens 열기**, **진단 기록**, **종료**를
+사용할 수 있습니다. 관리 창을 닫으면 서버도 종료되며, 브라우저 탭만 닫으면
+계속 실행됩니다. 반복 실행 시간을 줄이려면
+[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-ko-folder.zip)을
+모두 풀고 안에 있는 EXE를 실행하세요. 실행 파일에는 코드 서명이 없습니다.
 종료 방법과 파일 확인, 라이선스·소스 자료는 [Windows 안내](packaging/windows/README.ko.md)에 있습니다.
 
 [배포 파일](https://github.com/a123qsd/calclens/releases/latest)에서 한국어 기본 소스 ZIP을 받으려면
 [다운로드·설치 안내](docs/DOWNLOADS.md#한국어)를 따르세요.
-[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-Guide.ko.md)만
+[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-Guide.ko.md)만
 따로 받을 수도 있습니다. 이 소스 ZIP에는 Python 3.12 또는 3.13과 의존성 설치가 필요합니다.
+화면 파일은 포함되어 있어 실행에 Node.js는 필요하지 않습니다.
 
 Git으로 소스를 내려받는 경우에는 다음 명령을 실행합니다.
 설치 명령 예시는 Python 3.12를 사용합니다.
@@ -51,10 +55,12 @@ Windows에서는 가상환경을 `py -3.12 -m venv .venv`로 만들고,
 PowerShell에서 `.venv\Scripts\Activate.ps1`로 활성화합니다.
 처음 패키지를 설치할 때는 인터넷 연결이 필요합니다.
 
-브라우저에 표시된 로컬 주소를 열고 예제를 선택하거나 CIF 파일을 넣으세요.
+브라우저가 자동으로 열리지 않으면 터미널에 표시된 로컬 주소를 여세요.
+**예제 불러오기**로 예제를 열거나 **파일 열기**로 CIF 파일을 넣습니다.
 그래핀 예제로 화면을 익힌 뒤 `graphene_duplicate.cif`를 열면 중복 원자를
 어떻게 표시하는지 비교할 수 있습니다. 화면에서 한국어와 영어를 전환할 수 있습니다.
-ZIP의 기본 언어로 실행하려면 `python run_app.py`를 사용하세요.
+ZIP의 기본 언어로 실행하려면 `python run_app.py`를 사용하세요. 소스에서 실행한
+서버는 작업을 저장한 뒤 실행 터미널에서 `Ctrl+C`로 종료합니다.
 
 ## 입체 구조 작업공간
 
@@ -129,7 +135,7 @@ CSV의 원자 번호는 1부터, JSON의 원자 인덱스는 0부터 시작합�
 
 ## 결과 언어 선택
 
-보고서 언어는 기본적으로 ‘화면과 같음’입니다. JSON·CSV를 내려받기 전에
+**방법과 한계**의 보고서 언어는 기본적으로 ‘화면 언어와 같게’입니다. JSON·CSV를 내려받기 전에
 영어 또는 한국어를 별도로 고를 수도 있습니다. 다운로드 파일명에는
 `_calclens_en` 또는 `_calclens_ko`가 붙습니다. 명령행의 기본 결과 언어는 영어이며,
 한국어 설명은 `--language ko`, 영어 설명은 `--language en`으로 지정합니다.

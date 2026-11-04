@@ -1,19 +1,21 @@
 # CalcLens for Windows
 
-These instructions describe the CalcLens 0.5.0 Windows x64 build. Check the release
-page for availability; a source update does not publish a new EXE. The executable includes
-Python and its required packages. You do not need to install Python.
+CalcLens 0.5.0 for Windows 10/11 x64 includes Python, its required packages and
+the browser workspace. You do not need to install Python or Node.js.
 
-1. Open the [CalcLens release page](https://github.com/a123qsd/calclens/releases).
-2. Download `CalcLens-0.5.0-windows-x64-en.exe` for English or
-   `CalcLens-0.5.0-windows-x64-ko.exe` for Korean.
+1. Open the [CalcLens v0.5.0 release page](https://github.com/a123qsd/calclens/releases/tag/v0.5.0).
+2. Download the [English EXE](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-en.exe)
+   or [Korean EXE](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-ko.exe).
 3. Double-click the file. A small manager window shows startup status and opens
    CalcLens in your default browser. The standalone executable unpacks its
    included files at startup, which can take several seconds. For faster repeat
-   launches, extract the matching `-folder.zip` and run the executable inside it.
+   launches, extract the complete [English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-en-folder.zip)
+   or [Korean folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-ko-folder.zip)
+   and run the executable inside it. Keep its accompanying files together.
 4. Use `Open CalcLens` to reopen the page and `Diagnostics` to inspect the startup
    log. `Quit` or closing the manager stops the local server too. Closing only the
-   browser tab leaves the app running.
+   browser tab leaves the app running. Save your project before quitting; unsaved
+   work stays in memory.
 
 The app listens only on `127.0.0.1`. Your CIF files are processed on your own
 computer; this executable does not run a service for other computers. External
@@ -34,7 +36,8 @@ Do not disable Windows protections to use CalcLens. A matching checksum confirms
 that your file matches the release checksum; it is not a publisher certificate
 or a guarantee about the program.
 
-Download `WINDOWS-SHA256SUMS.txt` from the same release. In PowerShell, compare
+Download [WINDOWS-SHA256SUMS.txt](https://github.com/a123qsd/calclens/releases/download/v0.5.0/WINDOWS-SHA256SUMS.txt)
+from the same release. In PowerShell, compare
 the value below with the entry for your downloaded file:
 
 ```powershell
@@ -43,9 +46,13 @@ Get-FileHash .\CalcLens-0.5.0-windows-x64-en.exe -Algorithm SHA256
 
 ## Notices, source, and rebuilding
 
-The source ZIPs on the release page require a separate Python installation.
-Use an `.exe` file above when you want to run CalcLens without installing Python.
-`CalcLens-0.5.0-windows-support.zip` contains third-party notices, the exact ASE
+The [English source ZIP](https://github.com/a123qsd/calclens/releases/download/v0.5.0/calclens-0.5.0-en.zip)
+and [Korean source ZIP](https://github.com/a123qsd/calclens/releases/download/v0.5.0/calclens-0.5.0-ko.zip)
+require Python 3.12 or 3.13 and dependency installation. Their browser assets are
+included, so running them does not require Node.js. Use an EXE or folder ZIP above
+to run CalcLens without installing Python.
+[CalcLens-0.5.0-windows-support.zip](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-support.zip)
+contains third-party notices, the exact ASE
 source archive, dependency details, and the CalcLens source used for the build.
 Keep that support ZIP with the executable when redistributing it. Its checksum
 is listed in `WINDOWS-SHA256SUMS.txt`.
@@ -82,12 +89,13 @@ your modified ASE with
 then run the two build commands again. Record your modification and retain its
 license notices. Python is needed for rebuilding, not for using the supplied
 executables. The dependency versions and source commit are recorded in
-`DEPENDENCIES.json`; changing a component changes the build.
+`DEPENDENCIES.json`; changing a component changes the build. Use `--mode onedir`
+instead of `--mode onefile` to build an executable with an accompanying folder.
 
 ## Current and legacy interfaces
 
 The default React/TypeScript workspace and 3Dmol.js viewer are bundled locally.
 Running the executable needs neither Node.js nor a CDN connection. Pass
 `--legacy-ui` to use the previous Streamlit interface. If editing the frontend
-before rebuilding, use Node 26.7 to run `npm ci --ignore-scripts` and
+before rebuilding, use Node 26.7.0 to run `npm ci --ignore-scripts` and
 `npm run build` in `frontend/`, then reinstall the package and build the EXE.

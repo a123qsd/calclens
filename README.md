@@ -1,24 +1,30 @@
 # CalcLens
 
-The source tree is preparing **v0.5.0**: project file editing, review provenance,
+**CalcLens v0.5.0** includes project file editing, review provenance,
 chosen-pair measurement, side-by-side comparison, a Windows launch manager,
 and a React/TypeScript workspace with an offline 3Dmol.js sphere-and-stick viewer.
-Published download links below remain **v0.3.0** until the next release is built.
 
-현재 소스는 **v0.5.0** 업데이트입니다. 프로젝트 파일 편집, 검토 이력, 원자쌍 측정,
+**CalcLens v0.5.0**에는 프로젝트 파일 편집, 검토 이력, 원자쌍 측정,
 두 구조 비교와 Windows 실행 관리 창에 더해 React/TypeScript 화면과 오프라인
-3Dmol.js 구·막대 뷰어를 추가했습니다. 아래 다운로드는 새 버전이
-배포되기 전까지 **v0.3.0**을 가리킵니다.
+3Dmol.js 구·막대 뷰어가 포함됩니다.
 
 **Windows x64: no Python installation needed / Python 설치 없이 실행**
 
-[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-0.3.0-windows-x64-ko.exe) ·
-[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-0.3.0-windows-x64-en.exe) ·
+[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-ko.exe) ·
+[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-en.exe) ·
+[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-ko-folder.zip) ·
+[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-en-folder.zip) ·
 [실행 안내](packaging/windows/README.ko.md) · [Windows guide](packaging/windows/README.en.md)
 
-Double-click the EXE to open CalcLens in your browser. Keep its console window
-open while using the app. EXE를 더블클릭하면 브라우저에서 열립니다.
-사용하는 동안 함께 열린 실행 창을 유지하세요.
+Double-click the EXE to open the launch manager and browser workspace. Use the
+manager to reopen the page, view diagnostics, or quit. Closing the manager stops
+the server; closing only the browser tab leaves it running. Extract the complete
+folder ZIP for faster repeat launches. The executables are unsigned.
+
+EXE를 두 번 클릭하면 실행 관리 창과 브라우저 작업공간이 열립니다. 관리 창에서
+화면 다시 열기, 진단 기록 확인과 종료를 할 수 있습니다. 관리 창을 닫으면 서버도
+종료되며, 브라우저 탭만 닫으면 계속 실행됩니다. 반복 실행 시간을 줄이려면 폴더 ZIP을
+모두 풀어 사용하세요. 실행 파일에는 코드 서명이 없습니다.
 
 **Inspect a 2D material CIF before setting up a calculation.**
 
@@ -33,31 +39,27 @@ JSON/CSV exports and comparisons of up to 20 CIF files with settings for each fi
 빈 간격을 확인합니다. 화면·사용 안내·결과 설명을 한국어와 영어로 제공하며,
 예제와 JSON·CSV 내보내기, 파일마다 조건을 정하는 최대 20개 CIF 비교를 지원합니다.
 
-**v0.3.0** includes portable review projects, preserved per-file comparison
-settings and selection, session caching, and review filters. Reports retain source
-identity and contact evidence even when detail tables are truncated.
+![CalcLens molecular workspace / 입체 구조 작업공간](docs/assets/calclens-workspace.png)
 
-**v0.3.0**에는 원본 CIF를 담는 작업 저장·불러오기, 파일별 비교 조건·선택 유지,
-세션 캐시와 검토 필터가 포함됩니다. 보고서에는 원본 식별 정보와 상세 표에서
-생략되어도 보존되는 접촉 근거를 남깁니다.
-
-![CalcLens local structure inspection / 로컬 구조 검사 화면](docs/assets/calclens-overview.png)
-
-[Short demo / 짧은 사용 영상](docs/assets/calclens-demo.webm) ·
+[Earlier Streamlit demo / 이전 Streamlit 화면 영상](docs/assets/calclens-demo.webm) ·
 [Public graphite case / 공개 흑연 사례](docs/CASE_STUDY.md)
 
 ## Download / 다운로드
 
 [Latest release / 최신 배포](https://github.com/a123qsd/calclens/releases/latest)
 
-| Language | Source ZIP for v0.3.0 | Read guide | Download guide |
+| Language | Source ZIP for v0.5.0 | Read guide | Download guide |
 | --- | --- | --- | --- |
-| English | [calclens-0.3.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.3.0/calclens-0.3.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-Guide.en.md) |
-| 한국어 | [calclens-0.3.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.3.0/calclens-0.3.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-Guide.ko.md) |
+| English | [calclens-0.5.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.5.0/calclens-0.5.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-Guide.en.md) |
+| 한국어 | [calclens-0.5.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.5.0/calclens-0.5.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-Guide.ko.md) |
+
+[Windows checksums / Windows 체크섬](https://github.com/a123qsd/calclens/releases/download/v0.5.0/WINDOWS-SHA256SUMS.txt) ·
+[Windows licenses and build source / Windows 라이선스·빌드 소스](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-support.zip)
 
 Both ZIPs contain the same analysis engine and both interface languages. Each
 opens in its selected language by default. **Python 3.12 or 3.13 and dependency
 installation are required; these are source packages, not standalone executables.**
+The browser workspace is included, so Node.js is not required to run them.
 The installation examples in the guides use Python 3.12.
 Report language follows the interface by default and can be chosen separately.
 JSON keys and technical identifiers stay in standard English for compatibility;
@@ -66,23 +68,25 @@ See [download and installation instructions](docs/DOWNLOADS.md).
 
 두 ZIP의 검사 기능은 같으며, 처음 열리는 언어와 기본 안내 문서만 다릅니다.
 실행 후에도 언어를 전환할 수 있습니다. **Python 3.12 또는 3.13과 의존성 설치가 필요한
-소스 패키지이며, 독립 실행 프로그램이 아닙니다.** 안내 문서의 설치 명령 예시는
+소스 패키지이며, 독립 실행 프로그램이 아닙니다.** 화면 파일은 포함되어 있어 실행에
+Node.js는 필요하지 않습니다. 안내 문서의 설치 명령 예시는
 Python 3.12를 사용합니다. 보고서 언어는 기본적으로 화면 언어를
 따르며 별도로 선택할 수도 있습니다. 설명과 CSV 열 제목은 번역하고, JSON 키와 기술
 식별자는 호환성을 위해 표준 영문을 유지합니다. [설치 안내](docs/DOWNLOADS.md#한국어)를 확인하세요.
 
 ## Save and continue work / 작업 저장하고 이어가기
 
-Both v0.3.0 packages include comparison filters, persistent per-file settings and
-selection during edits, and session caching by file content, axis, and cutoff.
-Use **Save project** to download a `.calclens.json` containing the original CIFs
-and review state, then **Open saved work** → **Open project** to continue later.
-See the [English guide](README.en.md#save-and-continue-a-comparison) for details.
+Use **Save project** to download a `.calclens.json` containing the original CIFs,
+per-file settings, notes, review history and saved pair selections. Use
+**Open project** to continue later; measurements are recalculated from the originals.
+Save before stopping the server, because unsaved work stays in memory.
+See the [English guide](README.en.md#pair-measurements-and-saved-work) for details.
 
-두 v0.3.0 패키지에는 비교 필터, 편집 중 파일별 조건·선택 유지, 파일 내용·축·기준별
-세션 캐시가 포함됩니다. **작업 저장**으로 원본 CIF와 검토 상태를 `.calclens.json`에
-저장하고, **저장한 작업 열기** → **작업 불러오기**로 이어서 검토할 수 있습니다.
-자세한 내용은 [한국어 안내](README.ko.md#비교-작업-저장하고-이어가기)를 확인하세요.
+**작업 저장**으로 원본 CIF, 파일별 조건, 메모, 검토 이력과 원자쌍 선택을
+`.calclens.json`에 저장하고, **작업 열기**로 이어서 검토할 수 있습니다.
+측정값은 원본에서 다시 계산합니다. 저장하지 않은 작업은 메모리에만 있으므로
+서버를 종료하기 전에 저장하세요.
+자세한 내용은 [한국어 안내](README.ko.md#원자-거리와-작업-저장)를 확인하세요.
 
 ## What it checks / 검사 범위
 

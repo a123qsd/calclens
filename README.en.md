@@ -10,10 +10,9 @@ service is required.
 
 [Project home](https://github.com/a123qsd/calclens) · [한국어 안내](README.ko.md) · [English ZIP and installation](docs/DOWNLOADS.md#english) · [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) · [Development](docs/DEVELOPMENT.md) · [Validation record](docs/VALIDATION.md)
 
-This guide covers the **CalcLens v0.5.0 source**. Download links below still point
-to published v0.3.0 assets. Project editing, review history, chosen-pair
-measurements, side-by-side comparison and the new molecular workspace are
-available in the updated source.
+**CalcLens v0.5.0** includes project editing, review history, chosen-pair
+measurements, side-by-side comparison, a molecular workspace and a Windows
+launch manager.
 
 ![CalcLens molecular workspace](docs/assets/calclens-workspace.png)
 
@@ -27,18 +26,23 @@ available in the updated source.
 ## Run locally
 
 On Windows x64, download the
-[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-0.3.0-windows-x64-en.exe)
-and double-click it. Python and the app's dependencies are included. Keep the
-console window open while using the browser interface. See the
+[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-en.exe)
+and double-click it. Python and the app's dependencies are included. A launch
+manager opens the browser workspace and provides **Open CalcLens**, **Diagnostics**
+and **Quit**. Closing the manager stops the server; closing only the browser tab
+leaves it running. For faster repeat launches, extract the complete
+[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-en-folder.zip)
+and run the EXE inside it. These executables are unsigned. See the
 [Windows guide](packaging/windows/README.en.md) for startup, closing the app,
 checksums, and license/source files.
 
 For an English-default source ZIP, choose the English ZIP asset on the
 [latest release](https://github.com/a123qsd/calclens/releases/latest) and follow
 the [download instructions](docs/DOWNLOADS.md#english). A standalone
-[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-Guide.en.md)
+[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-Guide.en.md)
 is also available. Python 3.12 or 3.13 and dependency
-installation are required for that source ZIP.
+installation are required for that source ZIP. The browser workspace is already
+included; you do not need Node.js to run it.
 
 To clone the source with Git instead, use the commands below. These installation
 examples use Python 3.12.
@@ -57,10 +61,12 @@ On Windows, create the environment with `py -3.12 -m venv .venv` and activate it
 in PowerShell with `.venv\Scripts\Activate.ps1`.
 Installing the packages initially requires an internet connection.
 
-Open the local address shown in the terminal. Select an example or provide a
-CIF file. Start with graphene, then compare `graphene_duplicate.cif` to see how
+The browser opens automatically; if needed, open the local address shown in the
+terminal. Use **Try sample** for an example or **Open files** for your CIFs.
+Start with graphene, then compare `graphene_duplicate.cif` to see how
 a duplicate site is reported. You can switch between English and Korean in the
-interface. Use `python run_app.py` to start with a ZIP's default language.
+interface. Use `python run_app.py` to start with a ZIP's default language. Stop
+a source-launched server with `Ctrl+C` in its terminal after saving your project.
 
 ## Molecular workspace
 
@@ -149,7 +155,7 @@ or output errors.
 
 ## Report language
 
-The report-language selector defaults to “Same as interface.” You can choose
+Under **Method notes**, the report-language selector defaults to “Same as interface.” You can choose
 English or Korean independently before downloading JSON or CSV. Downloads use
 `_calclens_en` or `_calclens_ko` in the filename. The CLI uses English by default;
 pass `--language ko` for Korean explanations or `--language en` for English.
