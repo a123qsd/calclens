@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 
 from .core import UnsupportedStructure, analyze_cif
+from .provenance import with_provenance
 from .reporting import localized_error_message, localized_report, report_csv
 
 
@@ -30,6 +31,7 @@ def main(argv=None):
         with args.cif.open("rb") as source:
             data = source.read(2 * 1024 * 1024 + 1)
         report = analyze_cif(data, short_distance=args.short_distance, normal_axis=args.normal_axis)
+        report = with_provenance(report, data, args.cif.name)
         result = (report_csv(report, language=args.language) if args.csv_output else
                   json.dumps(localized_report(report, args.language), ensure_ascii=False, indent=2, allow_nan=False) + "\n")
         output = args.csv_output or args.output

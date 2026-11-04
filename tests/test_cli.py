@@ -2,9 +2,16 @@
 
 import json
 import csv
+import hashlib
 from pathlib import Path
 import subprocess
 import sys
+
+import ase
+import pytest
+
+from slab_preflight import __version__
+from slab_preflight.reporting import KOREAN_FIELDS
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -66,3 +73,29 @@ def test_cli_rejects_unsupported_normal_without_output(tmp_path):
     result = run_cli("examples/graphene.cif", "--normal-axis", "a", "--csv", path)
     assert result.returncode == 2
     assert not path.exists()
+
+
+@pytest.mark.parametrize("language", ["en", "ko"])
+@pytest.mark.parametrize("format", ["json", "csv"])
+def test_cli_delivers_original_file_identity_and_runtime_versions(tmp_path, language, format):
+    original = (ROOT / "examples" / "graphene.cif").read_bytes().replace(b"\n", b"\r\n")
+    source = tmp_path / "원본 구조.cif"
+    source.write_bytes(original)
+    target = tmp_path / f"report.{format}"
+    result = run_cli(source, "--language", language, f"--{format}", target)
+    assert result.returncode == 0, result.stderr
+    expected = {
+        "original_filename": source.name,
+        "sha256": hashlib.sha256(original).hexdigest(),
+        "calclens_version": __version__,
+        "ase_version": ase.__version__,
+    }
+    if format == "json":
+        assert json.loads(target.read_text(encoding="utf-8"))["provenance"] == expected
+    else:
+        with target.open(encoding="utf-8-sig", newline="") as stream:
+            rows = list(csv.DictReader(stream))
+        if language == "ko":
+            inverse = {value: key for key, value in KOREAN_FIELDS.items()}
+            rows = [{inverse[key]: value for key, value in row.items()} for row in rows]
+        assert {row["code"]: row["value"] for row in rows if row["record_type"] == "provenance"} == expected

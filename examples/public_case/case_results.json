@@ -1,0 +1,119 @@
+{
+  "source": {
+    "cod_id": "9011577",
+    "revision": 291877,
+    "download_url": "https://www.crystallography.net/cod/9011577.cif",
+    "revision_url": "https://www.crystallography.net/cod/9011577.cif@291877",
+    "retrieved_date": "2026-11-04",
+    "sha256": "35d1661c3131acc9b1c33dad65358d094b93105d6aae711465ac4352ae809748",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://www.crystallography.net/cod/9011577.html",
+    "article_doi": "10.1038/258136a0",
+    "occupancy_policy": "omitted in source; coreCIF default 1.0 made explicit"
+  },
+  "preparation": {
+    "source_asymmetric_sites": 2,
+    "source_symmetry_operations": 24,
+    "expanded_sites": 4,
+    "selected_sheet_sites": 2,
+    "selected_source_fractional_z": 0.25,
+    "slab_fractional_z": 0.5,
+    "slab_normal_repeat_angstrom": 20.0,
+    "relaxation_performed": false,
+    "fractional_xy_rounding_retained": true
+  },
+  "environment": {
+    "ase": "3.29.0",
+    "numpy": "2.5.4"
+  },
+  "benchmark": {
+    "method": "stdlib periodic-image enumeration and analytical hexagonal geometry",
+    "comparison_tolerance_angstrom": 1e-09,
+    "ideal_honeycomb_a_over_sqrt3_angstrom": 1.422591063283238,
+    "source_fractional_rounding_tolerance_angstrom": 3e-05,
+    "cases": {
+      "graphite_p1.cif": {
+        "atom_count": 4,
+        "normal_axis": "c",
+        "in_plane_axes": [
+          "a",
+          "b"
+        ],
+        "calclens_metrics": {
+          "minimum_distance_angstrom": 1.4225768373726049,
+          "normal_height_angstrom": 6.711000000000001,
+          "nuclei_thickness_angstrom": 3.3554999999999997,
+          "nuclei_gap_angstrom": 3.3555000000000015,
+          "second_largest_gap_angstrom": 3.3554999999999997,
+          "gap_fraction": 0.5000000000000001
+        },
+        "independent_reference": {
+          "minimum_distance_angstrom": 1.422576837372605,
+          "normal_height_angstrom": 6.711,
+          "nuclei_thickness_angstrom": 3.3555,
+          "nuclei_gap_angstrom": 3.3555,
+          "second_largest_gap_angstrom": 3.3555,
+          "gap_fraction": 0.5
+        },
+        "absolute_errors": {
+          "minimum_distance_angstrom": 2.220446049250313e-16,
+          "normal_height_angstrom": 8.881784197001252e-16,
+          "nuclei_thickness_angstrom": 4.440892098500626e-16,
+          "nuclei_gap_angstrom": 1.3322676295501878e-15,
+          "second_largest_gap_angstrom": 4.440892098500626e-16,
+          "gap_fraction": 1.1102230246251565e-16
+        },
+        "short_contact_count": 0,
+        "issue_codes": [
+          "AMBIGUOUS_SLAB",
+          "GEOMETRY_ONLY",
+          "MULTIPLE_LARGE_GAPS",
+          "VACUUM_CONVERGENCE"
+        ],
+        "gap_review_required": true
+      },
+      "graphene_from_graphite_p1.cif": {
+        "atom_count": 2,
+        "normal_axis": "c",
+        "in_plane_axes": [
+          "a",
+          "b"
+        ],
+        "calclens_metrics": {
+          "minimum_distance_angstrom": 1.422576837372605,
+          "normal_height_angstrom": 20.0,
+          "nuclei_thickness_angstrom": 0.0,
+          "nuclei_gap_angstrom": 20.0,
+          "second_largest_gap_angstrom": 0.0,
+          "gap_fraction": 1.0
+        },
+        "independent_reference": {
+          "minimum_distance_angstrom": 1.422576837372605,
+          "normal_height_angstrom": 20.0,
+          "nuclei_thickness_angstrom": 0.0,
+          "nuclei_gap_angstrom": 20.0,
+          "second_largest_gap_angstrom": 0.0,
+          "gap_fraction": 1.0
+        },
+        "absolute_errors": {
+          "minimum_distance_angstrom": 0.0,
+          "normal_height_angstrom": 0.0,
+          "nuclei_thickness_angstrom": 0.0,
+          "nuclei_gap_angstrom": 0.0,
+          "second_largest_gap_angstrom": 0.0,
+          "gap_fraction": 0.0
+        },
+        "short_contact_count": 0,
+        "issue_codes": [
+          "GEOMETRY_ONLY",
+          "VACUUM_CONVERGENCE"
+        ],
+        "gap_review_required": false
+      }
+    }
+  },
+  "derived_sha256": {
+    "graphite_p1.cif": "c7f2014f8e1c14da49745309b1cf226440056b8299ce38d3a8dfb31a03c015b3",
+    "graphene_from_graphite_p1.cif": "c84fed559b2e1671cff3cb1558b020c3d45a854b8d06b95e8469301f7aa11152"
+  }
+}

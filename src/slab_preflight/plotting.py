@@ -91,6 +91,13 @@ def structure_figure(
             meta={"role": "contact_image", "atom_index": j, "shift": shift.tolist()},
             hovertemplate=f"{elements[j]}{j+1} + {shift.tolist()}<br>x %{{x:.4f}} Å · y %{{y:.4f}} Å · z %{{z:.4f}} Å<extra></extra>",
         ))
+        midpoint = (start + end) / 2
+        fig.add_trace(go.Scatter3d(
+            x=[midpoint[0]], y=[midpoint[1]], z=[midpoint[2]], mode="text",
+            text=[f"{selected_contact['distance_angstrom']:.4f} Å"],
+            textposition="top center", textfont=dict(color="#B43D48", size=13),
+            hoverinfo="skip", showlegend=False, meta={"role": "contact_distance_label"},
+        ))
     if highlight_gap:
         color = "#D6A14B" if report.get("gap_review_required", False) else "#239D93"
         # Each box is built in fractional coordinates, then transformed to the
