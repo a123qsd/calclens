@@ -1,4 +1,4 @@
-# Windows x64 / Python 3.12 build or CI tools only.
+# Windows x64 / Python 3.13 build or CI tools only.
 # Install after the root requirements.lock; it pins shared dependencies.
 altgraph==0.17.5 \
     --hash=sha256:c87b395dd12fabde9c99573a9749d67da8d29ef9de0125c7f536699b4a9bc9e7 \

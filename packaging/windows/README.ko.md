@@ -52,7 +52,7 @@ CalcLens 라이선스도 그 수정 사항을 디버깅하는 데 필요한 권�
 수집한 라이선스 목록은 원래 라이선스 조항이나 모든 법적 의무에 대한 검토를
 대신하지 않습니다.
 
-다시 빌드하려면 Windows x64에서 CPython 3.12를 설치하고 Windows 지원 ZIP을
+다시 빌드하려면 Windows x64에서 CPython 3.13를 설치하고 Windows 지원 ZIP을
 푸세요. 그 폴더에서 PowerShell을 연 뒤 다음 명령을 실행합니다. 기록된 소스
 커밋을 읽고 CalcLens 소스를 푼 다음 빌드 환경을 만듭니다. 빌드 환경의 Python을
 직접 실행하므로 PowerShell 활성화 명령은 필요하지 않습니다.
@@ -61,7 +61,7 @@ CalcLens 라이선스도 그 수정 사항을 디버깅하는 데 필요한 권�
 $sourceCommit = (Get-Content .\DEPENDENCIES.json -Raw | ConvertFrom-Json).source_commit
 Expand-Archive .\CalcLens-windows-source.zip .
 Set-Location .\calclens-source
-py -3.12 -m venv .venv
+py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --require-hashes -r requirements.lock
 .\.venv\Scripts\python.exe -m pip install --require-hashes -r packaging/windows/build-requirements.lock
 .\.venv\Scripts\python.exe -m pip install --no-deps --no-build-isolation .

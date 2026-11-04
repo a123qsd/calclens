@@ -55,7 +55,7 @@ The application license preserves the rights needed to debug those changes.
 The inventory records collected notices; it does not replace the license terms
 or provide an exhaustive legal assessment.
 
-To rebuild on Windows x64, install CPython 3.12 and extract the Windows support
+To rebuild on Windows x64, install CPython 3.13 and extract the Windows support
 ZIP. Open PowerShell in that extracted folder. The commands below read the
 recorded source commit, extract the CalcLens source, and create a build
 environment. They use its Python directly, so PowerShell activation is not
@@ -65,7 +65,7 @@ needed:
 $sourceCommit = (Get-Content .\DEPENDENCIES.json -Raw | ConvertFrom-Json).source_commit
 Expand-Archive .\CalcLens-windows-source.zip .
 Set-Location .\calclens-source
-py -3.12 -m venv .venv
+py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --require-hashes -r requirements.lock
 .\.venv\Scripts\python.exe -m pip install --require-hashes -r packaging/windows/build-requirements.lock
 .\.venv\Scripts\python.exe -m pip install --no-deps --no-build-isolation .

@@ -1,4 +1,4 @@
-# Windows x64 / Python 3.12 build or CI tools only.
+# Windows x64 / Python 3.13 build or CI tools only.
 # Install after the root requirements.lock; it pins shared dependencies.
 playwright==1.64.1 \
     --hash=sha256:29453ff76e25c17d0b45658cacd6b92e9eec46e8db21e134fb3b7143df50f013 \
