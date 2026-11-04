@@ -29,6 +29,9 @@ for package in ('streamlit', 'plotly', 'ase'):
     datas += copy_metadata(package, recursive=True)
 
 hiddenimports = collect_submodules('slab_preflight')
+# Streamlit injects imports such as scriptrunner.magic_funcs into the app AST;
+# these do not appear as ordinary imports during PyInstaller analysis.
+hiddenimports += collect_submodules('streamlit')
 # Plotly's graph object classes are imported lazily; analysis of the app script
 # alone cannot discover them. The script itself is executed by Streamlit.
 hiddenimports += collect_submodules('plotly', filter=lambda name: '.tests' not in name)
