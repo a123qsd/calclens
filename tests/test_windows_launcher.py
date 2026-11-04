@@ -233,7 +233,12 @@ def test_manager_failure_falls_back_to_existing_console_launch(package, monkeypa
     assert "using console mode" in capsys.readouterr().err
 
 
-def test_managed_server_gets_graceful_stop_before_termination():
+@pytest.mark.parametrize("platform_name,stop_signal", [("posix", 2), ("nt", 1)])
+def test_managed_server_gets_graceful_stop_before_termination(
+    monkeypatch, platform_name, stop_signal,
+):
+    monkeypatch.setattr(launcher, "os", SimpleNamespace(name=platform_name))
+    monkeypatch.setattr(launcher, "signal", SimpleNamespace(SIGINT=2, CTRL_BREAK_EVENT=1))
     calls = []
     process = SimpleNamespace(
         poll=lambda: None,
@@ -243,10 +248,15 @@ def test_managed_server_gets_graceful_stop_before_termination():
         kill=lambda: calls.append(("kill",)),
     )
     assert launcher._stop_managed_process(process, timeout=2.0) == "graceful"
-    assert calls == [("signal", launcher.signal.SIGINT), ("wait", 2.0)]
+    assert calls == [("signal", stop_signal), ("wait", 2.0)]
 
 
-def test_managed_server_termination_fallback_is_reported():
+@pytest.mark.parametrize("platform_name,stop_signal", [("posix", 2), ("nt", 1)])
+def test_managed_server_termination_fallback_is_reported(
+    monkeypatch, platform_name, stop_signal,
+):
+    monkeypatch.setattr(launcher, "os", SimpleNamespace(name=platform_name))
+    monkeypatch.setattr(launcher, "signal", SimpleNamespace(SIGINT=2, CTRL_BREAK_EVENT=1))
     calls = []
 
     def wait(timeout):
@@ -264,7 +274,7 @@ def test_managed_server_termination_fallback_is_reported():
     )
     assert launcher._stop_managed_process(process, timeout=2.0) == "terminated"
     assert calls == [
-        ("signal", launcher.signal.SIGINT), ("wait", 2.0),
+        ("signal", stop_signal), ("wait", 2.0),
         ("terminate",), ("wait", 3.0),
     ]
 
