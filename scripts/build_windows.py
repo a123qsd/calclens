@@ -32,6 +32,13 @@ def build_info(language: str, mode: str, source_commit: str) -> dict:
         dist.metadata["Name"]: dist.version
         for dist in importlib.metadata.distributions() if dist.metadata["Name"]
     }
+    assets = ROOT / "src" / "slab_preflight" / "web_assets"
+    if not (assets / "index.html").is_file():
+        raise ValueError("Build the frontend assets with npm ci and npm run build first.")
+    asset_hashes = {
+        path.relative_to(assets).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(assets.rglob("*")) if path.is_file()
+    }
     return {
         "format": "calclens.windows-build", "version": project["project"]["version"],
         "language": language, "source_commit": source_commit,
@@ -39,6 +46,8 @@ def build_info(language: str, mode: str, source_commit: str) -> dict:
         "pyinstaller_version": importlib.metadata.version("pyinstaller"),
         "build_mode": mode, "dependencies": dict(sorted(dependencies.items())),
         "app_sha256": hashlib.sha256((ROOT / "streamlit_app.py").read_bytes()).hexdigest(),
+        "workspace_asset_sha256": asset_hashes,
+        "frontend_lock_sha256": hashlib.sha256((ROOT / "frontend" / "package-lock.json").read_bytes()).hexdigest(),
     }
 
 

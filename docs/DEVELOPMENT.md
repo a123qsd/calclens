@@ -6,7 +6,7 @@ This naming difference does not indicate a second application.
 
 ## Local workflow
 
-The source tree is v0.4.0. Published v0.3.0 downloads remain available until the
+The source tree is v0.5.0. Published v0.3.0 downloads remain available until the
 new release is built and published; changing the source version does not publish it.
 Use Python 3.12 or 3.13 and install the pinned runtime, build, and test dependencies:
 
@@ -24,6 +24,33 @@ changing package files, reinstall with the same command before testing the
 installed CLI or launching the app. The repository's pytest configuration is the
 source of truth for how tests locate the code.
 
+The default browser workspace is React/TypeScript with a locally bundled
+3Dmol.js viewer. Checked-in browser assets are included in source archives and
+Python wheels, so end users do not need Node.js. To change the frontend, use
+Node 26.7 and the locked packages:
+
+```bash
+cd frontend
+npm ci --ignore-scripts
+npm run build
+npm test
+cd ..
+python -m pip install --no-deps --no-build-isolation .
+python run_app.py --language en
+```
+
+The build writes `src/slab_preflight/web_assets/`, including dependency notices.
+Commit these assets together with their source and lockfile. `--legacy-ui`
+selects the previous Streamlit interface. Both interfaces use the same Python
+calculation and project code; the command-line report interface is unchanged.
+
+The default server binds only to `127.0.0.1`. One server owns one in-memory
+workspace, shared by its tabs. Mutations require its Origin, Host, random token
+and expected revision. A stale tab gets HTTP 409 and reloads the current state
+without replaying its edit. Closing the server discards unsaved work; download
+a project to continue later. The bounded API contract is in
+[design/API.md](design/API.md).
+
 ## Current responsibilities
 
 | Component | Responsibility |
@@ -36,7 +63,11 @@ source of truth for how tests locate the code.
 | `src/slab_preflight/project.py` | Bounded portable projects, schema migration, review provenance, pair selections and atomic file edits |
 | `src/slab_preflight/review.py` | Stable upload identities and bounded session cache shared by every input mode |
 | `src/slab_preflight/plotting.py` | Visual representation of the report, including selected sites and periodic images |
-| `streamlit_app.py` | Korean/English interaction, single/batch CIF input, nearest-pair and issue views, per-file settings, and downloads |
+| `src/slab_preflight/web_api.py` | Local HTTP adapter, canonical workspace, atomic mutations, exports and offline assets |
+| `frontend/src/App.tsx` | Bilingual workspace, records, notes, review, measurements and comparison |
+| `frontend/src/MolecularViewer.tsx` | 3Dmol rendering, image-aware atom selection, camera controls and exact diagnostic highlights |
+| `frontend/src/viewerGeometry.ts` | Display repeats, cell/gap geometry and optional inferred connections |
+| `streamlit_app.py` | Previous Streamlit interface, available through `--legacy-ui` |
 | `scripts/generate_examples.py` | Reproducible analytical fixtures; no remote data retrieval |
 | `run_app.py` | Local launch and initial interface language |
 | `scripts/build_release.py` | Reproducible language-specific source packages from a clean committed tree |
@@ -48,6 +79,12 @@ Keep scientific definitions in the core and reuse its output in the interface.
 Changing the display must not change whether a file is accepted or how its
 geometry is calculated. Explain unsupported cases without deleting, merging,
 or repairing input sites automatically.
+
+Display repetitions preserve each atom's original index and integer lattice
+image. Sticks are optional covalent-radius distance estimates for display; they
+are not bond analysis and never change Python results. Unknown radii must not
+invent connections. Fit atoms separately from the full unit cell so a long
+vacuum vector does not make the initial structure unreadable.
 
 A new accepted input condition needs a test that exposes the assumption it
 introduces. For geometry changes, use an analytical case or an independent
@@ -112,9 +149,24 @@ report downloads retain their separate language choice.
 ## Continuous integration
 
 The workflow covers Ubuntu and Windows with Python 3.12 and 3.13. Each job
+builds/typechecks the locked frontend and runs its geometry tests, then
 installs hash-locked dependencies and the package, exercises the installed CLI
 with English JSON and Korean CSV, then runs pytest, Ruff, and generated-fixture
 checks. UTF-8 mode is enabled so bilingual tests use consistent text encoding.
+The Ubuntu/Python 3.12 job also runs the focused Chromium/WebGL regression
+harness, including concurrent tabs, original/image atom picking and mobile
+layout. Each build checks that generated browser assets match the committed
+files. Run the same focused check locally after installing the browser tools:
+
+```bash
+python -m pip install --require-hashes -r packaging/windows/smoke-requirements.lock
+python -m playwright install chromium
+python scripts/smoke_workspace_regressions.py --output build/workspace-regressions
+```
+
+The Windows release harness additionally exercises full bilingual upload,
+project round-trip, saved measurements, reports and unsupported inputs through
+`scripts/smoke_workspace.py` against the packaged executable.
 See [VALIDATION.md](VALIDATION.md) for observed local results; adding a matrix
 does not establish that its remote jobs have passed.
 

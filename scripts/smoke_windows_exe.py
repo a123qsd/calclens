@@ -41,7 +41,7 @@ LABELS = {
 }
 SELF_TEST_CHECKS = {
     "graphene_geometry", "mos2_axes", "invalid_cell_isolation", "project_roundtrip",
-    "plotly_charts", "streamlit_static", "plotly_validators", "metadata",
+    "plotly_charts", "streamlit_static", "plotly_validators", "metadata", "workspace_assets",
 }
 
 
@@ -92,14 +92,19 @@ def free_port():
         return probe.getsockname()[1]
 
 
-def wait_health(process, base_url):
+def health_endpoint(*, legacy_ui=False):
+    return "/_stcore/health" if legacy_ui else "/_calclens/health"
+
+
+def wait_health(process, base_url, *, legacy_ui=False):
     deadline = time.monotonic() + 180
     last_error = "server has not answered"
     local = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    endpoint = health_endpoint(legacy_ui=legacy_ui)
     while time.monotonic() < deadline:
         require(process.poll() is None, "The executable exited before the server became healthy.")
         try:
-            with local.open(base_url + "/_stcore/health", timeout=2) as response:
+            with local.open(base_url + endpoint, timeout=2) as response:
                 if response.status == 200 and response.read().strip() == b"ok":
                     return
         except (OSError, urllib.error.URLError) as error:
@@ -398,7 +403,7 @@ def browser_flow(base_url, language, version, output, originals, browser_events)
 
     def read_project(path):
         document = json.loads(path.read_text("utf-8"))
-        require(document.get("format") == "calclens.project" and document.get("schema_version") == 1,
+        require(document.get("format") == "calclens.project" and document.get("schema_version") == 2,
                 "Downloaded project format/schema is wrong.")
         entries = document["entries"]
         require(len(entries) == 3 and len({entry["id"] for entry in entries}) == 3,
@@ -558,6 +563,14 @@ def browser_flow(base_url, language, version, output, originals, browser_events)
                 browser_events.setdefault("cleanup_errors", []).append(str(error))
 
 
+def workspace_browser_flow(base_url, language, version, output, originals, browser_events):
+    from smoke_workspace import run_workspace_browser_smoke
+
+    return run_workspace_browser_smoke(
+        base_url, language, output, originals, browser_events, expected_version=version,
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--exe", required=True, type=Path)
@@ -567,6 +580,7 @@ def main():
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     events = {"console": [], "page_errors": [], "failed_requests": [], "http_errors": []}
+    workspace_events = {}
     result = {"status": "failed", "language": args.language, "exe": str(args.exe.resolve())}
     process = None
     try:
@@ -646,6 +660,10 @@ def main():
                         "browser_request_captured": True,
                         "manager_window": manager_title,
                     }
+                    result["workspace_browser"] = workspace_browser_flow(
+                        default_url, args.language, version, output / "workspace",
+                        originals, workspace_events,
+                    )
                     close_windows_manager(default_process, manager_handle)
                     wait_port_closed(default_url)
                     wait_for_no_pyinstaller_extractions(pyinstaller_temp)
@@ -673,21 +691,24 @@ def main():
                         )
             port = free_port()
             base_url = f"http://127.0.0.1:{port}"
-            with (output / "server.log").open("wb") as server_log:
+            with (output / "legacy-server.log").open("wb") as server_log:
                 options = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt"
                            else {"start_new_session": True})
-                process = subprocess.Popen([str(executable), "--port", str(port), "--no-browser"],
-                                           cwd=cwd, env=environment, stdout=server_log,
-                                           stderr=subprocess.STDOUT, **options)
+                process = subprocess.Popen(
+                    [str(executable), "--port", str(port), "--no-browser", "--legacy-ui"],
+                    cwd=cwd, env=environment, stdout=server_log,
+                    stderr=subprocess.STDOUT, **options,
+                )
                 try:
-                    wait_health(process, base_url)
-                    result["browser"] = browser_flow(
+                    wait_health(process, base_url, legacy_ui=True)
+                    result["legacy_browser"] = browser_flow(
                         base_url, args.language, version, output, originals, events,
                     )
-                    require(process.poll() is None, "Frozen server exited during the browser smoke.")
+                    require(process.poll() is None,
+                            "Frozen legacy server exited during the browser smoke.")
                 finally:
                     stop_process_tree(
-                        process, output, label="no-browser", require_graceful=True
+                        process, output, label="legacy-no-browser", require_graceful=True
                     )
                     wait_port_closed(base_url)
                     process = None
@@ -705,6 +726,9 @@ def main():
                 result["status"] = "failed"
                 result["cleanup_error"] = str(error)
         (output / "browser-events.json").write_text(json.dumps(events, ensure_ascii=False, indent=2), encoding="utf-8")
+        (output / "workspace-browser-events.json").write_text(
+            json.dumps(workspace_events, ensure_ascii=False, indent=2), encoding="utf-8",
+        )
         (output / "smoke-report.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(result, ensure_ascii=True))
     return 0 if result["status"] == "passed" else 1

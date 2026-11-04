@@ -1,11 +1,12 @@
 # Windows용 CalcLens
 
-CalcLens 0.4.0은 Windows 10 또는 11의 x64 환경에서 실행합니다.
+이 문서는 CalcLens 0.5.0 Windows x64 빌드 안내입니다. 새 실행 파일의 배포 여부는
+배포 페이지에서 확인하세요. 소스 수정만으로 새 EXE가 공개되지는 않습니다.
 Windows 실행 파일에 Python과 필요한 패키지가 들어 있어 Python을 따로 설치할 필요가 없습니다.
 
-1. [CalcLens 배포 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.4.0)를 엽니다.
-2. 한국어로 시작하려면 `CalcLens-0.4.0-windows-x64-ko.exe`,
-   영어로 시작하려면 `CalcLens-0.4.0-windows-x64-en.exe`를 받습니다.
+1. [CalcLens 배포 페이지](https://github.com/a123qsd/calclens/releases)를 엽니다.
+2. 한국어로 시작하려면 `CalcLens-0.5.0-windows-x64-ko.exe`,
+   영어로 시작하려면 `CalcLens-0.5.0-windows-x64-en.exe`를 받습니다.
 3. 받은 파일을 두 번 클릭합니다. 실행 상태를 보여 주는 작은 관리 창과 기본
    브라우저의 CalcLens 화면이 열립니다. 단일 실행 파일은 시작할 때 포함된 파일을
    풀기 때문에 몇 초가 걸릴 수 있습니다. 더 빠른 반복 실행이 필요하면 같은 이름의
@@ -35,14 +36,14 @@ CalcLens는 CIF의 기하 정보를 점검합니다. 화학적 안정성, 전자
 다음 명령을 실행한 뒤, 표시된 값을 받은 파일에 해당하는 항목과 비교합니다.
 
 ```powershell
-Get-FileHash .\CalcLens-0.4.0-windows-x64-ko.exe -Algorithm SHA256
+Get-FileHash .\CalcLens-0.5.0-windows-x64-ko.exe -Algorithm SHA256
 ```
 
 ## 라이선스, 소스와 다시 빌드하기
 
 배포 페이지의 소스 ZIP은 Python을 별도로 설치해야 실행할 수 있습니다.
 Python을 설치하지 않고 사용하려면 위의 `.exe` 파일을 받으세요.
-`CalcLens-0.4.0-windows-support.zip`에는 타사 라이선스 고지, 빌드에 사용한 정확한
+`CalcLens-0.5.0-windows-support.zip`에는 타사 라이선스 고지, 빌드에 사용한 정확한
 ASE 소스 압축 파일, 의존성 정보와 CalcLens 소스가 들어 있습니다.
 실행 파일을 재배포할 때 지원 ZIP도 함께 보관하고 전달하세요.
 지원 ZIP의 체크섬도 `WINDOWS-SHA256SUMS.txt`에 있습니다.
@@ -78,3 +79,11 @@ ASE를 수정하려면 지원 ZIP의 `sources/ase-3.29.0.tar.gz`를 풀어 편�
 제공된 실행 파일을 사용하는 데는 Python이 필요하지 않으며, 다시 빌드할 때 필요합니다.
 의존성 버전과 소스 커밋은 `DEPENDENCIES.json`에 기록됩니다.
 구성 요소를 바꾸면 빌드 결과도 달라집니다.
+
+## 새 화면과 이전 화면
+
+기본 화면은 React/TypeScript와 3Dmol.js를 사용합니다. 화면 스크립트와 라이선스는
+실행 파일에 포함되므로 Node.js나 CDN 연결이 필요하지 않습니다. 이전 Streamlit
+화면이 필요하면 실행 파일 뒤에 `--legacy-ui`를 붙이세요. 소스의 화면을 수정해
+다시 빌드할 때는 Node 26.7에서 `cd frontend`, `npm ci --ignore-scripts`,
+`npm run build`를 실행하고 루트로 돌아와 위의 패키지 설치·빌드 명령을 실행합니다.

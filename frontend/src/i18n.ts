@@ -1,0 +1,51 @@
+import type { Language } from './types.ts';
+
+export const text = {
+  ko: {
+    overview: '구조 개요', compare: '구조 비교', review: '검토 항목', methods: '방법과 한계',
+    workspace: '작업공간', title: '계산 전 구조 점검', subtitle: '결과를 살펴보고 근거를 확인하세요.',
+    open: '파일 열기', sample: '예제 불러오기', add: 'CIF 추가', openProject: '작업 열기',
+    saveProject: '작업 저장', minimum: '최소 주기 거리', thickness: '핵 중심 두께', gap: '후보 핵 간격',
+    structure: '분자 구조', actual: '실제 CIF · 주기 구조', checks: '검토 항목', records: '구조 기록',
+    exportCsv: '전체 CSV', needsReview: '검토 필요', clear: '경고 없음', unsupported: '분석 불가',
+    current: '현재 검토', reviewed: '검토 완료', unreviewed: '미검토', all: '전체',
+    settings: '선택 구조 편집', measurement: '원자 거리 측정', comparison: '나란히 비교',
+    notes: '검토 메모', cutoff: '짧은 거리 기준 (Å)', normal: '후보 수직축', replace: '원본 교체',
+    remove: '구조 삭제', markReviewed: '검토 완료로 표시', evidence: '근거 보고서 열기',
+    displayed: '표시된 이미지 거리', mic: '최소 이미지 거리', savePair: '선택 저장',
+    firstAtom: '첫 원자', secondAtom: '둘째 원자', measure: '거리 계산', savedPairs: '저장한 선택',
+    before: '기준 구조', after: '비교 구조', noResults: '현재 필터에 맞는 구조가 없습니다.',
+    source: '입력 근거', axes: '축', status: '상태', file: '파일', formula: '화학식', atoms: '원자',
+    methodNote: 'CalcLens는 에너지·결합·힘·안정성·수렴을 계산하지 않습니다. 수치는 CIF의 핵 좌표를 이용한 구조 선별 결과입니다.',
+    conflict: '다른 창에서 작업이 바뀌어 최신 상태를 불러왔습니다. 변경 내용을 확인한 뒤 다시 시도하세요.',
+    loading: '작업공간을 준비하는 중…', retry: '다시 불러오기', close: '닫기',
+    filters: '목록 필터', geometryFilter: '구조 상태', progressFilter: '검토 진행',
+    viewAll: '전체 보기', viewReview: '검토 필요', viewUnsupported: '분석 불가',
+    selectTwo: '뷰어에서 원자 두 개를 누르거나 번호를 입력하세요.', addMode: '기존 작업에 추가', replaceMode: '새 작업으로 열기',
+  },
+  en: {
+    overview: 'Overview', compare: 'Compare structures', review: 'Review checks', methods: 'Method notes',
+    workspace: 'Workspace', title: 'Structure preflight', subtitle: 'Inspect the result. Check the evidence.',
+    open: 'Open files', sample: 'Try sample', add: 'Add CIFs', openProject: 'Open project',
+    saveProject: 'Save project', minimum: 'Minimum periodic distance', thickness: 'Nuclear-span thickness', gap: 'Candidate nuclear gap',
+    structure: 'Molecular structure', actual: 'Actual CIF · periodic structure', checks: 'Review checks', records: 'Structure records',
+    exportCsv: 'Export all CSV', needsReview: 'Needs review', clear: 'No warnings', unsupported: 'Unsupported',
+    current: 'Current review', reviewed: 'Reviewed', unreviewed: 'Unreviewed', all: 'All',
+    settings: 'Edit selected structure', measurement: 'Measure atom pair', comparison: 'Side-by-side comparison',
+    notes: 'Review notes', cutoff: 'Short-distance cutoff (Å)', normal: 'Candidate normal', replace: 'Replace source',
+    remove: 'Remove structure', markReviewed: 'Mark review complete', evidence: 'Open evidence report',
+    displayed: 'Displayed-image distance', mic: 'Minimum-image distance', savePair: 'Save selection',
+    firstAtom: 'First atom', secondAtom: 'Second atom', measure: 'Measure distance', savedPairs: 'Saved selections',
+    before: 'Reference structure', after: 'Comparison structure', noResults: 'No structures match these filters.',
+    source: 'Input evidence', axes: 'Axis', status: 'Status', file: 'File', formula: 'Formula', atoms: 'Atoms',
+    methodNote: 'CalcLens does not calculate energy, bonds, forces, stability, or convergence. Values are structural screening results from CIF nuclear coordinates.',
+    conflict: 'This workspace changed in another tab. The latest state is loaded; review it before trying again.',
+    loading: 'Preparing the workspace…', retry: 'Reload', close: 'Close',
+    filters: 'List filters', geometryFilter: 'Geometry status', progressFilter: 'Review progress',
+    viewAll: 'Show all', viewReview: 'Needs review', viewUnsupported: 'Unsupported',
+    selectTwo: 'Click two atoms in the viewer or enter their indices.', addMode: 'Add to workspace', replaceMode: 'Open as new workspace',
+  },
+} as const;
+
+export type Copy = typeof text.ko;
+export function copy(language: Language): Copy { return text[language] as Copy; }

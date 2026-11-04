@@ -12,6 +12,8 @@ It does not change any dependency's license or permission to sell that dependenc
 | NumPy | Array operations and linear algebra | [BSD-3-Clause](https://numpy.org/doc/stable/license.html), [source](https://github.com/numpy/numpy) |
 | Streamlit | Local web interface | [Apache-2.0](https://github.com/streamlit/streamlit/blob/develop/LICENSE), [source](https://github.com/streamlit/streamlit) |
 | Plotly.py | Interactive structure plot | [MIT](https://github.com/plotly/plotly.py/blob/main/LICENSE.txt), [source](https://github.com/plotly/plotly.py) |
+| React / ReactDOM | Workspace interface | [MIT](https://github.com/facebook/react/blob/main/LICENSE), [source](https://github.com/facebook/react) |
+| 3Dmol.js | Shaded molecular viewer | [BSD-3-Clause and incorporated notices](https://github.com/3Dmol/3Dmol.js/blob/master/LICENSE), [source](https://github.com/3Dmol/3Dmol.js) |
 | pytest | Test runner; development only | [MIT](https://github.com/pytest-dev/pytest/blob/main/LICENSE), [source](https://github.com/pytest-dev/pytest) |
 
 The initial verification environment uses ASE 3.29.0, NumPy 2.5.4,
@@ -23,11 +25,18 @@ license included in a Python wheel. If you redistribute an installed environment
 a container, a bundled executable, or dependency source, retain all applicable
 notices and meet that distribution's source and license obligations.
 
+The browser interface includes compiled React, ReactDOM, scheduler and 3Dmol.js
+code. Its complete retained notices, including 3Dmol's incorporated libraries,
+are in `frontend/public/THIRD_PARTY_LICENSES.txt` and the packaged
+`slab_preflight/web_assets/THIRD_PARTY_LICENSES.txt`. The locked frontend sources
+and build tooling are recorded in `frontend/package-lock.json`. Node.js is needed
+only to rebuild these assets; running CalcLens does not fetch scripts from a CDN.
+
 ## Windows executable distribution
 
 The Windows executables bundle CPython and the runtime libraries. Each executable
 contains their license and notice files under `third_party/` in its extracted
-runtime directory. The accompanying `CalcLens-0.3.0-windows-support.zip` provides
+runtime directory. The accompanying versioned `CalcLens-<version>-windows-support.zip` provides
 the same notices, a dependency/version manifest, the exact unmodified ASE source
 archive with its upstream SHA-256, and the CalcLens source used for the Windows
 build. Build-tool notices are identified separately from runtime dependencies.

@@ -1,0 +1,24 @@
+.molecule-viewer { min-width: 0; }
+.molecule-canvas-wrap { position: relative; height: clamp(270px, 31vh, 340px); min-height: 260px; overflow: hidden; border-radius: 9px; background: radial-gradient(circle at 50% 46%, #fff 0, #fbfcfc 56%, #f1f4f5 100%); }
+.molecule-viewer--compact .molecule-canvas-wrap { height: 300px; }
+.molecule-canvas { position: absolute; inset: 0; }
+.molecule-canvas canvas { outline: none; }
+.molecule-badge { position: absolute; top: 12px; left: 12px; z-index: 2; padding: 5px 9px; border: 1px solid #dbe2e6; border-radius: 999px; color: #637083; background: rgba(255,255,255,.88); font-size: 12px; font-weight: 700; pointer-events: none; }
+.molecule-fallback { position: absolute; inset: 0; z-index: 3; display: grid; place-content: center; gap: 7px; padding: 24px; text-align: center; color: #7a3b13; background: #fff8ed; }
+.molecule-fallback small { max-width: 520px; color: #8b6a51; }
+.molecule-toolbar { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 5px; padding: 9px 6px; border-bottom: 1px solid #e2e7ea; }
+.molecule-toolbar button, .molecule-toolbar select { min-height: 31px; border: 1px solid #b8c2ca; border-radius: 7px; color: #172331; background: #fff; font: inherit; font-size: 12px; cursor: pointer; }
+.molecule-toolbar button { display: inline-flex; align-items: center; gap: 4px; padding: 5px 8px; }
+.molecule-toolbar button:hover, .molecule-toolbar button.is-active { border-color: #008f84; color: #00786f; background: #e9f8f5; }
+.molecule-toolbar button:focus-visible, .molecule-toolbar select:focus-visible { outline: 3px solid rgba(0,156,144,.28); outline-offset: 2px; }
+.molecule-toolbar label { display: inline-flex; align-items: center; gap: 7px; color: #637083; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.molecule-toolbar select { width: auto; padding: 5px 25px 5px 8px; }
+.molecule-status { display: flex; justify-content: space-between; gap: 16px; padding: 8px 8px 0; color: #637083; font-size: 11px; line-height: 1.35; }
+.molecule-status span:first-child { color: #946200; }
+@media (max-width: 700px) {
+  .molecule-canvas-wrap { height: 330px; }
+  .molecule-toolbar button span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+  .molecule-toolbar button { width: 36px; justify-content: center; padding-inline: 0; }
+  .molecule-status { flex-direction: column; gap: 3px; }
+}
+@media (prefers-reduced-motion: reduce) { .molecule-toolbar button { scroll-behavior: auto; } }

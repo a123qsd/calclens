@@ -110,7 +110,7 @@ def test_main_runs_cli_in_process_with_required_flags_and_locale(
 
     bootstrap = fake_streamlit(monkeypatch, cli_main)
     original_callback = bootstrap._on_server_start
-    arguments = ["--no-browser"]
+    arguments = ["--no-browser", "--legacy-ui"]
     if explicit:
         arguments.extend(["--language", explicit])
     assert launcher.main(arguments, project_dir=package) == 7
@@ -149,6 +149,23 @@ def test_run_cli_marks_own_server_ready_only_after_startup_callback(tmp_path, mo
     assert launcher._run_streamlit(["streamlit", "run", "app.py"], ready) == 0
 
 
+def test_workspace_callback_marks_managed_process_ready(tmp_path, monkeypatch):
+    from slab_preflight import web_api
+
+    started = threading.Event()
+    marker = tmp_path / "managed.ready"
+    monkeypatch.setenv("CALCLENS_READY_FILE", str(marker))
+
+    def run(root, port, language, on_ready):
+        assert (root, port, language) == (tmp_path, 43123, "ko")
+        assert not started.is_set() and not marker.exists()
+        on_ready("http://127.0.0.1:43123", object())
+        assert started.is_set() and marker.read_text() == "ready\n"
+
+    monkeypatch.setattr(web_api, "run_server", run)
+    assert launcher._run_workspace(tmp_path, 43123, "ko", started) == 0
+
+
 def test_streamlit_import_occurs_after_development_mode_is_disabled(package, monkeypatch):
     import builtins
 
@@ -165,7 +182,7 @@ def test_streamlit_import_occurs_after_development_mode_is_disabled(package, mon
     monkeypatch.setattr(builtins, "__import__", checked_import)
     monkeypatch.setenv("STREAMLIT_GLOBAL_DEVELOPMENT_MODE", "true")
     monkeypatch.setattr(launcher, "choose_port", lambda requested: 43123)
-    assert launcher.main(["--no-browser"], project_dir=package) == 0
+    assert launcher.main(["--no-browser", "--legacy-ui"], project_dir=package) == 0
     assert observed
 
 
@@ -177,9 +194,9 @@ def test_frozen_windows_default_uses_manager_but_no_browser_keeps_cli(package, m
     managed = []
     monkeypatch.setattr(
         launcher, "_run_windows_manager",
-        lambda url, port, language: managed.append((url, port, language)) or 9,
+        lambda url, port, language, **kwargs: managed.append((url, port, language)) or 9,
     )
-    monkeypatch.setattr(launcher, "_run_streamlit", lambda arguments, started: 4)
+    monkeypatch.setattr(launcher, "_run_workspace", lambda *args: 4)
 
     assert launcher.main([], project_dir=package) == 9
     assert managed == [("http://127.0.0.1:43123", 43123, "ko")]
@@ -191,6 +208,7 @@ def test_manager_child_command_reuses_frozen_executable(monkeypatch):
     assert launcher._manager_command(43123, "ko") == [
         r"C:\\Apps\\CalcLens.exe", "--port", "43123", "--language", "ko", "--no-browser",
     ]
+    assert launcher._manager_command(43123, "ko", legacy_ui=True)[-1] == "--legacy-ui"
 
 
 def test_browser_capture_hook_records_exact_local_url(tmp_path, monkeypatch):
@@ -208,9 +226,9 @@ def test_manager_failure_falls_back_to_existing_console_launch(package, monkeypa
     monkeypatch.setattr(launcher, "choose_port", lambda requested: 43123)
     monkeypatch.setattr(
         launcher, "_run_windows_manager",
-        lambda *args: (_ for _ in ()).throw(OSError("desktop unavailable")),
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("desktop unavailable")),
     )
-    monkeypatch.setattr(launcher, "_run_streamlit", lambda arguments, started: 6)
+    monkeypatch.setattr(launcher, "_run_workspace", lambda *args: 6)
     assert launcher.main([], project_dir=package) == 6
     assert "using console mode" in capsys.readouterr().err
 
@@ -293,10 +311,10 @@ def test_invalid_marker_and_missing_app_have_clear_errors(package, monkeypatch, 
 
 
 @pytest.mark.parametrize("status,body,final_url,expected", [
-    (200, b"ok", "http://127.0.0.1:43123/_stcore/health", True),
-    (503, b"ok", "http://127.0.0.1:43123/_stcore/health", False),
-    (200, b"<html>another server</html>", "http://127.0.0.1:43123/_stcore/health", False),
-    (200, b"ok", "http://127.0.0.1:43124/_stcore/health", False),
+    (200, b"ok", "http://127.0.0.1:43123/_calclens/health", True),
+    (503, b"ok", "http://127.0.0.1:43123/_calclens/health", False),
+    (200, b"<html>another server</html>", "http://127.0.0.1:43123/_calclens/health", False),
+    (200, b"ok", "http://127.0.0.1:43124/_calclens/health", False),
 ])
 def test_health_check_requires_exact_local_ready_response(
     monkeypatch, status, body, final_url, expected,
@@ -318,7 +336,7 @@ def test_health_check_requires_exact_local_ready_response(
 
     monkeypatch.setattr(launcher.urllib.request, "build_opener", build_opener)
     assert launcher._health_is_ready("http://127.0.0.1:43123") is expected
-    assert requests == ["http://127.0.0.1:43123/_stcore/health"]
+    assert requests == ["http://127.0.0.1:43123/_calclens/health"]
 
 
 def test_health_connection_errors_are_not_readiness(monkeypatch):
@@ -415,7 +433,7 @@ def test_real_self_test_exercises_current_dependencies_without_network(monkeypat
     assert report["chart_count"] == 2
     assert report["checks"] == {name: True for name in (
         "graphene_geometry", "mos2_axes", "invalid_cell_isolation", "project_roundtrip",
-        "plotly_charts", "streamlit_static", "plotly_validators", "metadata",
+        "plotly_charts", "streamlit_static", "plotly_validators", "metadata", "workspace_assets",
     )}
     assert set(report["versions"]) == set(launcher.METADATA_PACKAGES)
     assert all(report["versions"].values())
@@ -428,7 +446,7 @@ def test_unexpected_launcher_defects_remain_visible(package, monkeypatch):
         raise TypeError("unexpected launcher defect")
 
     monkeypatch.setattr(launcher, "choose_port", lambda requested: 43123)
-    monkeypatch.setattr(launcher, "_run_streamlit", broken_runner)
+    monkeypatch.setattr(launcher, "_run_workspace", broken_runner)
     with pytest.raises(TypeError, match="unexpected launcher defect"):
         launcher.main(["--no-browser"], project_dir=package)
 
@@ -442,7 +460,7 @@ def test_redirected_korean_console_and_errors_use_utf8_without_environment(
     monkeypatch.delenv("PYTHONUTF8", raising=False)
     monkeypatch.delenv("PYTHONIOENCODING", raising=False)
     monkeypatch.setattr(launcher, "choose_port", lambda requested: 43123)
-    monkeypatch.setattr(launcher, "_run_streamlit", lambda *args: 0)
+    monkeypatch.setattr(launcher, "_run_workspace", lambda *args: 0)
     with monkeypatch.context() as capture:
         capture.setattr(sys, "stdout", output)
         capture.setattr(sys, "stderr", errors)

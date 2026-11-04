@@ -1,11 +1,12 @@
 # CalcLens for Windows
 
-CalcLens 0.4.0 runs on Windows 10 or 11, x64. The Windows executable includes
+These instructions describe the CalcLens 0.5.0 Windows x64 build. Check the release
+page for availability; a source update does not publish a new EXE. The executable includes
 Python and its required packages. You do not need to install Python.
 
-1. Open the [CalcLens release page](https://github.com/a123qsd/calclens/releases/tag/v0.4.0).
-2. Download `CalcLens-0.4.0-windows-x64-en.exe` for English or
-   `CalcLens-0.4.0-windows-x64-ko.exe` for Korean.
+1. Open the [CalcLens release page](https://github.com/a123qsd/calclens/releases).
+2. Download `CalcLens-0.5.0-windows-x64-en.exe` for English or
+   `CalcLens-0.5.0-windows-x64-ko.exe` for Korean.
 3. Double-click the file. A small manager window shows startup status and opens
    CalcLens in your default browser. The standalone executable unpacks its
    included files at startup, which can take several seconds. For faster repeat
@@ -37,14 +38,14 @@ Download `WINDOWS-SHA256SUMS.txt` from the same release. In PowerShell, compare
 the value below with the entry for your downloaded file:
 
 ```powershell
-Get-FileHash .\CalcLens-0.4.0-windows-x64-en.exe -Algorithm SHA256
+Get-FileHash .\CalcLens-0.5.0-windows-x64-en.exe -Algorithm SHA256
 ```
 
 ## Notices, source, and rebuilding
 
 The source ZIPs on the release page require a separate Python installation.
 Use an `.exe` file above when you want to run CalcLens without installing Python.
-`CalcLens-0.4.0-windows-support.zip` contains third-party notices, the exact ASE
+`CalcLens-0.5.0-windows-support.zip` contains third-party notices, the exact ASE
 source archive, dependency details, and the CalcLens source used for the build.
 Keep that support ZIP with the executable when redistributing it. Its checksum
 is listed in `WINDOWS-SHA256SUMS.txt`.
@@ -82,3 +83,11 @@ then run the two build commands again. Record your modification and retain its
 license notices. Python is needed for rebuilding, not for using the supplied
 executables. The dependency versions and source commit are recorded in
 `DEPENDENCIES.json`; changing a component changes the build.
+
+## Current and legacy interfaces
+
+The default React/TypeScript workspace and 3Dmol.js viewer are bundled locally.
+Running the executable needs neither Node.js nor a CDN connection. Pass
+`--legacy-ui` to use the previous Streamlit interface. If editing the frontend
+before rebuilding, use Node 26.7 to run `npm ci --ignore-scripts` and
+`npm run build` in `frontend/`, then reinstall the package and build the EXE.

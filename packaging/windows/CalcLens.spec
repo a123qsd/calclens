@@ -16,6 +16,7 @@ datas = [
     (str(root / '.streamlit' / 'config.toml'), '.streamlit'),
     (str(root / 'LICENSE'), '.'),
     (str(root / 'THIRD_PARTY_NOTICES.md'), '.'),
+    (str(root / 'src' / 'slab_preflight' / 'web_assets'), 'slab_preflight/web_assets'),
     (str(stage / 'DEFAULT_LANGUAGE.txt'), '.'),
     (str(stage / 'WINDOWS_BUILD_INFO.json'), '.'),
 ]

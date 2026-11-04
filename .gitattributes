@@ -3,3 +3,10 @@
 # Prepared artifacts have reproducible LF bytes and hashes on every platform.
 /examples/public_case/*.cif text eol=lf
 /examples/public_case/*.json text eol=lf
+# Browser build inputs and generated resources must agree across build hosts.
+/frontend/** text eol=lf
+/src/slab_preflight/web_assets/** text eol=lf
+
+# Preserve upstream license text and generated shader string whitespace.
+/frontend/public/THIRD_PARTY_LICENSES.txt -whitespace
+/src/slab_preflight/web_assets/** -whitespace

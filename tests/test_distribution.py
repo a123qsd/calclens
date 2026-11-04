@@ -95,7 +95,7 @@ def test_launcher_resolves_locale_and_keeps_parent_environment(tmp_path, monkeyp
         return SimpleNamespace(returncode=7)
 
     monkeypatch.setattr(launcher.subprocess, "run", fake_run)
-    arguments = ["--language", explicit] if explicit else []
+    arguments = ["--legacy-ui"] + (["--language", explicit] if explicit else [])
     result = launcher.main(arguments, project_dir=tmp_path)
     assert result == 7
     assert len(calls) == 1
@@ -120,12 +120,28 @@ def test_launcher_rejects_invalid_marker_without_launch(tmp_path, monkeypatch, c
     assert "DEFAULT_LANGUAGE.txt must contain" in capsys.readouterr().err
 
 
+def test_default_launcher_uses_bundled_workspace_and_current_sources(tmp_path, monkeypatch):
+    (tmp_path / "streamlit_app.py").write_text("# fixture")
+    (tmp_path / "src").mkdir()
+    monkeypatch.setenv("PYTHONPATH", "old-location")
+    calls = []
+    monkeypatch.setattr(launcher.subprocess, "run", lambda command, **kwargs:
+                        calls.append((command, kwargs)) or SimpleNamespace(returncode=0))
+    assert launcher.main(["--no-browser", "--language", "en", "--port", "8502"],
+                         project_dir=tmp_path) == 0
+    command, options = calls[0]
+    assert command == [sys.executable, "-m", "slab_preflight.web_api", "--root", str(tmp_path),
+                       "--port", "8502", "--language", "en", "--no-browser"]
+    assert options["env"]["PYTHONPATH"] == str(tmp_path / "src") + os.pathsep + "old-location"
+    assert os.environ["PYTHONPATH"] == "old-location"
+
+
 def test_explicit_language_recovers_invalid_marker_and_supports_port(tmp_path, monkeypatch):
     (tmp_path / "streamlit_app.py").write_text("# fixture")
     (tmp_path / "DEFAULT_LANGUAGE.txt").write_text("invalid")
     calls = []
     monkeypatch.setattr(launcher.subprocess, "run", lambda command, **kwargs: calls.append((command, kwargs)) or SimpleNamespace(returncode=0))
-    assert launcher.main(["--language", "en", "--port", "8502"], project_dir=tmp_path) == 0
+    assert launcher.main(["--legacy-ui", "--language", "en", "--port", "8502"], project_dir=tmp_path) == 0
     assert "--server.port=8502" in calls[0][0]
     assert calls[0][1]["env"]["CALCLENS_LANGUAGE"] == "en"
 

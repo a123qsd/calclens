@@ -10,13 +10,14 @@ service is required.
 
 [Project home](https://github.com/a123qsd/calclens) · [한국어 안내](README.ko.md) · [English ZIP and installation](docs/DOWNLOADS.md#english) · [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) · [Development](docs/DEVELOPMENT.md) · [Validation record](docs/VALIDATION.md)
 
-This guide covers the **CalcLens v0.4.0 source**. Download links below still point
+This guide covers the **CalcLens v0.5.0 source**. Download links below still point
 to published v0.3.0 assets. Project editing, review history, chosen-pair
-measurements and side-by-side comparison are available in the updated source.
+measurements, side-by-side comparison and the new molecular workspace are
+available in the updated source.
 
-![CalcLens structure, nearest-pair and gap inspection](docs/assets/calclens-overview.png)
+![CalcLens molecular workspace](docs/assets/calclens-workspace.png)
 
-[Watch the short demo](docs/assets/calclens-demo.webm) ·
+[Watch the earlier Streamlit demo](docs/assets/calclens-demo.webm) ·
 [Read the public graphite case](docs/CASE_STUDY.md)
 
 > This tool does not establish structural stability or calculation accuracy.
@@ -61,83 +62,74 @@ CIF file. Start with graphene, then compare `graphene_duplicate.cif` to see how
 a duplicate site is reported. You can switch between English and Korean in the
 interface. Use `python run_app.py` to start with a ZIP's default language.
 
-Select a review check or contact pair to highlight the related sites and periodic image.
-The **View nearest pair** button under the shortest-distance metric opens one
-pair realizing that minimum, even when it is above the warning cutoff.
-Inspect the gap along the selected axis, and download the criteria and results
-as JSON or CSV. If a contact table reaches its 200-record limit, overlaps and
-shorter distances take priority, with minimum-distance and self-image evidence
-retained when below the cutoff. Exact issue counts and a representative pair
-or image remain in the exports.
+## Molecular workspace
 
-## Compare CIF files
+The default screen uses React/TypeScript and a bundled 3Dmol.js viewer. Python
+still owns CIF parsing, geometric measurements and project storage. The three
+summary cards show the minimum periodic distance, nuclear-span thickness and
+candidate nuclear gap. They do not represent SCF, optimization or frequency results.
+The earlier Streamlit screen remains available with `python run_app.py --legacy-ui`.
 
-1. Choose **Compare CIF files** in the input selector and upload up to 20 CIFs.
-2. Set the axis and short-distance cutoff for each file. Every file starts at
-   c and 1.0 Å; check the actual layer direction before interpreting its gap.
-3. Read the comparison table and select a row to open that file's detailed
-   structure view, findings, and JSON/CSV downloads. The first file opens initially.
-4. Use **Export all comparison CSV** to save one summary row per file.
+Drag the structure to rotate it and scroll to zoom. **Fit atoms** frames the
+structure; **Fit cell** includes the full unit cell. Use **Repeat** to display
+1×1, 2×2 or 3×3 cells in the two in-plane directions. These copies retain their
+original site numbers and lattice image shifts; they do not enlarge the Python
+calculation. **Display bonds** toggles distance-inferred sticks. These are
+explicitly display-only connections, not a chemical bond analysis.
 
-Each file is checked independently and keeps the 2 MiB and 400-site limits.
-An unsupported file stays in the table with blank measurements; select its row
-to read the reason. The other files are still checked. Status values are `unsupported`,
-`review_required`, and `no_flags`. The last means that no screening warnings or
-errors were found, not that the structure is valid. Warning/error columns count
-findings, while distance-issue pair counts are in the detailed reports.
+Select a review check to show its exact sites or periodic image. The minimum
+pair remains available even above the warning cutoff. Candidate gap boundaries
+show the largest cyclic gap between nuclei, including a boundary crossing.
+This gap alone does not establish a physical vacuum or adequate convergence.
 
-The comparison table and summary CSV follow the interface language. Detailed
-JSON/CSV reports have the separate report-language setting described below.
+## Files, comparison and review
 
-## Save and continue a comparison
+Use **Open files** for a new workspace of up to 20 CIFs, or **Add CIFs** in
+**Edit selected structure** to extend the current workspace. Every input keeps
+the 2 MiB and 400-site limits. Unsupported files remain in the records table
+with blank measurements and an explanation; other files are still analyzed.
+Select a record to inspect it. Per-file axis and short-distance cutoff begin at
+c and 1.0 Å for uploaded CIFs; set the actual candidate normal before interpreting
+a gap. Named a/b-normal examples carry their corresponding axis.
 
-Each comparison entry keeps its own axis and cutoff as the file list changes.
-When you edit conditions or reorder or remove other files, the detail view stays
-on the selected file. Results are cached for the session by file content, axis,
-and cutoff, so unchanged checks can be reused.
+The edit panel provides notes, source replacement and removal. Save edits with
+the panel's save button before exporting your work. Replacing a file preserves
+its ID, notes and settings, but changed bytes clear review completion and saved
+pair selections. Removal changes this workspace only; it does not delete a file
+from your computer. At least one entry must remain.
 
-Use **All**, **Needs review**, or **Input errors** to filter the compact comparison
-table. The comparison CSV still includes every file and its provenance; filtering
-does not remove results from exports. Individual reports retain their results
-and source identity.
+Geometry flags and review progress have independent filters. **Reviewed** is a
+human record, not a passing geometry result. A review stamp records the exact
+original hash, axis, cutoff, analysis revision and ASE version. Changed analysis
+conditions require rechecking while the historical stamp remains available.
+An app-version change alone does not invalidate a current stamp. Schema-1
+projects from v0.3.0 open with their originals and notes, but require rechecking
+because they have no analysis revision.
 
-To continue later, choose **Save project** on the comparison screen to download
-a `.calclens.json` file. It stores the original CIF bytes, unique entry IDs,
-per-file conditions, selected file, review focus and filter, notes, and reviewed
-checkbox state. In the sidebar, choose **Open saved work**, upload that file,
-and click **Open project**. The original CIF files are no longer needed.
+**Compare structures** displays two structures side by side, their settings,
+cell vectors, measurements and changes in findings. Differences mean comparison
+minus reference; the app does not establish atom correspondence or calculate RMSD.
+**Export all CSV** includes every entry regardless of the visible filters.
 
-Opening a project rejects corrupt or missing CIF payloads and SHA-256 mismatches.
-If its saved engine version differs from the current engine, the app warns and
-recomputes the reports with the current version. A project restores your work;
-the JSON/CSV reports remain analysis exports and cannot be opened as projects.
+## Pair measurements and saved work
 
-In saved work, expand **Add, replace or remove project CIFs** to edit the file
-list. Replacement preserves the entry's notes and settings; changed bytes clear
-review completion and saved pair selections. Removing an entry does not delete
-the original file from your computer. A project must retain at least one entry.
+Click atoms in the viewer or enter two distinct original site numbers in
+**Measure atom pair**. Set each displayed image's integer `[a,b,c]` shift if
+needed. The panel distinguishes the chosen-image distance from the minimum-image
+distance. Save up to 50 selections per entry; distances are recalculated from
+the original source when reopening. Index fields explicitly identify their
+numbering convention; raw JSON indices are zero based.
 
-Use **Review progress** to filter **Unreviewed / Reviewed** independently of
-geometry flags. Marking a file reviewed leaves its geometry warnings visible.
-Review stamps record the original hash, axis, cutoff, analysis revision and ASE
-version. Changed analysis conditions require rechecking; historical stamps
-survive saving. Schema-1 projects from v0.3.0 open with their notes and original
-files, but require rechecking because they lack an analysis revision. A change
-to the app version alone does not invalidate a current stamp.
+**Save project** downloads a `.calclens.json` containing original CIF bytes,
+IDs, settings, notes, review stamps, selections and view filters. **Open project**
+restores it and recomputes reports. Corrupt payloads, missing originals and hash
+mismatches are rejected. Report JSON/CSV downloads are evidence exports and
+cannot be imported as projects.
 
-## Chosen-pair measurements and comparison
-
-Enable **Measure a chosen atom pair** in the review panel and choose two site
-numbers. Optionally specify each displayed image's integer `[a,b,c]` shift.
-The app shows both the distance between those images and the minimum-image
-distance; choose which line to draw. Save up to 50 pair selections per entry.
-Selections are recalculated from the original on reopening. Single-file and
-sample mode can also save a project containing these selections.
-
-Enable **Compare two structures side by side** above the detail view to inspect
-two 3D structures, composition, site count, cell vectors, minimum distance,
-nuclear span/gap and added or removed flags. Changes mean after minus before.
-Check each file's axis and cutoff. Atom correspondence and RMSD are not calculated.
+Tabs of one running server share a workspace. A conflicting edit from a stale
+tab reloads the latest state and asks you to review it before retrying; it does
+not silently overwrite newer work. Work remains in memory until downloaded.
+Save a project before stopping the server.
 
 ## Command line
 
@@ -252,7 +244,8 @@ No energy, force, or electronic-structure calculation is performed.
 ## Tools used
 
 [ASE](https://docs.ase-lib.org/) supplies CIF parsing and periodic geometry.
-Streamlit and Plotly provide the interface.
+React and TypeScript provide the workspace; 3Dmol.js draws the molecular viewer.
+Streamlit and Plotly remain available in the legacy interface (`--legacy-ui`).
 [pymatgen](https://pymatgen.org/) also supports CIF and materials analysis.
 CalcLens adds a narrow input contract and beginner-facing explanations to
 existing tools; it does not replace general materials analysis or simulation software.
@@ -260,8 +253,9 @@ existing tools; it does not replace general materials analysis or simulation sof
 ## Files and privacy
 
 The app has no feature that sends a CIF to an external AI or analysis API.
-In a local session, the browser sends the file to the Streamlit server on the
-same computer. If someone hosts the app remotely, that server receives the file;
+In a local session, the browser sends the file to the local Python server on the
+same computer. The default workspace binds only to loopback. If someone hosts
+the legacy interface remotely, that server receives the file;
 check its operating environment before supplying unpublished research data.
 Use only shareable, minimal examples in public bug reports.
 

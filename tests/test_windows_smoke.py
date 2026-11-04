@@ -10,6 +10,11 @@ SPEC = importlib.util.spec_from_file_location(
 )
 smoke = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(smoke)
+WORKSPACE_SPEC = importlib.util.spec_from_file_location(
+    "calclens_workspace_smoke", ROOT / "scripts" / "smoke_workspace.py"
+)
+workspace_smoke = importlib.util.module_from_spec(WORKSPACE_SPEC)
+WORKSPACE_SPEC.loader.exec_module(workspace_smoke)
 
 
 def test_descendant_process_ids_follows_bootloader_child_chain_only():
@@ -32,3 +37,37 @@ def test_descendant_process_ids_ignores_unrooted_cycles_and_pid_like_values():
         40: 999,
     }
     assert smoke.descendant_process_ids(10, parents) == {10, 11, 12}
+
+
+def test_workspace_smoke_requires_schema_two_review_and_saved_pair():
+    document = {
+        "format": "calclens.project",
+        "schema_version": 2,
+        "tools": {"calclens_version": "0.4.0"},
+        "entries": [
+            {"filename": "graphene.cif"},
+            {
+                "filename": "mos2_a_normal.cif", "normal_axis": "a",
+                "short_distance": 2.5, "note": workspace_smoke.NOTE,
+                "reviewed": True, "review_stamp": {"sha256": "a" * 64},
+                "measurements": [{
+                    "i": 0, "j": 1, "mode": "minimum_image",
+                    "first_shift": [0, 0, 0], "second_shift": [0, 0, 0],
+                }],
+            },
+            {"filename": "partial_occupancy.cif"},
+        ],
+    }
+    workspace_smoke._assert_project(document, "0.4.0")
+
+
+def test_workspace_smoke_origin_normalizes_default_ports():
+    assert workspace_smoke._origin("http://127.0.0.1/path") == ("http", "127.0.0.1", 80)
+    assert workspace_smoke._origin("https://example.test:444/app") == (
+        "https", "example.test", 444,
+    )
+
+
+def test_windows_smoke_uses_distinct_workspace_and_legacy_health_endpoints():
+    assert smoke.health_endpoint() == "/_calclens/health"
+    assert smoke.health_endpoint(legacy_ui=True) == "/_stcore/health"

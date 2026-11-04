@@ -35,6 +35,22 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "CALCLENS_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "CALCLENS_NAME=CalcLens-$version-windows-x64-${{ matrix.language }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '26.7.0'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build and test offline workspace
+        working-directory: frontend
+        run: |
+          npm ci --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify committed browser assets match their sources
+        run: git diff --exit-code -- src/slab_preflight/web_assets frontend/public/THIRD_PARTY_LICENSES.txt
       - name: Install locked runtime and build dependencies
         run: |
           python -m pip install --require-hashes -r requirements.lock

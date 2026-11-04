@@ -37,6 +37,8 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--language", choices=("en", "ko"), help="Override the package's default language.")
     parser.add_argument("--port", type=_port, default=8501, help="Local TCP port (default: 8501).")
+    parser.add_argument("--legacy-ui", action="store_true", help="Use the previous Streamlit interface.")
+    parser.add_argument("--no-browser", action="store_true", help="Do not open the browser.")
     args = parser.parse_args(argv)
     root = (project_dir or Path(__file__).resolve().parent).resolve()
     if not (root / "streamlit_app.py").is_file():
@@ -53,6 +55,18 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
         "--server.baseUrlPath=",
         "--browser.gatherUsageStats=false",
     ]
+    if args.no_browser:
+        command.append("--server.headless=true")
+    if not args.legacy_ui:
+        command = [sys.executable, "-m", "slab_preflight.web_api", "--root", str(root),
+                   "--port", str(args.port), "--language", language]
+        if args.no_browser:
+            command.append("--no-browser")
+    # A source checkout should run its current code, even beside an older wheel.
+    if (root / "src").is_dir():
+        environment["PYTHONPATH"] = str(root / "src") + (
+            os.pathsep + environment["PYTHONPATH"] if environment.get("PYTHONPATH") else ""
+        )
     try:
         return subprocess.run(command, cwd=root, env=environment, check=False).returncode
     except KeyboardInterrupt:

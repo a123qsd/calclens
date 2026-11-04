@@ -122,8 +122,8 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def _health_is_ready(url: str) -> bool:
-    health_url = f"{url}/_stcore/health"
+def _health_is_ready(url: str, *, legacy_ui: bool = False) -> bool:
+    health_url = url + ("/_stcore/health" if legacy_ui else "/_calclens/health")
     # Local health checks must not use an inherited corporate HTTP proxy or
     # follow another server's redirect away from this exact loopback endpoint.
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
@@ -151,13 +151,17 @@ def _open_browser(url: str) -> bool:
 def open_browser_when_ready(
     url: str, started: threading.Event, stopped: threading.Event,
     *, timeout: float = 45.0, poll_interval: float = 0.2,
+    legacy_ui: bool = False,
 ) -> bool:
     """Open only after our own server has bound and its health response is ready."""
     deadline = time.monotonic() + timeout
     while not stopped.is_set() and time.monotonic() < deadline:
         # A different process can win the port after choose_port's probe closes.
         # In that case our startup callback never fires, even if its health is ok.
-        if started.is_set() and _health_is_ready(url) and not stopped.is_set():
+        healthy = started.is_set() and (
+            _health_is_ready(url, legacy_ui=True) if legacy_ui else _health_is_ready(url)
+        )
+        if healthy and not stopped.is_set():
             return _open_browser(url)
         stopped.wait(min(poll_interval, max(0.0, deadline - time.monotonic())))
     return False
@@ -196,6 +200,19 @@ def _run_streamlit(arguments: list[str], started: threading.Event) -> int:
     finally:
         bootstrap._on_server_start = original_callback
         sys.argv = original_argv
+
+
+def _run_workspace(root: Path, port: int, language: str, started: threading.Event) -> int:
+    from slab_preflight.web_api import run_server
+
+    def on_ready(url, server):
+        ready_file = os.environ.get("CALCLENS_READY_FILE")
+        if ready_file:
+            Path(ready_file).write_text("ready\n", encoding="utf-8")
+        started.set()
+
+    run_server(root, port, language, on_ready=on_ready)
+    return 0
 
 
 def read_build_info(root: Path, language: str) -> dict:
@@ -305,6 +322,12 @@ def self_test(root: Path, language: str) -> dict:
     _require(validators.is_file(), "Plotly's validators/_validators.json must be bundled")
     _require(bool(json.loads(validators.read_text(encoding="utf-8"))),
              "Plotly's validator data must contain valid JSON")
+    import slab_preflight
+    workspace_assets = Path(slab_preflight.__file__).resolve().parent / "web_assets"
+    _require((workspace_assets / "index.html").is_file(), "Workspace HTML must be bundled")
+    _require(any((workspace_assets / "assets").glob("*.js")), "Workspace JavaScript must be bundled")
+    _require((workspace_assets / "THIRD_PARTY_LICENSES.txt").is_file(),
+             "Workspace dependency licenses must be bundled")
 
     versions = {name: importlib.metadata.version(name) for name in METADATA_PACKAGES}
     info = read_build_info(root, language)
@@ -331,7 +354,7 @@ def self_test(root: Path, language: str) -> dict:
         "versions": versions, "module_origins": origins,
         "checks": {name: True for name in (
             "graphene_geometry", "mos2_axes", "invalid_cell_isolation", "project_roundtrip",
-            "plotly_charts", "streamlit_static", "plotly_validators", "metadata",
+            "plotly_charts", "streamlit_static", "plotly_validators", "metadata", "workspace_assets",
         )},
         "chart_count": len(charts),
     }
@@ -354,11 +377,14 @@ def _console_directions(url: str, language: str) -> None:
               flush=True)
 
 
-def _manager_command(port: int, language: str) -> list[str]:
+def _manager_command(port: int, language: str, *, legacy_ui: bool = False) -> list[str]:
     """Start a second copy of the frozen app as the managed server process."""
-    return [
+    command = [
         sys.executable, "--port", str(port), "--language", language, "--no-browser",
     ]
+    if legacy_ui:
+        command.append("--legacy-ui")
+    return command
 
 
 def _should_use_manager(*, no_browser: bool) -> bool:
@@ -424,7 +450,7 @@ def _stop_managed_process(process: subprocess.Popen, *, timeout: float = 8.0) ->
         return "killed"
 
 
-def _run_windows_manager(url: str, port: int, language: str) -> int:
+def _run_windows_manager(url: str, port: int, language: str, *, legacy_ui: bool = False) -> int:
     """Show a small native manager for starting, reopening, and stopping CalcLens."""
     import tkinter as tk
     from tkinter import messagebox
@@ -451,7 +477,8 @@ def _run_windows_manager(url: str, port: int, language: str) -> int:
         server_environment = os.environ.copy()
         server_environment["CALCLENS_READY_FILE"] = str(ready_path)
         process = subprocess.Popen(
-            _manager_command(port, language), cwd=Path(sys.executable).resolve().parent,
+            _manager_command(port, language, legacy_ui=legacy_ui),
+            cwd=Path(sys.executable).resolve().parent,
             env=server_environment, stdout=log_stream, stderr=subprocess.STDOUT,
             creationflags=creationflags,
         )
@@ -510,7 +537,7 @@ def _run_windows_manager(url: str, port: int, language: str) -> int:
                     details.set(str(log_path))
                     open_button.configure(state=tk.DISABLED)
                 return
-            if not ready and ready_path.is_file() and _health_is_ready(url):
+            if not ready and ready_path.is_file() and _health_is_ready(url, legacy_ui=legacy_ui):
                 ready = True
                 _manager_log_event(log_stream, "server ready; browser open requested")
                 status.set("실행 중" if language == "ko" else "Running")
@@ -581,6 +608,7 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
     parser.add_argument("--language", choices=("ko", "en"), help="Override the bundled language.")
     parser.add_argument("--port", type=_port, help="Local TCP port (default: choose a free port).")
     parser.add_argument("--no-browser", action="store_true", help="Do not open the browser.")
+    parser.add_argument("--legacy-ui", action="store_true", help="Use the previous Streamlit interface.")
     inspection = parser.add_mutually_exclusive_group()
     inspection.add_argument("--self-test", action="store_true", help="Run offline bundle checks.")
     inspection.add_argument("--build-info", action="store_true", help="Print build metadata as JSON.")
@@ -610,7 +638,7 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
             url = f"http://{HOST}:{port}"
             if _should_use_manager(no_browser=args.no_browser):
                 try:
-                    return _run_windows_manager(url, port, language)
+                    return _run_windows_manager(url, port, language, legacy_ui=args.legacy_ui)
                 except (ImportError, OSError, RuntimeError) as error:
                     _set_console_visible(True)
                     print(f"Windows manager unavailable; using console mode: {error}",
@@ -620,9 +648,12 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
             if not args.no_browser:
                 threading.Thread(
                     target=open_browser_when_ready, args=(url, started, stopped),
+                    kwargs={"legacy_ui": args.legacy_ui},
                     name="CalcLens-browser", daemon=True,
                 ).start()
-            return _run_streamlit(streamlit_arguments(root, port), started)
+            if args.legacy_ui:
+                return _run_streamlit(streamlit_arguments(root, port), started)
+            return _run_workspace(root, port, language, started)
     except KeyboardInterrupt:
         return 130
     except (OSError, ImportError, ValueError) as error:

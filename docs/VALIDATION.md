@@ -1,5 +1,56 @@
 # Validation record
 
+## v0.5.0 local verification — 2026-11-05
+
+The final Python source passed **545 tests** on macOS arm64 with Python 3.12.
+The existing 11 ASE/NumPy deprecation warnings remain. Ruff, dependency
+consistency, all 16 generated CIFs, the public graphite source/hash and
+independent geometry check, and `git diff --check` passed. The frontend passed
+TypeScript checking, its production build and **10 geometry/viewer tests**.
+
+The new local API has 22 tests covering canonical projects, atomic mutations,
+bounded requests, Host/Origin/token checks, stale revisions, exports and offline
+asset delivery. A measurement request carries the workspace revision, so a
+stale tab cannot measure replacement coordinates against an old display.
+
+The real Chromium/WebGL browser smoke passed separately in English and Korean:
+three CIF uploads, per-file axis/cutoff/note changes, review completion, pair
+measurement and saving, exact project export/import/export, two-view comparison,
+report downloads, language round trips and unsupported-input presentation.
+Both runs reported zero page errors, console errors, failed HTTP requests or
+external requests. Rendering used a nonzero WebGL 2 drawing buffer.
+
+The focused browser regression harness passed eight groups: camera fit/reset,
+actual repeated-image atom picking and integer validation, diagnostic and gap
+selection, stale measurements, note conflicts, independent report language,
+390-pixel layout and browser event health. It also verifies that a cutoff-only
+change or replacement with identical coordinates but different source bytes
+clears the old atom selection. The two deliberate conflicts returned HTTP 409;
+there were no unexpected browser/network errors and no external requests.
+Unsaved note drafts survive conflicts and require explicit reapplication.
+
+The [workspace screenshot](assets/calclens-workspace.png) shows the actual
+graphene fixture at 1584 × 992. An independent review scored the approved
+reference match 91/100 before the final picker/toolbar spacing polish. The
+layout retains the navy sidebar, three metric cards, white structure/review
+cards and records table. Its values describe CIF geometry, not the mockup's
+SCF/optimization/frequency concepts. Display bonds remain optional estimates.
+
+A rebuilt 0.5.0 wheel was installed, its offline browser assets and license
+notices were checked, and the installed English JSON/Korean CSV CLI and source
+launcher self-test passed. End users do not need Node or a CDN. The frontend
+build still reports an upstream 3Dmol `eval` warning and a bundle-size advisory.
+CalcLens does not use that autoload callback path; its Content Security Policy
+does not enable `unsafe-eval`, and the browser flows above passed under it.
+
+**Native Windows EXE building, manager-window execution, normal shutdown,
+temporary extraction cleanup and comparative startup timings were not run in
+this macOS session.** The Windows workflow includes those checks for both
+languages and both directory/one-file distributions, with browser assets
+included. The new remote CI jobs have not been executed or published by this
+local verification. Earlier Windows results below apply only to their named
+commits.
+
 ## v0.4.0 local verification — 2026-11-05
 
 The baseline at `0219f84` passed 444 tests before edits. The updated source
