@@ -10,9 +10,9 @@ service is required.
 
 [Project home](https://github.com/a123qsd/calclens) · [한국어 안내](README.ko.md) · [English ZIP and installation](docs/DOWNLOADS.md#english) · [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) · [Development](docs/DEVELOPMENT.md) · [Validation record](docs/VALIDATION.md)
 
-This guide covers **CalcLens v0.2.0**, including comparisons of multiple files,
-source identity in reports, and contact evidence preserved outside detail tables.
-The current-source section below describes changes not included in the v0.2.0 downloads.
+This guide covers **CalcLens v0.3.0**, including portable review projects,
+per-file comparison settings and filters, session caching, source identity in
+reports, and contact evidence preserved outside detail tables.
 
 ![CalcLens structure, nearest-pair and gap inspection](docs/assets/calclens-overview.png)
 
@@ -28,7 +28,7 @@ The current-source section below describes changes not included in the v0.2.0 do
 For an English-default ZIP, choose the English asset on the
 [latest release](https://github.com/a123qsd/calclens/releases/latest) and follow
 the [download instructions](docs/DOWNLOADS.md#english). A standalone
-[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.en.md)
+[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-Guide.en.md)
 is also available. Python 3.12 or 3.13 and dependency
 installation are required; this is not a standalone executable.
 
@@ -70,11 +70,11 @@ or image remain in the exports.
    c and 1.0 Å; check the actual layer direction before interpreting its gap.
 3. Read the comparison table and select a row to open that file's detailed
    structure view, findings, and JSON/CSV downloads. The first file opens initially.
-4. Use **Export comparison CSV** to save one summary row per file.
+4. Use **Export all comparison CSV** to save one summary row per file.
 
 Each file is checked independently and keeps the 2 MiB and 400-site limits.
-An unsupported file stays in the table with its reason and blank measurements;
-the other files are still checked. Status values are `unsupported`,
+An unsupported file stays in the table with blank measurements; select its row
+to read the reason. The other files are still checked. Status values are `unsupported`,
 `review_required`, and `no_flags`. The last means that no screening warnings or
 errors were found, not that the structure is valid. Warning/error columns count
 findings, while distance-issue pair counts are in the detailed reports.
@@ -82,14 +82,12 @@ findings, while distance-issue pair counts are in the detailed reports.
 The comparison table and summary CSV follow the interface language. Detailed
 JSON/CSV reports have the separate report-language setting described below.
 
-## Current source: save and continue a comparison
+## Save and continue a comparison
 
-This workflow is available in the current source, **not in the published v0.2.0 ZIPs**.
-
-Each comparison entry keeps its own axis and cutoff when settings change or
-files are reordered or removed. The selected file stays selected while it remains
-in the comparison. Results are cached for the session by file content, axis, and
-cutoff, so unchanged checks can be reused.
+Each comparison entry keeps its own axis and cutoff as the file list changes.
+When you edit conditions or reorder or remove other files, the detail view stays
+on the selected file. Results are cached for the session by file content, axis,
+and cutoff, so unchanged checks can be reused.
 
 Use **All**, **Needs review**, or **Input errors** to filter the compact comparison
 table. The comparison CSV still includes every file and its provenance; filtering

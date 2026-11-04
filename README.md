@@ -13,11 +13,13 @@ JSON/CSV exports and comparisons of up to 20 CIF files with settings for each fi
 빈 간격을 확인합니다. 화면·사용 안내·결과 설명을 한국어와 영어로 제공하며,
 예제와 JSON·CSV 내보내기, 파일마다 조건을 정하는 최대 20개 CIF 비교를 지원합니다.
 
-**v0.2.0** includes per-file comparison settings, source identity in reports,
-and contact evidence that remains available when detail tables are truncated.
+**v0.3.0** includes portable review projects, preserved per-file comparison
+settings and selection, session caching, and review filters. Reports retain source
+identity and contact evidence even when detail tables are truncated.
 
-**v0.2.0**에는 파일별 조건을 정하는 비교, 보고서의 원본 식별 정보,
-상세 표에서 생략되어도 보존되는 접촉 근거가 포함됩니다.
+**v0.3.0**에는 원본 CIF를 담는 작업 저장·불러오기, 파일별 비교 조건·선택 유지,
+세션 캐시와 검토 필터가 포함됩니다. 보고서에는 원본 식별 정보와 상세 표에서
+생략되어도 보존되는 접촉 근거를 남깁니다.
 
 ![CalcLens local structure inspection / 로컬 구조 검사 화면](docs/assets/calclens-overview.png)
 
@@ -28,10 +30,10 @@ and contact evidence that remains available when detail tables are truncated.
 
 [Latest release / 최신 배포](https://github.com/a123qsd/calclens/releases/latest)
 
-| Language | Source ZIP for v0.2.0 | Read guide | Download guide |
+| Language | Source ZIP for v0.3.0 | Read guide | Download guide |
 | --- | --- | --- | --- |
-| English | [calclens-0.2.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.2.0/calclens-0.2.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.en.md) |
-| 한국어 | [calclens-0.2.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.2.0/calclens-0.2.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.ko.md) |
+| English | [calclens-0.3.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.3.0/calclens-0.3.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-Guide.en.md) |
+| 한국어 | [calclens-0.3.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.3.0/calclens-0.3.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-Guide.ko.md) |
 
 Both ZIPs contain the same analysis engine and both interface languages. Each
 opens in its selected language by default. **Python 3.12 or 3.13 and dependency
@@ -49,20 +51,18 @@ Python 3.12를 사용합니다. 보고서 언어는 기본적으로 화면 언�
 따르며 별도로 선택할 수도 있습니다. 설명과 CSV 열 제목은 번역하고, JSON 키와 기술
 식별자는 호환성을 위해 표준 영문을 유지합니다. [설치 안내](docs/DOWNLOADS.md#한국어)를 확인하세요.
 
-## Current source / 현재 소스
+## Save and continue work / 작업 저장하고 이어가기
 
-The current source adds comparison filters, persistent per-file settings and
+Both v0.3.0 packages include comparison filters, persistent per-file settings and
 selection during edits, and session caching by file content, axis, and cutoff.
 Use **Save project** to download a `.calclens.json` containing the original CIFs
 and review state, then **Open saved work** → **Open project** to continue later.
-These changes are **not included in the v0.2.0 downloads above**. See the
-[English guide](README.en.md#current-source-save-and-continue-a-comparison) for details.
+See the [English guide](README.en.md#save-and-continue-a-comparison) for details.
 
-현재 소스에는 비교 필터, 편집 중 파일별 조건·선택 유지, 파일 내용·축·기준별 세션
-캐시가 추가되어 있습니다. **작업 저장**으로 원본 CIF와 검토 상태를 `.calclens.json`에
+두 v0.3.0 패키지에는 비교 필터, 편집 중 파일별 조건·선택 유지, 파일 내용·축·기준별
+세션 캐시가 포함됩니다. **작업 저장**으로 원본 CIF와 검토 상태를 `.calclens.json`에
 저장하고, **저장한 작업 열기** → **작업 불러오기**로 이어서 검토할 수 있습니다.
-이 변경은 **위의 v0.2.0 배포 파일에 포함되어 있지 않습니다**.
-자세한 내용은 [한국어 안내](README.ko.md#현재-소스에서-비교-작업-저장하고-이어가기)를 확인하세요.
+자세한 내용은 [한국어 안내](README.ko.md#비교-작업-저장하고-이어가기)를 확인하세요.
 
 ## What it checks / 검사 범위
 

@@ -2,27 +2,28 @@
 
 [Project home](../README.md) · [Full English guide](../README.en.md) · [한국어 전체 안내](../README.ko.md)
 
-**CalcLens v0.2.0** includes multiple-file comparison, report source identity,
-and contact evidence preserved outside detail tables. Choose a language-specific
-source ZIP and install it with the commands below.
+**CalcLens v0.3.0** includes portable review projects, per-file comparison settings
+and filters, session caching, source identity in reports, and contact evidence
+preserved outside detail tables. Choose a language-specific source ZIP and install
+it with the commands below.
 
-**CalcLens v0.2.0**에는 여러 파일 비교, 보고서의 원본 식별 정보,
-상세 표에서 생략되어도 보존되는 접촉 근거가 포함됩니다.
+**CalcLens v0.3.0**에는 작업 저장·불러오기, 파일별 비교 조건과 필터, 세션 캐시,
+보고서의 원본 식별 정보와 상세 표에서 생략되어도 보존되는 접촉 근거가 포함됩니다.
 원하는 언어의 소스 ZIP을 받은 뒤 아래 명령으로 설치하세요.
 
 ## English
 
 Download a language-specific source package from
-[CalcLens v0.2.0](https://github.com/a123qsd/calclens/releases/tag/v0.2.0):
+[CalcLens v0.3.0](https://github.com/a123qsd/calclens/releases/tag/v0.3.0):
 
 | Asset | Initial interface and main guide |
 | --- | --- |
-| [calclens-0.2.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.2.0/calclens-0.2.0-en.zip) | English |
-| [calclens-0.2.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.2.0/calclens-0.2.0-ko.zip) | Korean |
+| [calclens-0.3.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.3.0/calclens-0.3.0-en.zip) | English |
+| [calclens-0.3.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.3.0/calclens-0.3.0-ko.zip) | Korean |
 
 You can also download the guides separately as Markdown files:
-[English guide](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.en.md) ·
-[Korean guide](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.ko.md).
+[English guide](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-Guide.en.md) ·
+[Korean guide](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-Guide.ko.md).
 These text files explain the app; they do not contain the program.
 
 Both packages contain the same geometry engine, examples, and English/Korean
@@ -36,8 +37,8 @@ The installation command examples below use Python 3.12.
 
 ### Install on macOS or Linux
 
-Extract the ZIP and open a terminal in the folder containing `run_app.py` and
-`requirements.lock`. Run:
+Extract the ZIP and open a terminal in `calclens-0.3.0-en` (or `calclens-0.3.0-ko`
+for the Korean package), the folder containing `run_app.py` and `requirements.lock`. Run:
 
 ```bash
 python3.12 -m venv .venv
@@ -48,8 +49,8 @@ python3.12 -m venv .venv
 
 ### Install on Windows
 
-Extract the ZIP and open PowerShell in the folder containing `run_app.py` and
-`requirements.lock`. Run:
+Extract the ZIP and open PowerShell in `calclens-0.3.0-en` (or `calclens-0.3.0-ko`
+for the Korean package), the folder containing `run_app.py` and `requirements.lock`. Run:
 
 ```powershell
 py -3.12 -m venv .venv
@@ -106,9 +107,9 @@ examples are analytical test models, not experimental or relaxed structures.
 See the [English guide](../README.en.md) for the input limits, result definitions,
 CLI commands, and license conditions.
 
-### Current source additions
+### Save and reopen work
 
-The current source keeps per-file settings and selection during comparison edits,
+CalcLens v0.3.0 keeps per-file settings and selection during comparison edits,
 caches checks by file content, axis, and cutoff for the session, and offers
 **All**, **Needs review**, and **Input errors** filters. Exports still include
 all files and provenance.
@@ -119,22 +120,21 @@ Choose **Open saved work** in the sidebar, upload it, and click **Open project**
 to continue without the original CIF files. Invalid or missing CIF payloads and
 hash mismatches are rejected; engine-version differences warn and trigger a
 recalculation. Projects restore work separately from JSON/CSV reports.
-**These additions are not included in the v0.2.0 downloads linked above.** See the
-[current-source guide](../README.en.md#current-source-save-and-continue-a-comparison).
+See the [project guide](../README.en.md#save-and-continue-a-comparison) for details.
 
 ## 한국어
 
-[CalcLens v0.2.0 배포 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.2.0)에서
+[CalcLens v0.3.0 배포 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.3.0)에서
 원하는 언어의 소스 ZIP을 받으세요.
 
 | 파일 | 처음 열리는 화면과 기본 안내 |
 | --- | --- |
-| [calclens-0.2.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.2.0/calclens-0.2.0-ko.zip) | 한국어 |
-| [calclens-0.2.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.2.0/calclens-0.2.0-en.zip) | 영어 |
+| [calclens-0.3.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.3.0/calclens-0.3.0-ko.zip) | 한국어 |
+| [calclens-0.3.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.3.0/calclens-0.3.0-en.zip) | 영어 |
 
 안내 문서만 필요하면 Markdown 파일로 따로 받을 수 있습니다.
-[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.ko.md) ·
-[영어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.en.md).
+[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-Guide.ko.md) ·
+[영어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-Guide.en.md).
 안내 파일에는 프로그램이 들어 있지 않습니다.
 
 두 파일의 검사 엔진과 예제는 같습니다. 둘 다 한국어·영어 화면을 제공하며, ZIP 안의
@@ -148,7 +148,8 @@ recalculation. Projects restore work separately from JSON/CSV reports.
 
 ### macOS·Linux에서 설치
 
-ZIP을 푼 뒤 `run_app.py`와 `requirements.lock`이 있는 폴더에서 터미널을 열고 실행하세요.
+ZIP을 푼 뒤 `run_app.py`와 `requirements.lock`이 있는 `calclens-0.3.0-ko` 폴더에서
+터미널을 열고 실행하세요. 영어 패키지를 받았다면 폴더 이름은 `calclens-0.3.0-en`입니다.
 
 ```bash
 python3.12 -m venv .venv
@@ -159,7 +160,8 @@ python3.12 -m venv .venv
 
 ### Windows에서 설치
 
-ZIP을 푼 뒤 `run_app.py`와 `requirements.lock`이 있는 폴더에서 PowerShell을 열고 실행하세요.
+ZIP을 푼 뒤 `run_app.py`와 `requirements.lock`이 있는 `calclens-0.3.0-ko` 폴더에서
+PowerShell을 열고 실행하세요. 영어 패키지를 받았다면 폴더 이름은 `calclens-0.3.0-en`입니다.
 
 ```powershell
 py -3.12 -m venv .venv
@@ -200,7 +202,7 @@ JSON은 BOM 없는 UTF-8로 저장합니다.
 
 **여러 CIF 비교**를 고르고 최대 20개 CIF를 올린 뒤 파일별 축과 기준을 정합니다.
 파일당 2 MiB·400개 원자 제한은 같습니다. 요약 표의 행을 선택하면 해당 구조와
-개별 보고서가 열리고, **비교 요약 CSV 내보내기**로 전체 요약을 저장할 수 있습니다.
+개별 보고서가 열리고, **전체 비교 요약 CSV 내보내기**로 전체 요약을 저장할 수 있습니다.
 지원하지 않는 파일은 이유를 표시하며 다른 파일의 검사는 계속합니다.
 요약은 화면 언어를 따르고, 개별 보고서의 언어는 별도로 선택합니다.
 
@@ -212,9 +214,9 @@ JSON은 BOM 없는 UTF-8로 저장합니다.
 모델이며 실험 구조나 최적화된 구조가 아닙니다. 입력 제한, 결과 해석, 명령행 사용법과
 이용 조건은 [한국어 전체 안내](../README.ko.md)에 있습니다.
 
-### 현재 소스의 추가 기능
+### 작업 저장하고 다시 열기
 
-현재 소스는 비교 목록을 편집해도 파일별 조건과 선택을 유지하며, 파일 내용·축·기준별로
+CalcLens v0.3.0은 비교 목록을 편집해도 파일별 조건과 선택을 유지하며, 파일 내용·축·기준별로
 세션 안에서 검사를 캐시합니다. **전체**, **검토 필요**, **입력 오류** 필터로 비교 표를
 좁혀도 내보내기에는 모든 파일과 원본 식별 정보가 들어갑니다.
 
@@ -223,6 +225,5 @@ JSON은 BOM 없는 UTF-8로 저장합니다.
 **저장한 작업 열기**에서 파일을 올리고 **작업 불러오기**를 누르면 원본 CIF 없이
 이어갈 수 있습니다. CIF 데이터의 손상·누락이나 해시 불일치는 거부하며, 엔진 버전이
 다르면 경고 후 현재 엔진으로 다시 계산합니다. 작업 파일은 JSON·CSV 결과 보고서와
-별도로 검토 상태를 복원합니다. **이 추가 기능은 위의 v0.2.0 배포 파일에 포함되어
-있지 않습니다.** 자세한 내용은
-[현재 소스 안내](../README.ko.md#현재-소스에서-비교-작업-저장하고-이어가기)를 확인하세요.
+별도로 검토 상태를 복원합니다. 자세한 내용은
+[작업 저장 안내](../README.ko.md#비교-작업-저장하고-이어가기)를 확인하세요.
