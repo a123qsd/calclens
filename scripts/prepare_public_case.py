@@ -241,14 +241,14 @@ def main() -> int:
     if args.check:
         mismatches = [name for name, text in artifacts.items()
                       if not (args.output_dir / name).exists()
-                      or (args.output_dir / name).read_text(encoding="utf-8") != text]
+                      or (args.output_dir / name).read_bytes() != text.encode("utf-8")]
         if mismatches:
             parser.exit(1, "Public-case artifacts differ: " + ", ".join(mismatches) + "\n")
         print("Public source hash, preparation, and independent geometry comparison passed.")
     else:
         args.output_dir.mkdir(parents=True, exist_ok=True)
         for name, text in artifacts.items():
-            (args.output_dir / name).write_text(text, encoding="utf-8")
+            (args.output_dir / name).write_bytes(text.encode("utf-8"))
         print(f"Prepared {len(artifacts)} public-case artifacts in {args.output_dir}")
     return 0
 

@@ -4,6 +4,7 @@ from hashlib import sha256
 import json
 from pathlib import Path
 import runpy
+import sys
 
 import numpy as np
 import pytest
@@ -89,4 +90,44 @@ def test_bundled_prepared_cifs_are_reproducible():
     # Numerical results carry the executing library versions; CIF coordinates
     # remain the source-preserving, version-independent preparation contract.
     for name in ("graphite_p1.cif", "graphene_from_graphite_p1.cif"):
-        assert (DIRECTORY / name).read_text(encoding="utf-8") == artifacts[name]
+        assert (DIRECTORY / name).read_bytes() == artifacts[name].encode("utf-8")
+
+
+def test_bundled_manifest_hashes_match_actual_cif_bytes():
+    results = json.loads((DIRECTORY / "case_results.json").read_bytes())
+    assert sha256(CASE["SOURCE"].read_bytes()).hexdigest() == results["source"]["sha256"]
+    for name, digest in results["derived_sha256"].items():
+        assert sha256((DIRECTORY / name).read_bytes()).hexdigest() == digest
+
+
+@pytest.fixture
+def prepared_public_case(tmp_path, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["prepare_public_case.py", "--output-dir", str(tmp_path)])
+    assert CASE["main"]() == 0
+    return tmp_path
+
+
+def test_preparation_writes_canonical_bytes_and_matching_hashes(prepared_public_case):
+    artifacts = CASE["build_artifacts"](CASE["SOURCE"].read_bytes())
+    for name, text in artifacts.items():
+        actual = (prepared_public_case / name).read_bytes()
+        assert actual == text.encode("utf-8")
+        assert b"\r\n" not in actual
+    results = json.loads((prepared_public_case / "case_results.json").read_bytes())
+    for name, digest in results["derived_sha256"].items():
+        assert sha256((prepared_public_case / name).read_bytes()).hexdigest() == digest
+
+
+@pytest.mark.parametrize("filename", [
+    "graphite_p1.cif", "graphene_from_graphite_p1.cif", "case_results.json",
+])
+def test_check_rejects_crlf_changes(prepared_public_case, monkeypatch, capsys, filename):
+    changed = prepared_public_case / filename
+    changed.write_bytes(changed.read_bytes().replace(b"\n", b"\r\n"))
+    monkeypatch.setattr(sys, "argv", [
+        "prepare_public_case.py", "--output-dir", str(prepared_public_case), "--check",
+    ])
+    with pytest.raises(SystemExit) as error:
+        CASE["main"]()
+    assert error.value.code == 1
+    assert filename in capsys.readouterr().err
