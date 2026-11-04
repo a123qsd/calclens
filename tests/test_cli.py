@@ -1,6 +1,7 @@
 """Exercise report delivery and failure semantics through the installed CLI."""
 
 import json
+import csv
 from pathlib import Path
 import subprocess
 import sys
@@ -48,3 +49,20 @@ def test_cli_unsupported_does_not_create_report(tmp_path):
 def test_cli_missing_file_and_invalid_threshold():
     assert run_cli("examples/does-not-exist.cif").returncode == 2
     assert run_cli("examples/graphene.cif", "--short-distance", "nan").returncode == 2
+
+
+def test_cli_csv_reports_selected_direction_and_criteria(tmp_path):
+    path = tmp_path / "report.csv"
+    result = run_cli("examples/mos2.cif", "--normal-axis", "c", "--csv", path)
+    assert result.returncode == 0, result.stderr
+    with path.open(newline="") as source:
+        rows = list(csv.DictReader(source))
+    assert any(row["record_type"] == "criterion" for row in rows)
+    assert all(row["normal_axis"] == "c" for row in rows)
+
+
+def test_cli_rejects_unsupported_normal_without_output(tmp_path):
+    path = tmp_path / "report.csv"
+    result = run_cli("examples/graphene.cif", "--normal-axis", "a", "--csv", path)
+    assert result.returncode == 2
+    assert not path.exists()

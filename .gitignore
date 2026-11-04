@@ -11,5 +11,6 @@ build/
 .env.*
 .streamlit/secrets.toml
 report.json
+report.csv
 uploads/
 

@@ -1,13 +1,14 @@
-# Slab Preflight
+# CalcLens
 
 **Inspect the geometry of a 2D material CIF before setting up a calculation.**
 
 View atoms and the cell, find short periodic contacts and duplicate sites, and
-measure the span of nuclear positions and the largest empty interval along c.
+measure the span of nuclear positions and the largest empty interval along a
+selected normal axis (a, b, or c).
 The app runs locally after installation. No external API key or paid computation
 service is required.
 
-[한국어 안내](README.md) · [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md)
+[한국어 안내](README.md) · [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) · [Development](docs/DEVELOPMENT.md) · [Validation record](docs/VALIDATION.md)
 
 > This tool does not establish structural stability or calculation accuracy.
 > Its gap is a geometric measurement between nuclear positions.
@@ -18,8 +19,8 @@ service is required.
 Use Python 3.12:
 
 ```bash
-git clone https://github.com/a123qsd/slab-preflight.git
-cd slab-preflight
+git clone https://github.com/a123qsd/calclens.git
+cd calclens
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --require-hashes -r requirements.lock
@@ -35,13 +36,20 @@ Open the local address shown in the terminal. Select an example or provide a
 CIF file. Start with graphene, then compare `graphene_duplicate.cif` to see how
 a duplicate site is reported. Korean and English guidance is available.
 
+Select a review check or contact pair to highlight the related sites and periodic image.
+Inspect the gap along the selected axis, and download the criteria and results
+as JSON or CSV.
+
 Run the same check from the command line and save a JSON report:
 
 ```bash
-slab-preflight examples/graphene.cif --json report.json
+calclens examples/graphene.cif --normal-axis c --json report.json
+calclens examples/mos2_a_normal.cif --normal-axis a --csv report.csv
 ```
 
-`--json` creates a new file and refuses to overwrite an existing one. Exit codes
+Choose either `--json` or `--csv` per command. Both create a new file and refuse
+to overwrite an existing one. CSV site numbers start at 1; JSON atom indices
+start at 0. Exit codes
 are `0` for no error-level findings (warnings may remain), `1` for a geometric
 error such as overlapping sites, and `2` for unsupported input, read, argument,
 or output errors.
@@ -50,11 +58,11 @@ or output errors.
 
 | Result | Meaning |
 | --- | --- |
-| Structure and cell | Positions and element identities. Marker size is not an atomic radius. |
+| Structure and cell | Positions and element identities, with highlights for selected atoms, contacts, and periodic images. Marker size is not an atomic radius. |
 | Minimum periodic distance | Closest nuclear separation across cell boundaries, including an atom's nonzero periodic self-images. |
 | Short contacts and overlaps | Distances below 1.0 Å are flagged by default. This configurable threshold is not an element-specific bond criterion. |
-| Nuclei-span thickness | The c-direction range of nuclear positions after removing the largest empty cyclic interval. It is not a physical material thickness. |
-| Nuclei gap | Largest interval without a nucleus along a cyclic traverse of c. It is not an electron-density-free vacuum width. |
+| Nuclei-span thickness | The selected-normal range of nuclear positions after removing the largest empty cyclic interval. It is not a physical material thickness. |
+| Nuclei gap | Largest interval without a nucleus along a cyclic traverse of the selected normal axis. It is not an electron-density-free vacuum width. |
 | Review notes | Unsupported input is distinguished from ambiguous geometry. An absence of warnings does not validate a calculation. |
 
 A single atomic plane has a nuclei-span thickness of `0 Å`.
@@ -64,18 +72,28 @@ This does not imply that graphene has zero physical thickness.
 
 - One **CIF 1.x P1 data block**, with every site explicitly listed
 - Fractional coordinates, standard element symbols, and fully occupied sites
-- An ab layer plane with c perpendicular to it
+- A selected layer-normal axis (a, b, or c) perpendicular to the other two cell vectors
 - At most 2 MiB and 1–400 sites per file
 
-Non-P1 symmetry, partial or mixed occupancy, modulated or superspace structures,
-a tilted c axis, and multiple data blocks are unsupported. If you export an expanded P1 structure from another
-tool, check its occupancy and orientation as well as the resulting coordinates.
-Do not simply relabel a symmetry-reduced CIF as P1.
+Non-P1 symmetry, partial or mixed occupancy, modulated, superspace, or composite
+structures, a selected axis tilted relative to the other two vectors, and
+multiple data blocks are unsupported. General CIF files can use symmetry-equivalent
+positions or occupancy alternatives; treating these as accidental duplicates and
+deleting them would be unsafe. CalcLens stops with an explanation instead.
+
+Review occupancy separately in a suitable structure tool, then export a fully
+expanded P1 structure if appropriate. Do not simply relabel a symmetry-reduced
+CIF as P1 or delete sites to make it pass. Check the converted coordinates and
+whether the selected axis is the intended slab normal.
 
 For multiple layers or bulk-like structures, the largest empty interval may not
 be the intended vacuum. Warnings catch some ambiguous cases using explicit
 heuristics; they do not detect every multilayer or bulk structure.
-See [METHODS.md](docs/METHODS.md) for tolerances and equations.
+Ambiguous results are marked for review.
+
+CalcLens v0.1 inspects CIF geometry. Gaussian or ORCA logs, calculation execution,
+SCF convergence, optimization results, and vibrational frequencies are outside
+its scope. See [METHODS.md](docs/METHODS.md) for tolerances and equations.
 
 ## Examples and verification
 
@@ -85,7 +103,7 @@ and a layer crossing the cell boundary. They were generated for this repository;
 they are neither experimental structures nor relaxed research results.
 
 ```bash
-python scripts/generate_examples.py
+python scripts/generate_examples.py --check
 python -m pytest
 ```
 
@@ -99,7 +117,7 @@ No energy, force, or electronic-structure calculation is performed.
 [ASE](https://docs.ase-lib.org/) supplies CIF parsing and periodic geometry.
 Streamlit and Plotly provide the interface.
 [pymatgen](https://pymatgen.org/) also supports CIF and materials analysis.
-Slab Preflight adds a narrow input contract and beginner-facing explanations to
+CalcLens adds a narrow input contract and beginner-facing explanations to
 existing tools; it does not replace general materials analysis or simulation software.
 
 ## Files and privacy

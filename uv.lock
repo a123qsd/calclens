@@ -61,6 +61,36 @@ wheels = [
 ]
 
 [[package]]
+name = "calclens"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "ase" },
+    { name = "numpy" },
+    { name = "plotly" },
+    { name = "streamlit" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "hatchling" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ase", specifier = ">=3.26,<4" },
+    { name = "hatchling", marker = "extra == 'dev'", specifier = "==1.33.0" },
+    { name = "numpy", specifier = ">=2,<3" },
+    { name = "plotly", specifier = ">=6,<7" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8,<10" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14,<1" },
+    { name = "streamlit", specifier = ">=1.53,<2" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "certifi"
 version = "2026.10.23"
 source = { registry = "https://pypi.org/simple" }
@@ -812,36 +842,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/93/0e/e0348fbc0dbab65c114cf78957e7dfeb49f8e8b556b4d930cc12ff195e18/scipy-1.18.1-cp313-cp313-win_amd64.whl", hash = "sha256:559ed65f60c1af5a03f3912605a1b5114f522c7c32fb23c3376ae8f03219fe28", size = 36622841, upload-time = "2026-08-21T23:25:18.722Z" },
     { url = "https://files.pythonhosted.org/packages/50/a8/6a77f5f267c555108f0a864b6db714363dab567a8266422a79a385f9232b/scipy-1.18.1-cp313-cp313-win_arm64.whl", hash = "sha256:cd479fc04dd9401e3b4f49e76518768ef99c4f517a98c284eb091fd725719adf", size = 24399315, upload-time = "2026-08-21T23:25:23.458Z" },
 ]
-
-[[package]]
-name = "slab-preflight"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "ase" },
-    { name = "numpy" },
-    { name = "plotly" },
-    { name = "streamlit" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "hatchling" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "ase", specifier = ">=3.26,<4" },
-    { name = "hatchling", marker = "extra == 'dev'", specifier = "==1.33.0" },
-    { name = "numpy", specifier = ">=2,<3" },
-    { name = "plotly", specifier = ">=6,<7" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8,<10" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14,<1" },
-    { name = "streamlit", specifier = ">=1.53,<2" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "starlette"

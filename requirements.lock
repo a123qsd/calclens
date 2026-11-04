@@ -13,7 +13,7 @@ anyio==4.16.0 \
 ase==3.29.0 \
     --hash=sha256:7b9dd103f007810339c24acfee2f6b677c0c48443b21d3c98e52959246cf4ebf \
     --hash=sha256:ef4e2caa38169e3fbbc4164764a060d1877a6692519a4bed82521328eeb0d9aa
-    # via slab-preflight
+    # via calclens
 attrs==26.1.0 \
     --hash=sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309 \
     --hash=sha256:d03ceb89cb322a8fd706d4fb91940737b6642aa36998fe130a9bc96c985eff32
@@ -150,7 +150,7 @@ h11==0.16.0 \
 hatchling==1.33.0 \
     --hash=sha256:415290b84f464d2884303fca8974d38e7b85579069fab02a15db0828fbb1446d \
     --hash=sha256:4c422bd4d554fcff5de5b73e9596f85e41e9f97f7e553d8f7595ecb31a627bef
-    # via slab-preflight
+    # via calclens
 idna==3.20 \
     --hash=sha256:a7db850025b95ded1eae8a46181a1a6c56c92c96f0e2b005d9ff8dc0210cab44 \
     --hash=sha256:ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c
@@ -305,12 +305,12 @@ numpy==2.5.4 \
     --hash=sha256:fe4d21ab149f15e4e6043dfb0de87e6e5f34ac176cde83060e9802981fca2ac2
     # via
     #   ase
+    #   calclens
     #   contourpy
     #   matplotlib
     #   pandas
     #   pydeck
     #   scipy
-    #   slab-preflight
     #   streamlit
 packaging==26.3 \
     --hash=sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79 \
@@ -380,7 +380,7 @@ pillow==13.0.0 \
 plotly==6.9.0 \
     --hash=sha256:36bebe2f1bb13884774fe61689c329071446f6ce4a8927fb1f0d6fb24f581236 \
     --hash=sha256:967ad33e8c704fed051800d11d985eb206a9c795c14206b30a6f463ed9c67d0d
-    # via slab-preflight
+    # via calclens
 pluggy==1.7.0 \
     --hash=sha256:7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec \
     --hash=sha256:d1eaa46ebb595891b860ab086b4d09c8588af65ebd4361b8e8f4bb8920b90ba8
@@ -429,7 +429,7 @@ pyparsing==3.3.3 \
 pytest==9.2.0 \
     --hash=sha256:07acdcf88ec174f907dc01af70bf52d49b014bbab03faeeade31c96b18c2e588 \
     --hash=sha256:97c4f3b1f3c7414aa36465e09b8220f1d03627993bd51b1282e193753c80557b
-    # via slab-preflight
+    # via calclens
 python-dateutil==4.0.0 \
     --hash=sha256:a5e246f79eb80475e691bf93862cead98decd8a498cf53ba0516fcdc0f50dc1c \
     --hash=sha256:d7295ff14fdc0f92f662100bfb6c551d160ca090f2939f1ec5b9794265c03f06
@@ -516,7 +516,7 @@ ruff==0.17.3 \
     --hash=sha256:bbde18beccd98c29a227c63c99022e3443b99258e08326df6425dfe0443705ef \
     --hash=sha256:c673c170e27834d1262e3a9c1e97bdc9b9c3b180c63d89173ce69747232474c1 \
     --hash=sha256:e407b4a6852853a9a2cdce96963e94ad9775578bb44e7561a0f2829f3cc04b11
-    # via slab-preflight
+    # via calclens
 scipy==1.18.1 \
     --hash=sha256:3ab3523da44749156e1f68b464dc56af11ae4cbc5c739a49d05f32b982eca9f3 \
     --hash=sha256:3c085faa2cfa879c5141df483f836f4d691045a078224a670fa570fa01612d89 \
@@ -547,7 +547,7 @@ starlette==1.10.0 \
 streamlit==1.66.1 \
     --hash=sha256:29607190a589fe1fa9bd7e154635d335d47dc09b4010c6cc273daa6e4430ee31 \
     --hash=sha256:7710a8b67469da7af7bf3503c9b68afca5676f832f62f9bda1221e0ce11941d1
-    # via slab-preflight
+    # via calclens
 tomlkit==0.15.2 \
     --hash=sha256:05562412163a3037b94497385fb7f9204c637bc605af7a48199e41cf2272f437 \
     --hash=sha256:83e32755ba1d20d9340bd069ee97e9f6232ba2346b63ffcba425de01f7e327a6

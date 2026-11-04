@@ -12,6 +12,10 @@ research data were used.
 
 ## Base models
 
+All committed base models use c as the candidate normal axis. CalcLens also
+accepts a or b when that selected vector is perpendicular to the other two;
+axis permutation and orientation behavior are checked in the tests.
+
 All models use fractional coordinates and lengths in Å. Unless specified
 otherwise, `α = β = 90°`, `γ = 120°`, and `a = b`.
 
@@ -29,6 +33,8 @@ the coordinate rounding tolerance used in the tests.
 
 | File | Change from the base model or construction | Purpose |
 | --- | --- | --- |
+| `mos2_a_normal.cif` | Cyclic basis permutation `[old c, old a, old b]`, fractional coordinates `[z, x, y]`; select normal a | Same MoS₂ model: span `3.12 Å`, gap `16.88 Å`, normal height `20 Å` |
+| `mos2_b_normal.cif` | Cyclic basis permutation `[old b, old c, old a]`, fractional coordinates `[y, z, x]`; select normal b | Same metrics with b as normal |
 | `mos2_wrapped.cif` | Add `0.5` to every fractional c coordinate and wrap | Same distances and gap when a slab crosses the cell boundary |
 | `graphene_duplicate.cif` | Add a C row at an existing site | Explicit duplicate remains visible; minimum distance `0 Å` |
 | `graphene_boundary_duplicate.cif` | Add a C at fractional x = 1, equivalent to x = 0 | Duplicate recognition across a periodic boundary |
@@ -37,7 +43,7 @@ the coordinate rounding tolerance used in the tests.
 | `tiny_self_image.cif` | One C in a cell with a = 0.5, b = 3, c = 20 | Detect the atom's own `0.5 Å` periodic image |
 | `no_unique_gap.cif` | Four equally spaced planes in c = 8 | Equal `2 Å` cyclic gaps; no unique slab interpretation |
 | `partial_occupancy.cif` | Set a site occupancy to 0.5 | Unsupported occupancy |
-| `tilted_c.cif` | Set β to 80° | Unsupported slab normal convention |
+| `tilted_c.cif` | Set β to 80° | Unsupported with the default c normal; axis selection must be reviewed explicitly |
 | `symmetry_unsupported.cif` | Declare a non-P1 space group | Unsupported symmetry |
 | `multiple_blocks.cif` | Put two structure data blocks in one file | Reject ambiguous structure selection |
 
@@ -45,6 +51,12 @@ Recreate the files from the repository root:
 
 ```bash
 python scripts/generate_examples.py
+```
+
+Check the 16 committed example files without rewriting them:
+
+```bash
+python scripts/generate_examples.py --check
 ```
 
 The examples are covered by the project's [LICENSE](../LICENSE). Their role is

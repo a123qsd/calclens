@@ -1,6 +1,6 @@
 # Third-party software and data
 
-The repository contains the Slab Preflight application and its original model
+The repository contains the CalcLens application and its original model
 fixtures. Dependencies are installed separately from their upstream packages;
 the repository does not vendor or modify ASE, Streamlit, Plotly, or NumPy.
 The project's [license](LICENSE) applies only to its original material.
@@ -25,7 +25,7 @@ notices and meet that distribution's source and license obligations.
 
 ## ASE
 
-ASE remains available under LGPL-2.1-or-later. Slab Preflight imports it as a
+ASE remains available under LGPL-2.1-or-later. CalcLens imports it as a
 separately installed Python library and does not copy ASE implementation code
 into its own modules. You can inspect, replace, and modify the ASE installation.
 The custom application license preserves the rights required for modifying an
@@ -40,9 +40,9 @@ this explanation is not a substitute for them.
 
 [pymatgen](https://pymatgen.org/) is a broader materials-analysis toolkit and is
 [MIT licensed](https://github.com/materialsproject/pymatgen/blob/master/LICENSE).
-It is a comparison point, not a dependency of this project. Slab Preflight uses
+It is a comparison point, not a dependency of this project. CalcLens uses
 ASE for the narrow CIF and periodic-geometry task and keeps its validation rules
-visible in a small core module. Neither project's developers endorse Slab Preflight.
+visible in a small core module. Neither project's developers endorse CalcLens.
 
 ## Example data
 

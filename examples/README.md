@@ -14,6 +14,8 @@ were copied. The original project [license](../LICENSE) applies to these files.
 | `graphene.cif` | Two C sites, hexagonal `a = 2.46 Å`, `c = 20 Å`; nearest distance `a/√3 ≈ 1.420282 Å`; nuclei span `0 Å`, cyclic nuclei gap `20 Å`. |
 | `hbn.cif` | B and N honeycomb sites, `a = 2.50 Å`, `c = 20 Å`; nearest distance `a/√3 ≈ 1.443376 Å`; nuclei span `0 Å`, gap `20 Å`. |
 | `mos2.cif` | Ideal S–Mo–S sandwich, `a = 3.18 Å`, S heights `±1.56 Å` from Mo; span `3.12 Å`, gap `16.88 Å`. |
+| `mos2_a_normal.cif` | Same sandwich with basis `(old c, old a, old b)` and fractional coordinates `(old z, old x, old y)`; lengths `(20, 3.18, 3.18) Å`, angles `(120, 90, 90)°`. Select **a** as normal: span `3.12 Å`, gap `16.88 Å`. |
+| `mos2_b_normal.cif` | Same sandwich with basis `(old b, old c, old a)` and fractional coordinates `(old y, old z, old x)`; lengths `(3.18, 20, 3.18) Å`, angles `(90, 120, 90)°`. Select **b** as normal: span `3.12 Å`, gap `16.88 Å`. |
 | `mos2_wrapped.cif` | Same sandwich translated by `0.5c`; layer crosses the cell boundary. Distances, span, and gap must remain unchanged. |
 | `graphene_duplicate.cif` | Extra C at an existing site's coordinates. Minimum distance `0 Å`; duplicate must remain visible. |
 | `graphene_boundary_duplicate.cif` | Extra C at fractional `x = 1`; periodically equivalent to `x = 0`. Minimum distance `0 Å`. |
@@ -22,7 +24,7 @@ were copied. The original project [license](../LICENSE) applies to these files.
 | `tiny_self_image.cif` | One C and an `a = 0.5 Å` cell; shortest contact is to its own periodic image. |
 | `no_unique_gap.cif` | Four equally spaced planes in `c = 8 Å`; no unique largest empty interval. Requires human review. |
 | `partial_occupancy.cif` | Site occupancy `0.5`; unsupported. |
-| `tilted_c.cif` | `β = 80°`, so c is not perpendicular to the ab plane; unsupported. |
+| `tilted_c.cif` | `β = 80°`, so c is not perpendicular to the ab plane; unsupported for the default c normal. |
 | `symmetry_unsupported.cif` | Non-P1 space-group declaration; unsupported rather than silently expanding or merging sites. |
 | `multiple_blocks.cif` | Two CIF data blocks; unsupported rather than silently selecting one. |
 
@@ -32,6 +34,13 @@ recommended calculation settings. Coordinates are fractional; lengths are Å.
 The nucleus-to-nucleus gap is **not** the electron-density-free vacuum width.
 A monatomic plane has zero *nuclei-span thickness*, not zero physical thickness.
 The code cannot establish whether any vacuum width is converged for a simulation.
+
+For `mos2_a_normal.cif` or `mos2_b_normal.cif`, explicitly select the matching
+normal axis in the app or CLI. Both are cyclic relabelings of the same `mos2.cif`
+geometry; no sites, distances, or vacuum spacing are changed. The two in-plane
+axes form a 120° angle, so choosing the default c normal for these files must be
+rejected. a·b·c 중 층에 수직인 축을 직접 선택해야 하며, 축 이름을 바꾼 예제에서도
+올바른 축을 선택하면 같은 최소 거리·원자핵 두께·간격이 나옵니다.
 
 Recreate the exact committed files from the repository root:
 
@@ -46,4 +55,5 @@ python scripts/generate_examples.py --check
 ```
 
 `tests/test_core.py` checks these fixtures against analytical expectations and
-an independently enumerated periodic-image reference.
+an independently enumerated periodic-image reference. `tests/test_axis_examples.py`
+checks that the a-, b-, and c-normal versions preserve these geometrical results.

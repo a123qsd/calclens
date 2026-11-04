@@ -55,6 +55,17 @@ def examples():
         "graphene.cif": cif("ideal_graphene", graphene_cell, graphene),
         "hbn.cif": cif("ideal_hbn", (2.50, 2.50, 20, 90, 90, 120), hbn),
         "mos2.cif": cif("ideal_mos2", mos2_cell, mos2),
+        # Cyclic basis permutations preserve handedness and physical geometry:
+        # a-normal: (new a, b, c) = (old c, a, b); fractional (z, x, y).
+        "mos2_a_normal.cif": cif(
+            "ideal_mos2_a_normal", (20, 3.18, 3.18, 120, 90, 90),
+            [(el, z, x, y, occ) for el, x, y, z, occ in mos2],
+        ),
+        # b-normal: (new a, b, c) = (old b, c, a); fractional (y, z, x).
+        "mos2_b_normal.cif": cif(
+            "ideal_mos2_b_normal", (3.18, 20, 3.18, 90, 120, 90),
+            [(el, y, z, x, occ) for el, x, y, z, occ in mos2],
+        ),
         "graphene_duplicate.cif": cif(
             "duplicate_site", graphene_cell, graphene + [("C", 0, 0, 0.5, 1)]
         ),

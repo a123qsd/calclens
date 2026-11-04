@@ -8,4 +8,5 @@ headless = true
 
 [theme]
 base = "light"
+primaryColor = "#009D91"
 

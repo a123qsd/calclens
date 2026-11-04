@@ -1,4 +1,4 @@
-"""Slab Preflight: conservative, local CIF geometry screening."""
+"""CalcLens geometry engine: conservative, local CIF geometry screening."""
 
 from .core import UnsupportedStructure, analyze_cif
 
