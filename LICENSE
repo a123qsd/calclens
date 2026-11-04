@@ -1,0 +1,99 @@
+Slab Preflight Free Internal Use License, version 1.0
+
+Copyright (c) 2026 a123qsd
+
+This license applies to the original code, documentation, and example files in
+this repository to the extent that the copyright holder has rights in them
+("Software"). Third-party components are excluded as described in section 5.
+
+1. Free use and modification
+
+The copyright holder grants you a worldwide, non-exclusive, royalty-free
+permission to use, copy, study, and modify the Software for personal use,
+education, academic research, and the internal activities of a school,
+organization, or business. Internal business use is permitted even when the
+business operates for profit. Employees and contractors may use the Software
+on behalf of that organization under the same conditions.
+
+You may publish and commercially use research, figures, reports, and other
+results produced using the Software. This license does not claim ownership
+of input data or outputs and does not restrict factual results. This permission
+does not authorize a paid service whose offered function is running, hosting,
+or providing access to the Software as described in section 3.
+
+2. Free redistribution
+
+You may share the Software, with or without modifications, at no charge,
+including public source repositories and services offered without a fee for
+access to or use of the Software. You must retain this license, copyright
+notices, and third-party notices. Clearly identify substantial modifications.
+You need not publish your modifications or provide their source. You must not
+impose additional restrictions on the permissions granted here.
+Recipients receive the same permissions directly from the copyright holder.
+
+3. Uses requiring prior written permission
+
+Prior written permission from the copyright holder is required to:
+
+(a) sell, rent, license for a fee, or otherwise charge for copies of the
+Software or a modified version;
+(b) charge for a copy of, the right to use, or access to the Software through
+a bundle or another product, even when the charge is presented under another
+name; or
+(c) provide third parties with a paid hosted service, API, subscription, or
+other paid service whose offered function includes running or providing
+access to the Software or a modified version.
+
+Genuinely free inclusion alongside an unrelated paid product is permitted
+when no part of the consideration is for a copy of, use of, or access to the
+Software.
+
+Charging for consulting, installation, training, or support is permitted when
+the fee is for that work and is not a disguised charge for copies of, access
+to, or hosted use of the Software.
+
+An internal deployment permitted by section 1 does not become a paid service
+merely because employees receive salaries, contractors are compensated for
+internal work, or the organization earns revenue from unrelated activities.
+A school charging ordinary tuition is likewise permitted to use the Software
+internally for teaching. A fee specifically for access to the Software is
+subject to this section.
+
+Contact the repository owner at https://github.com/a123qsd to request permission.
+No permission under this section is implied by silence or by public availability.
+
+4. No warranty and limitation of liability
+
+The Software is provided "AS IS", without warranty of any kind, express or
+implied, including merchantability, fitness for a particular purpose,
+noninfringement, scientific accuracy, or suitability for research decisions.
+To the extent permitted by law, the copyright holder and contributors shall
+not be liable for any claim, damages, or other liability arising from the
+Software or its use. You are responsible for checking results and suitability
+for your intended use.
+
+5. Third-party components and reserved rights
+
+Third-party libraries, data, and other separately licensed components retain
+their own licenses. This license neither replaces their terms nor restricts
+rights they grant. See THIRD_PARTY_NOTICES.md. In particular, no restriction
+in this license applies to ASE itself or to modifications of ASE. You may
+replace or modify an LGPL library and inspect, modify, or reverse engineer
+the Software to the extent necessary to debug such library modifications.
+If a provision here conflicts with a mandatory permission of an applicable
+third-party license, that permission prevails for the relevant component
+and required interoperability activities.
+
+This license grants only the copyright permissions stated above. It does not
+grant trademark rights or endorsement, and does not limit rights you already
+have under applicable law. If you violate these terms, the permissions granted
+here end; they are reinstated when the violation is fully cured within 30 days
+of notice from the copyright holder, unless the holder has previously notified
+you of a violation that you failed to cure within that period.
+
+6. Source availability
+
+Because section 3 restricts sale and paid services, this is a source-available
+license, not an OSI-approved open-source license. Do not represent the Software
+as open source under this license. This English text governs; explanatory
+summaries elsewhere do not replace it.
