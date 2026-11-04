@@ -6,6 +6,9 @@ from dataclasses import dataclass
 import hashlib
 import io
 
+import ase
+
+from . import __version__
 from .core import UnsupportedStructure, analyze_cif
 from .provenance import with_provenance
 from .reporting import _spreadsheet_text, localized_error_message
@@ -30,6 +33,8 @@ def analyze_batch(inputs: list[BatchInput]) -> list[dict]:
         entry = {
             "filename": item.filename,
             "sha256": hashlib.sha256(item.data).hexdigest(),
+            "calclens_version": __version__,
+            "ase_version": ase.__version__,
             "normal_axis": item.normal_axis,
             "short_distance_threshold_angstrom": item.short_distance,
             "report": None,
@@ -79,8 +84,8 @@ def batch_rows(results: list[dict], language: str = "en") -> list[dict]:
             "warning_count": sum(i["severity"] == "warning" for i in issues) if report else None,
             "error_count": sum(i["severity"] == "error" for i in issues) if report else None,
             "sha256": entry["sha256"],
-            "calclens_version": provenance.get("calclens_version"),
-            "ase_version": provenance.get("ase_version"),
+            "calclens_version": provenance.get("calclens_version", entry.get("calclens_version")),
+            "ase_version": provenance.get("ase_version", entry.get("ase_version")),
             "error": localized_error_message(entry["error"], language) if entry["error"] else "",
         }
         rows.append({_HEADERS_KO[key] if language == "ko" else key: value

@@ -3,8 +3,10 @@ import hashlib
 import io
 from pathlib import Path
 
+import ase
 import pytest
 
+from slab_preflight import __version__
 from slab_preflight.batch import BatchInput, analyze_batch, batch_csv, batch_rows
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
@@ -51,3 +53,19 @@ def test_batch_limit_and_wrong_axis_are_explicit():
     results = analyze_batch([input_file("mos2_a_normal.cif"), input_file("graphene.cif")])
     assert results[0]["error"]
     assert results[1]["report"] is not None
+
+
+@pytest.mark.parametrize("language", ["en", "ko"])
+def test_failed_csv_rows_keep_source_and_engine_provenance(language):
+    item = input_file("partial_occupancy.cif")
+    result = analyze_batch([item])
+    assert result[0]["report"] is None
+    row = next(csv.DictReader(io.StringIO(batch_csv(result, language))))
+    fields = ({"filename": "파일명", "sha256": "SHA-256",
+               "calclens_version": "CalcLens 버전", "ase_version": "ASE 버전"}
+              if language == "ko" else {})
+    expected = {"filename": item.filename, "sha256": hashlib.sha256(item.data).hexdigest(),
+                "calclens_version": __version__, "ase_version": ase.__version__}
+    assert {key: row[fields.get(key, key)] for key in expected} == expected
+    assert result[0]["calclens_version"] == __version__
+    assert result[0]["ase_version"] == ase.__version__

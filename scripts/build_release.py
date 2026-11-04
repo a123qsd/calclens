@@ -149,8 +149,9 @@ def _start_here(language: str) -> bytes:
     if language == "en":
         text = """# Start CalcLens
 
-This source package starts in English. It requires Python 3.12 and installed
+This source package starts in English. It requires Python 3.12 or 3.13 and installed
 dependencies; it is not a standalone executable.
+Installation command examples in the guide use Python 3.12.
 
 1. Read [the English guide](README.en.md) for installation and scientific limits.
 2. After installing its dependencies, run `python run_app.py` from this folder.
@@ -164,8 +165,9 @@ not established by a geometric report. See [the license](LICENSE) before reuse.
     else:
         text = """# CalcLens 시작하기
 
-이 소스 패키지는 한국어로 시작합니다. Python 3.12와 의존성 설치가 필요하며,
+이 소스 패키지는 한국어로 시작합니다. Python 3.12 또는 3.13과 의존성 설치가 필요하며,
 독립 실행 파일이 아닙니다.
+안내 문서의 설치 명령 예시는 Python 3.12를 사용합니다.
 
 1. [한국어 안내](README.ko.md)에서 설치 순서와 과학적 한계를 확인하세요.
 2. 의존성을 설치한 다음 이 폴더에서 `python run_app.py`를 실행하세요.

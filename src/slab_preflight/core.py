@@ -203,7 +203,14 @@ def _read_cif(data: str | bytes, normal_axis: str) -> tuple[Atoms, list[dict[str
             f"The selected {normal_axis} axis must be perpendicular to {other_axes} "
             f"({required_angles} = 90 degrees). Tilted slab normals are unsupported."
         )
-    cell = Cell.fromcellpar(parameters)
+    try:
+        cell = Cell.fromcellpar(parameters)
+    except (AssertionError, ValueError):
+        # ASE asserts when otherwise bounded angles cannot form real vectors.
+        # Keep this conversion local so unrelated programming errors propagate.
+        raise UnsupportedStructure(
+            "Cell lengths and angles cannot form a valid three-dimensional cell."
+        ) from None
     if not np.isfinite(cell).all() or np.linalg.cond(cell) > 1e4 or cell.volume <= 0:
         raise UnsupportedStructure("Degenerate or ill-conditioned cells are unsupported (condition number > 10000).")
 

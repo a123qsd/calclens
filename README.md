@@ -34,18 +34,35 @@ and contact evidence that remains available when detail tables are truncated.
 | 한국어 | [calclens-0.2.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.2.0/calclens-0.2.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.ko.md) |
 
 Both ZIPs contain the same analysis engine and both interface languages. Each
-opens in its selected language by default. **Python 3.12 and dependency installation
-are required; these are source packages, not standalone executables.**
+opens in its selected language by default. **Python 3.12 or 3.13 and dependency
+installation are required; these are source packages, not standalone executables.**
+The installation examples in the guides use Python 3.12.
 Report language follows the interface by default and can be chosen separately.
 JSON keys and technical identifiers stay in standard English for compatibility;
 human explanations and CSV headings are localized.
 See [download and installation instructions](docs/DOWNLOADS.md).
 
 두 ZIP의 검사 기능은 같으며, 처음 열리는 언어와 기본 안내 문서만 다릅니다.
-실행 후에도 언어를 전환할 수 있습니다. **Python 3.12와 의존성 설치가 필요한 소스
-패키지이며, 독립 실행 프로그램이 아닙니다.** 보고서 언어는 기본적으로 화면 언어를
+실행 후에도 언어를 전환할 수 있습니다. **Python 3.12 또는 3.13과 의존성 설치가 필요한
+소스 패키지이며, 독립 실행 프로그램이 아닙니다.** 안내 문서의 설치 명령 예시는
+Python 3.12를 사용합니다. 보고서 언어는 기본적으로 화면 언어를
 따르며 별도로 선택할 수도 있습니다. 설명과 CSV 열 제목은 번역하고, JSON 키와 기술
 식별자는 호환성을 위해 표준 영문을 유지합니다. [설치 안내](docs/DOWNLOADS.md#한국어)를 확인하세요.
+
+## Current source / 현재 소스
+
+The current source adds comparison filters, persistent per-file settings and
+selection during edits, and session caching by file content, axis, and cutoff.
+Use **Save project** to download a `.calclens.json` containing the original CIFs
+and review state, then **Open saved work** → **Open project** to continue later.
+These changes are **not included in the v0.2.0 downloads above**. See the
+[English guide](README.en.md#current-source-save-and-continue-a-comparison) for details.
+
+현재 소스에는 비교 필터, 편집 중 파일별 조건·선택 유지, 파일 내용·축·기준별 세션
+캐시가 추가되어 있습니다. **작업 저장**으로 원본 CIF와 검토 상태를 `.calclens.json`에
+저장하고, **저장한 작업 열기** → **작업 불러오기**로 이어서 검토할 수 있습니다.
+이 변경은 **위의 v0.2.0 배포 파일에 포함되어 있지 않습니다**.
+자세한 내용은 [한국어 안내](README.ko.md#현재-소스에서-비교-작업-저장하고-이어가기)를 확인하세요.
 
 ## What it checks / 검사 범위
 

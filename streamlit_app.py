@@ -5,14 +5,19 @@ import hashlib
 import html
 import json
 import os
+from dataclasses import replace
 from pathlib import Path
 
+import ase
 import streamlit as st
 
-from slab_preflight.batch import MAX_BATCH_FILES, BatchInput, analyze_batch, batch_csv, batch_rows
+from slab_preflight import __version__
+from slab_preflight.batch import MAX_BATCH_FILES, BatchInput, batch_csv, batch_rows
 from slab_preflight.core import UnsupportedStructure, analyze_cif
 from slab_preflight.plotting import profile_figure, structure_figure
+from slab_preflight.project import Project, ProjectError, dumps_project, loads_project
 from slab_preflight.provenance import with_provenance
+from slab_preflight.review import cached_batch, reconcile_uploads
 from slab_preflight.reporting import (
     localized_error_message,
     localized_issue_message,
@@ -137,6 +142,28 @@ def localized_selectbox(label: str, options: list[str], *, key: str, on_change=N
                         on_change=sync_selectbox, args=(widget_key, key, on_change), **kwargs)
 
 
+def sync_entry(widget_key: str, entry_source: str, entry_id: str, field: str) -> None:
+    """Commit widget edits to durable review state before any source switches."""
+    value = st.session_state[widget_key]
+
+    def update(entry):
+        if entry.id != entry_id:
+            return entry
+        changes = {field: value}
+        if field in ("normal_axis", "short_distance") and getattr(entry, field) != value:
+            changes["reviewed"] = False
+        return replace(entry, **changes)
+
+    if entry_source == "batch":
+        st.session_state["upload_records"] = [
+            (upload, update(entry)) for upload, entry in st.session_state["upload_records"]
+        ]
+    else:
+        st.session_state["project_entries"] = [
+            update(entry) for entry in st.session_state["project_entries"]
+        ]
+
+
 header[0].title(t("구조 개요", "Structure overview"), anchor="overview")
 header[1].button(t("CIF 열기", "Open CIF"), on_click=set_source, args=("upload",), key="open_cif", width="stretch")
 header[2].button(t("예제 보기", "Try sample"), on_click=set_source, args=("examples",), key="try_sample", width="stretch")
@@ -146,8 +173,16 @@ with st.sidebar:
     st.markdown('<div class="calclens-brand"><span class="calclens-mark">◎</span>CalcLens</div>', unsafe_allow_html=True)
     st.markdown('<div class="calclens-nav">' + f'<a href="#overview">▦ &nbsp; {t("구조 개요", "Overview")}</a><a href="#review-checks">☷ &nbsp; {t("점검 항목", "Review checks")}</a><a href="#method-notes">◇ &nbsp; {t("방법과 한계", "Method notes")}</a></div>', unsafe_allow_html=True)
     st.divider()
-    source_labels = {"examples": t("공개 예제", "Public examples"), "upload": t("내 CIF 파일", "My CIF file"), "batch": t("여러 CIF 비교", "Compare CIF files")}
+    source_labels = {"examples": t("공개 예제", "Public examples"), "upload": t("내 CIF 파일", "My CIF file"), "batch": t("여러 CIF 비교", "Compare CIF files"), "project": t("저장한 작업 열기", "Open saved work")}
     source = localized_radio(t("구조 불러오기", "Load structure"), list(source_labels), format_func=source_labels.get, key="source")
+    # File uploaders cannot be repopulated from Session State. Keep this widget
+    # mounted while another source is shown, so a source round trip retains the
+    # actual browser upload IDs as well as our independent measurement settings.
+    if source != "batch":
+        st.markdown("<style>.st-key-batch_upload_holder {display:none;}</style>", unsafe_allow_html=True)
+    with st.container(key="batch_upload_holder"):
+        uploads = st.file_uploader(t("CIF 여러 개 · 파일당 2 MiB", "Multiple CIFs · 2 MiB per file"), type=["cif"], accept_multiple_files=True, max_upload_size=2, key="batch_upload")
+        st.caption(t(f"한 번에 최대 {MAX_BATCH_FILES}개 파일을 비교합니다.", f"Compare up to {MAX_BATCH_FILES} files at a time."))
     names = {
         "graphene.cif": t("그래핀 · 단일 원자층", "Graphene · single plane"),
         "hbn.cif": t("h-BN · 단일 원자층", "h-BN · single plane"),
@@ -163,7 +198,6 @@ with st.sidebar:
         "partial_occupancy.cif": t("미지원 · 부분 점유", "Unsupported · partial occupancy"),
     }
     data = None
-    uploads = []
     filename = "structure.cif"
     if source == "examples":
         filename = localized_selectbox(t("예제 구조", "Example structure"), list(names), format_func=names.get, key="example", on_change=set_sample_axis)
@@ -175,18 +209,34 @@ with st.sidebar:
         if uploaded is not None:
             data = uploaded.getvalue()
             filename = uploaded.name
-    else:
-        uploads = st.file_uploader(t("CIF 여러 개 · 파일당 2 MiB", "Multiple CIFs · 2 MiB per file"), type=["cif"], accept_multiple_files=True, max_upload_size=2, key="batch_upload")
-        st.caption(t(f"한 번에 최대 {MAX_BATCH_FILES}개 파일을 비교합니다.", f"Compare up to {MAX_BATCH_FILES} files at a time."))
+    elif source == "project":
+        project_upload = st.file_uploader(t("저장한 작업 · .calclens.json", "Saved work · .calclens.json"), type=["json"], max_upload_size=55, key="project_upload")
+        if st.button(t("작업 불러오기", "Open project"), key="load_project", disabled=project_upload is None):
+            try:
+                project = loads_project(project_upload.getvalue())
+            except ProjectError as exc:
+                st.error(t("작업 파일을 열 수 없습니다: ", "Cannot open project: ") + str(exc))
+            else:
+                st.session_state["project_entries"] = project.entries
+                st.session_state["project_selected_id"] = project.selected_id
+                st.session_state["batch_filter"] = project.filter_mode
+                st.session_state["review_focus"] = project.review_focus
+                st.session_state["project_versions"] = (project.calclens_version, project.ase_version)
+                st.session_state["project_generation"] = st.session_state.get("project_generation", 0) + 1
+                for entry in project.entries:
+                    for prefix, value in (("batch_axis", entry.normal_axis), ("batch_cutoff", entry.short_distance), ("review_note", entry.note), ("review_done", entry.reviewed)):
+                        st.session_state[f"{prefix}_project_{entry.id}"] = value
+                st.success(t("저장한 작업을 불러왔습니다.", "Saved work opened."))
+        st.caption(t("원본 CIF와 측정 조건·메모를 복원합니다. 결과는 현재 버전으로 계산합니다.", "Restores original CIFs, conditions and notes. Results use the current analysis version."))
     if source != "examples":
         st.caption(t("로컬 실행 시 내 컴퓨터에서 처리합니다. 호스팅된 앱에서는 파일이 해당 서버로 전송됩니다.", "Local runs process files on your computer. Hosted apps send uploads to their server."))
     st.session_state["previous_source"] = source
     st.divider()
     st.caption(t("측정 조건", "MEASUREMENT SETTINGS"))
-    normal_axis = st.selectbox(t("층의 수직 방향", "Candidate layer normal"), ["c", "a", "b"], key="normal_axis", disabled=source == "batch")
+    normal_axis = st.selectbox(t("층의 수직 방향", "Candidate layer normal"), ["c", "a", "b"], key="normal_axis", disabled=source in ("batch", "project"))
     st.caption(t("선택 축은 나머지 두 축에 수직이어야 합니다. 실제 층 방향은 사용자가 확인합니다.", "The selected axis must be perpendicular to the other two. You must verify the physical layer direction."))
-    threshold = st.number_input(t("짧은 거리 기준 / Å", "Short-distance cutoff / Å"), min_value=0.1, max_value=3.0, value=1.0, step=0.1, key="threshold", disabled=source == "batch")
-    if source == "batch":
+    threshold = st.number_input(t("짧은 거리 기준 / Å", "Short-distance cutoff / Å"), min_value=0.1, max_value=3.0, value=1.0, step=0.1, key="threshold", disabled=source in ("batch", "project"))
+    if source in ("batch", "project"):
         st.caption(t("비교 화면의 ‘파일별 측정 조건’에서 각 파일의 축과 기준을 지정하세요.", "Set each file's axis and cutoff under Measurement settings by file."))
     st.caption(t("원소와 무관한 표시 기준입니다. 결합이나 안정성의 판정 기준이 아닙니다.", "An element-independent flag, not a bond or stability criterion."))
     st.divider()
@@ -203,54 +253,142 @@ else:
     st.caption(t("입력 파일의 좌표를 분석하며 원자를 삭제하거나 구조를 자동 보정하지 않습니다.", "Input coordinates are inspected without deleting sites or automatically repairing the structure."))
 
 report = None
-if source == "batch":
+if source in ("batch", "project"):
     st.subheader(t("여러 CIF 비교", "Compare CIF files"))
-    if not uploads:
-        st.info(t("왼쪽에서 비교할 CIF 파일들을 선택하세요.", "Choose CIF files in the sidebar to compare."))
-        st.stop()
-    if len(uploads) > MAX_BATCH_FILES:
-        st.error(t(f"파일을 {MAX_BATCH_FILES}개 이하로 줄여 주세요.", f"Choose no more than {MAX_BATCH_FILES} files."))
+    if source == "batch":
+        if len(uploads) > MAX_BATCH_FILES:
+            st.error(t(f"파일을 {MAX_BATCH_FILES}개 이하로 줄여 주세요.", f"Choose no more than {MAX_BATCH_FILES} files."))
+            st.stop()
+        previous_records = st.session_state.get("upload_records", [])
+        records = reconcile_uploads(uploads, previous_records)
+        previous_data = {entry.id: entry.data for _, entry in previous_records}
+        for _, entry in records:
+            if entry.id in previous_data and previous_data[entry.id] != entry.data:
+                st.session_state[f"review_done_batch_{entry.id}"] = False
+        st.session_state["upload_records"] = records
+        entries = [entry for _, entry in records]
+    else:
+        entries = st.session_state.get("project_entries", [])
+        versions = st.session_state.get("project_versions")
+        if versions and versions != (__version__, ase.__version__):
+            st.warning(t(
+                f"저장 당시 버전은 CalcLens {versions[0]} · ASE {versions[1]}입니다. 현재 CalcLens {__version__} · ASE {ase.__version__}로 다시 분석합니다.",
+                f"Saved with CalcLens {versions[0]} · ASE {versions[1]}. Reanalyzing with current CalcLens {__version__} · ASE {ase.__version__}.",
+            ))
+    if not entries:
+        st.info(t("왼쪽에서 CIF 파일이나 저장한 작업을 선택하세요.", "Choose CIF files or open saved work in the sidebar."))
         st.stop()
     inputs = []
-    occurrences = {}
+    updated_entries = []
     with st.expander(t("파일별 측정 조건", "Measurement settings by file"), expanded=True):
         st.caption(t("모든 파일의 기본값은 c축·1.0 Å입니다. 실제 층 방향을 확인하고 파일마다 조정하세요.", "Every file starts at c and 1.0 Å. Verify the physical layer direction and adjust each file."))
-        for index, uploaded in enumerate(uploads):
-            raw = uploaded.getvalue()
-            identity = hashlib.sha256(uploaded.name.encode() + b"\0" + raw).hexdigest()[:16]
-            occurrence = occurrences.get(identity, 0)
-            occurrences[identity] = occurrence + 1
-            settings_key = f"{identity}_{occurrence}"
+        for index, entry in enumerate(entries):
+            settings_key = f"{source}_{entry.id}"
+            axis_key = f"batch_axis_{settings_key}"
+            cutoff_key = f"batch_cutoff_{settings_key}"
+            st.session_state[axis_key] = entry.normal_axis
+            st.session_state[cutoff_key] = entry.short_distance
             label, axis_col, cutoff_col = st.columns([3, 1, 1.5])
-            label.write(f"{index + 1}. {uploaded.name}")
-            axis = axis_col.selectbox(t("축", "Axis"), ["c", "a", "b"], key=f"batch_axis_{settings_key}")
-            cutoff = cutoff_col.number_input(t("기준 / Å", "Cutoff / Å"), min_value=0.1, max_value=3.0, value=1.0, step=0.1, key=f"batch_cutoff_{settings_key}")
-            inputs.append(BatchInput(uploaded.name, raw, axis, float(cutoff)))
-    results = analyze_batch(inputs)
+            label.write(f"{index + 1}. {entry.filename}")
+            axis = axis_col.selectbox(t("축", "Axis"), ["c", "a", "b"], key=axis_key,
+                                      on_change=sync_entry, args=(axis_key, source, entry.id, "normal_axis"))
+            cutoff = cutoff_col.number_input(t("기준 / Å", "Cutoff / Å"), min_value=0.1, max_value=3.0, step=0.1, key=cutoff_key,
+                                              on_change=sync_entry, args=(cutoff_key, source, entry.id, "short_distance"))
+            changed = (axis, float(cutoff)) != (entry.normal_axis, entry.short_distance)
+            updated_entries.append(replace(entry, normal_axis=axis, short_distance=float(cutoff),
+                                           reviewed=False if changed else entry.reviewed))
+            if changed:
+                st.session_state[f"review_done_{settings_key}"] = False
+            inputs.append(BatchInput(entry.filename, entry.data, axis, float(cutoff)))
+    entries = updated_entries
+
+    def keep_entries():
+        if source == "batch":
+            st.session_state["upload_records"] = [(upload, entry) for (upload, _), entry in zip(records, entries)]
+        else:
+            st.session_state["project_entries"] = entries
+
+    keep_entries()
+    results = cached_batch(inputs, st.session_state.setdefault("analysis_cache", {}))
     batch_language = "ko" if ko else "en"
-    rows = batch_rows(results, batch_language)
-    # Changing inputs/settings remounts selection; stale row indices must never
-    # select a different file after uploads are removed or reordered.
+    filters = {"all": t("전체", "All"), "needs_review": t("검토 필요", "Needs review"), "unsupported": t("입력 오류", "Input errors")}
+    filter_mode = localized_radio(t("표시할 파일", "Files to show"), list(filters), key="batch_filter", format_func=filters.get, horizontal=True)
+    all_rows = batch_rows(results, "en")
+    visible_indices = [i for i, row in enumerate(all_rows)
+                       if filter_mode == "all"
+                       or (filter_mode == "needs_review" and row["status"] == "review_required")
+                       or (filter_mode == "unsupported" and row["status"] == "unsupported")]
+    visible_results = [results[i] for i in visible_indices]
+    rows = batch_rows(visible_results, batch_language)
+    detail_fields = {"formula", "atom_count", "sha256", "calclens_version", "ase_version", "error"} if not ko else {"조성", "원자 수", "SHA-256", "CalcLens 버전", "ASE 버전", "입력 오류"}
+    rows = [{key: value for key, value in row.items() if key not in detail_fields} for row in rows]
+    # A remounted table discards positional events. The logical selection lives
+    # separately as an entry ID, so changed settings/order do not change files.
     fingerprint = hashlib.sha256(json.dumps([
-        (item.filename, result["sha256"], item.normal_axis, item.short_distance)
-        for item, result in zip(inputs, results)
+        source, filter_mode, st.session_state.get("project_generation", 0),
+        [(entries[i].id, results[i]["sha256"], inputs[i].normal_axis, inputs[i].short_distance)
+         for i in visible_indices],
     ]).encode()).hexdigest()[:16]
-    table = st.dataframe(rows, hide_index=True, width="stretch", on_select="rerun",
-                         selection_mode="single-row", key=f"batch_table_{fingerprint}")
-    st.download_button(t("비교 요약 CSV 내보내기", "Export comparison CSV"),
+    selected_key = f"{source}_selected_id"
+    ids = [entry.id for entry in entries]
+    if st.session_state.get(selected_key) not in ids:
+        st.session_state[selected_key] = ids[0]
+    table = None
+    if rows:
+        table = st.dataframe(rows, hide_index=True, width="stretch", on_select="rerun",
+                             selection_mode="single-row", key=f"batch_table_{fingerprint}")
+        if table.selection.rows:
+            selected_row = table.selection.rows[0]
+            if 0 <= selected_row < len(visible_indices):
+                st.session_state[selected_key] = entries[visible_indices[selected_row]].id
+        if st.session_state[selected_key] not in [entries[i].id for i in visible_indices]:
+            st.session_state[selected_key] = entries[visible_indices[0]].id
+    export_col, save_col = st.columns(2)
+    export_col.download_button(t("전체 비교 요약 CSV 내보내기", "Export all comparison CSV"),
                        data=batch_csv(results, batch_language).encode("utf-8-sig" if ko else "utf-8"),
                        file_name=f"calclens_comparison_{batch_language}.csv", mime="text/csv; charset=utf-8", key="download_batch")
-    st.caption(t("표의 행을 선택하면 아래에 상세 결과를 표시합니다. 선택 전에는 첫 번째 파일을 보여줍니다. no_flags는 경고가 없다는 뜻이며 구조의 타당성을 보장하지 않습니다.", "Select a row for details below; the first file is shown initially. no_flags means no screening flags, not validated geometry."))
-    selected_rows = table.selection.rows
-    selected_index = selected_rows[0] if selected_rows else 0
-    if not 0 <= selected_index < len(results):
-        selected_index = 0
+    st.caption(t("표의 행을 선택하면 상세 결과를 표시합니다. 조건을 바꿔도 선택한 파일을 유지합니다. no_flags는 경고가 없다는 뜻이며 구조의 타당성을 보장하지 않습니다.", "Select a row for details. Changing conditions keeps the selected file. no_flags means no screening flags, not validated geometry."))
+    selected_index = ids.index(st.session_state[selected_key])
+    entry = entries[selected_index]
+    if visible_indices:
+        with st.expander(t("검토 메모와 진행 상황", "Review notes and progress"), expanded=True):
+            note_key = f"review_note_{source}_{entry.id}"
+            done_key = f"review_done_{source}_{entry.id}"
+            st.session_state[note_key] = entry.note
+            st.session_state[done_key] = entry.reviewed
+            note = st.text_area(t("메모", "Notes"), key=note_key, max_chars=10000,
+                                on_change=sync_entry, args=(note_key, source, entry.id, "note"))
+            reviewed = st.checkbox(t("검토 완료", "Review complete"), key=done_key,
+                                    on_change=sync_entry, args=(done_key, source, entry.id, "reviewed"))
+            entries[selected_index] = replace(entry, note=note, reviewed=reviewed)
+            keep_entries()
+            st.caption(t(f"{sum(item.reviewed for item in entries)}/{len(entries)}개 검토 완료 · 입력이나 측정 조건을 바꾸면 완료 표시가 해제됩니다.", f"{sum(item.reviewed for item in entries)}/{len(entries)} reviewed · Input or measurement changes clear the completion mark."))
+    try:
+        project_data = dumps_project(Project(entries, selected_id=st.session_state[selected_key],
+                                             review_focus=st.session_state.get("review_focus", "overview"),
+                                             filter_mode=filter_mode))
+    except ProjectError as exc:
+        save_col.warning(t("작업을 저장할 수 없습니다: ", "Cannot save project: ") + str(exc))
+    else:
+        save_col.download_button(t("작업 저장", "Save project"), data=project_data,
+                                 file_name="calclens_work.calclens.json", mime="application/json",
+                                 key="download_project")
+    if not visible_indices:
+        st.info(t("이 필터에 해당하는 파일이 없습니다.", "No files match this filter."))
+        st.stop()
     selected = results[selected_index]
     filename = selected["filename"]
     data = inputs[selected_index].data
     normal_axis = selected["normal_axis"]
     threshold = selected["short_distance_threshold_angstrom"]
     report = selected["report"]
+    st.caption(t("현재 파일: ", "Current file: ") + f"{selected_index + 1}. {filename}")
+    with st.expander(t("파일 식별 정보와 분석 조건", "File identity and analysis conditions")):
+        st.code(f"SHA-256: {selected['sha256']}", language=None)
+        st.write(f"CalcLens {__version__} · ASE {ase.__version__}")
+        st.write(t(f"선택 축: {normal_axis} · 짧은 거리 기준: {threshold:g} Å", f"Normal axis: {normal_axis} · Short-distance cutoff: {threshold:g} Å"))
+        if report:
+            st.json(report.get("criteria", {}), expanded=False)
     if report is None:
         st.error(f"{filename}: {localized_error_message(selected['error'], batch_language)}")
         st.stop()

@@ -12,6 +12,7 @@ service is required.
 
 This guide covers **CalcLens v0.2.0**, including comparisons of multiple files,
 source identity in reports, and contact evidence preserved outside detail tables.
+The current-source section below describes changes not included in the v0.2.0 downloads.
 
 ![CalcLens structure, nearest-pair and gap inspection](docs/assets/calclens-overview.png)
 
@@ -28,10 +29,11 @@ For an English-default ZIP, choose the English asset on the
 [latest release](https://github.com/a123qsd/calclens/releases/latest) and follow
 the [download instructions](docs/DOWNLOADS.md#english). A standalone
 [English guide file](https://github.com/a123qsd/calclens/releases/download/v0.2.0/CalcLens-Guide.en.md)
-is also available. Python 3.12 and dependency
+is also available. Python 3.12 or 3.13 and dependency
 installation are required; this is not a standalone executable.
 
-To clone the source with Git instead:
+To clone the source with Git instead, use the commands below. These installation
+examples use Python 3.12.
 
 ```bash
 git clone https://github.com/a123qsd/calclens.git
@@ -79,6 +81,31 @@ findings, while distance-issue pair counts are in the detailed reports.
 
 The comparison table and summary CSV follow the interface language. Detailed
 JSON/CSV reports have the separate report-language setting described below.
+
+## Current source: save and continue a comparison
+
+This workflow is available in the current source, **not in the published v0.2.0 ZIPs**.
+
+Each comparison entry keeps its own axis and cutoff when settings change or
+files are reordered or removed. The selected file stays selected while it remains
+in the comparison. Results are cached for the session by file content, axis, and
+cutoff, so unchanged checks can be reused.
+
+Use **All**, **Needs review**, or **Input errors** to filter the compact comparison
+table. The comparison CSV still includes every file and its provenance; filtering
+does not remove results from exports. Individual reports retain their results
+and source identity.
+
+To continue later, choose **Save project** on the comparison screen to download
+a `.calclens.json` file. It stores the original CIF bytes, unique entry IDs,
+per-file conditions, selected file, review focus and filter, notes, and reviewed
+checkbox state. In the sidebar, choose **Open saved work**, upload that file,
+and click **Open project**. The original CIF files are no longer needed.
+
+Opening a project rejects corrupt or missing CIF payloads and SHA-256 mismatches.
+If its saved engine version differs from the current engine, the app warns and
+recomputes the reports with the current version. A project restores your work;
+the JSON/CSV reports remain analysis exports and cannot be opened as projects.
 
 ## Command line
 

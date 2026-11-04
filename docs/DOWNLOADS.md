@@ -29,9 +29,10 @@ Both packages contain the same geometry engine, examples, and English/Korean
 interface switch. The main `README.md` in each ZIP is the corresponding full
 language guide; `README.en.md` and `README.ko.md` are both included.
 
-These are **source ZIPs, not standalone executables**. Install Python 3.12 first.
+These are **source ZIPs, not standalone executables**. Install Python 3.12 or 3.13 first.
 You need an internet connection for the initial dependency installation. Running
 the local geometry checks does not require an API key or paid computation service.
+The installation command examples below use Python 3.12.
 
 ### Install on macOS or Linux
 
@@ -105,6 +106,22 @@ examples are analytical test models, not experimental or relaxed structures.
 See the [English guide](../README.en.md) for the input limits, result definitions,
 CLI commands, and license conditions.
 
+### Current source additions
+
+The current source keeps per-file settings and selection during comparison edits,
+caches checks by file content, axis, and cutoff for the session, and offers
+**All**, **Needs review**, and **Input errors** filters. Exports still include
+all files and provenance.
+
+**Save project** downloads a `.calclens.json` with original CIF bytes, unique
+entry IDs, conditions, selection, review focus/filter, notes, and reviewed state.
+Choose **Open saved work** in the sidebar, upload it, and click **Open project**
+to continue without the original CIF files. Invalid or missing CIF payloads and
+hash mismatches are rejected; engine-version differences warn and trigger a
+recalculation. Projects restore work separately from JSON/CSV reports.
+**These additions are not included in the v0.2.0 downloads linked above.** See the
+[current-source guide](../README.en.md#current-source-save-and-continue-a-comparison).
+
 ## 한국어
 
 [CalcLens v0.2.0 배포 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.2.0)에서
@@ -124,9 +141,10 @@ CLI commands, and license conditions.
 `README.md`만 선택한 언어의 전체 안내로 시작합니다. `README.en.md`와 `README.ko.md`도
 함께 들어 있습니다.
 
-**독립 실행 프로그램이 아니라 소스 ZIP입니다.** Python 3.12를 먼저 설치하고
+**독립 실행 프로그램이 아니라 소스 ZIP입니다.** Python 3.12 또는 3.13을 먼저 설치하고
 아래 명령으로 필요한 패키지를 설치해야 합니다. 처음 설치할 때는 인터넷 연결이
 필요합니다. 로컬 기하 검사에는 API 키나 유료 계산 서비스가 필요하지 않습니다.
+아래 설치 명령 예시는 Python 3.12를 사용합니다.
 
 ### macOS·Linux에서 설치
 
@@ -193,3 +211,18 @@ JSON은 BOM 없는 UTF-8로 저장합니다.
 오류를 제보할 때는 공개해도 되는 구조만 사용하세요. 동봉한 예제는 기하 계산을 확인하기 위한
 모델이며 실험 구조나 최적화된 구조가 아닙니다. 입력 제한, 결과 해석, 명령행 사용법과
 이용 조건은 [한국어 전체 안내](../README.ko.md)에 있습니다.
+
+### 현재 소스의 추가 기능
+
+현재 소스는 비교 목록을 편집해도 파일별 조건과 선택을 유지하며, 파일 내용·축·기준별로
+세션 안에서 검사를 캐시합니다. **전체**, **검토 필요**, **입력 오류** 필터로 비교 표를
+좁혀도 내보내기에는 모든 파일과 원본 식별 정보가 들어갑니다.
+
+**작업 저장**으로 원본 CIF 바이트, 고유 항목 ID, 조건, 선택한 파일, 검토 초점·필터,
+메모와 검토 완료 상태를 담은 `.calclens.json`을 내려받습니다. 사이드바의
+**저장한 작업 열기**에서 파일을 올리고 **작업 불러오기**를 누르면 원본 CIF 없이
+이어갈 수 있습니다. CIF 데이터의 손상·누락이나 해시 불일치는 거부하며, 엔진 버전이
+다르면 경고 후 현재 엔진으로 다시 계산합니다. 작업 파일은 JSON·CSV 결과 보고서와
+별도로 검토 상태를 복원합니다. **이 추가 기능은 위의 v0.2.0 배포 파일에 포함되어
+있지 않습니다.** 자세한 내용은
+[현재 소스 안내](../README.ko.md#현재-소스에서-비교-작업-저장하고-이어가기)를 확인하세요.

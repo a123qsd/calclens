@@ -60,6 +60,7 @@ _ERRORS_KO = {
     "All six cell lengths/angles are required (angstrom and degrees).": "셀의 길이 3개와 각도 3개를 모두 입력해야 합니다. 단위는 각각 Å와 도입니다.",
     "Cell lengths must lie between 0.001 and 10000 angstrom.": "셀 길이는 0.001 Å 이상, 10000 Å 이하여야 합니다.",
     "All cell angles must be strictly between 0 and 180 degrees.": "모든 셀 각도는 0도보다 크고 180도보다 작아야 합니다.",
+    "Cell lengths and angles cannot form a valid three-dimensional cell.": "셀 길이와 각도로 유효한 3차원 셀을 구성할 수 없습니다.",
     "Degenerate or ill-conditioned cells are unsupported (condition number > 10000).": "퇴화하거나 수치적으로 불안정한 셀은 지원하지 않습니다(조건수 > 10000).",
     "An explicit site loop with element symbols and fractional x, y, z is required.": "원소 기호와 분율 좌표 x, y, z를 포함한 명시적 원자 자리 루프가 필요합니다.",
     "The supported size is 1 to 400 explicit atomic sites.": "명시적 원자 자리 1개부터 400개까지 지원합니다.",
