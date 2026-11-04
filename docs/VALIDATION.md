@@ -2,7 +2,7 @@
 
 Date: 2026-11-04. Local environment: macOS arm64, Python 3.12.16.
 
-CalcLens v0.1 passed **149 tests** with the dependency versions in
+CalcLens v0.1.1 passed **210 tests** with the dependency versions in
 `requirements.lock`. This covers the geometry core, unsupported inputs,
 command-line report delivery, CSV criteria and units, and Streamlit interactions.
 
@@ -14,7 +14,7 @@ python -m ruff check .
 python scripts/generate_examples.py --check
 ```
 
-Observed results: 149 tests passed; Ruff passed; all **16 generated CIF examples**
+Observed results: 210 tests passed; Ruff passed; all **16 generated CIF examples**
 matched their committed text. Package dependencies were also checked with
 `python -m pip check`, with no broken requirements.
 
@@ -51,6 +51,30 @@ The repository includes a read-only-permission GitHub Actions workflow running
 installation, pytest, Ruff, and fixture checks on Ubuntu with Python 3.12.
 The [Actions page](https://github.com/a123qsd/calclens/actions/workflows/tests.yml)
 records the outcome for each published commit; consult it for the current result.
+
+## Bilingual release checks
+
+The v0.1.1 update adds English/Korean source packages, guides, and result exports.
+Locale tests verify that measurements, criteria, atom indices, image shifts, and
+diagnostic codes are unchanged. English-to-Korean-to-English report conversion
+restores the English descriptions, and Korean output retains the original text.
+Crowded examples verify that translated pair counts remain correct when the
+contact detail list is truncated. Both CLI formats were also exercised through
+the installed package using the wrapped MoS2 example.
+
+Browser checks downloaded `graphene_calclens_ko.csv` and
+`graphene_calclens_en.json`. The Korean CSV had a UTF-8 BOM and Korean headings;
+all CSV measurements matched the English JSON. Interface and report language
+were selected independently. Translated dropdowns were checked after switching
+languages, including the example name and “Same as interface” option. Mandatory
+selectors have no clear button, and defensive empty-value handling is tested.
+
+Distribution tests verify language defaults and overrides, a loopback-only
+launcher, reproducible ZIP bytes, identical calculation code in both packages,
+and rejection of dirty trees, unsafe paths, symlinks, and sensitive file names.
+Standalone guide links refer to the packaged source commit. These checks do not
+claim that dependency installation and app launch were exercised on Windows;
+the local runtime validation used macOS, with Linux covered by CI.
 
 ## Scientific scope
 

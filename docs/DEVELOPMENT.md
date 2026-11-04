@@ -1,6 +1,6 @@
 # Developing CalcLens
 
-CalcLens v0.1 is a local CIF geometry inspection tool. The public package and CLI
+CalcLens is a local CIF geometry inspection tool. The public package and CLI
 are named `calclens`; the internal Python module remains `slab_preflight`.
 This naming difference does not indicate a second application.
 
@@ -13,7 +13,7 @@ python -m pip install --require-hashes -r requirements.lock
 python -m pip install --no-deps --no-build-isolation .
 python -m pytest
 python -m ruff check .
-python -m streamlit run streamlit_app.py
+python run_app.py --language en
 ```
 
 The installation command builds and installs the current source tree. After
@@ -27,10 +27,12 @@ source of truth for how tests locate the code.
 | --- | --- |
 | `src/slab_preflight/core.py` | Input validation, periodic distances, gap/span measurements, and structured findings |
 | `src/slab_preflight/cli.py` | Bounded file reading, options, JSON/CSV output, and exit status |
-| `src/slab_preflight/reporting.py` | CSV export with criteria, units, findings, and numbering conventions |
+| `src/slab_preflight/reporting.py` | English/Korean report descriptions and CSV export with criteria, units, findings, and numbering conventions |
 | `src/slab_preflight/plotting.py` | Visual representation of the report, including selected sites and periodic images |
 | `streamlit_app.py` | Korean/English interaction, example selection, uploaded CIFs, review messages, and downloads |
 | `scripts/generate_examples.py` | Reproducible analytical fixtures; no remote data retrieval |
+| `run_app.py` | Local launch and initial interface language |
+| `scripts/build_release.py` | Reproducible language-specific source packages from a clean committed tree |
 | `tests/` | Analytical, periodic-image, input-scope, CLI, and interface checks |
 
 Keep scientific definitions in the core and reuse its output in the interface.
@@ -50,6 +52,28 @@ criteria, findings, and limitations. Treat the selected axis and screening
 cutoff as part of the result: a bare number without its convention is insufficient.
 CSV is a readable export, while JSON retains the structured report. A future
 incompatible change to a field's meaning needs an explicit schema migration.
+
+Localize report descriptions in the reporting layer, not the geometry core.
+JSON keys, diagnostic codes, units, measurements, and indices stay canonical.
+The selected report language must not change criteria, findings, or exit codes.
+Keep English originals alongside Korean descriptions so that the evidence can
+be inspected in either language. Korean CSV headings are intended for readers;
+use JSON or the default English CSV for stable programmatic field names.
+
+## Source release packages
+
+After testing and committing the complete release, run:
+
+```bash
+python scripts/build_release.py
+```
+
+The builder requires a clean working tree and packages the committed source.
+It produces English and Korean source ZIPs, standalone language guides, and
+`SHA256SUMS.txt` under `dist/`. Both packages contain the same calculation code
+and dependency lockfiles. Their initial language and entry guide differ.
+They require Python and dependency installation; they are not bundled executables.
+See [DOWNLOADS.md](DOWNLOADS.md) for setup instructions.
 
 The internal module name may be changed later, but public CLI behavior and report
 semantics need a deliberate compatibility decision. Do not silently change a

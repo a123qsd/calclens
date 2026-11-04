@@ -8,7 +8,7 @@ selected normal axis (a, b, or c).
 The app runs locally after installation. No external API key or paid computation
 service is required.
 
-[한국어 안내](README.md) · [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) · [Development](docs/DEVELOPMENT.md) · [Validation record](docs/VALIDATION.md)
+[Project home](https://github.com/a123qsd/calclens) · [한국어 안내](README.ko.md) · [English ZIP and installation](docs/DOWNLOADS.md#english) · [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) · [Development](docs/DEVELOPMENT.md) · [Validation record](docs/VALIDATION.md)
 
 > This tool does not establish structural stability or calculation accuracy.
 > Its gap is a geometric measurement between nuclear positions.
@@ -16,7 +16,14 @@ service is required.
 
 ## Run locally
 
-Use Python 3.12:
+For an English-default ZIP, choose the English asset on the
+[latest release](https://github.com/a123qsd/calclens/releases/latest) and follow
+the [download instructions](docs/DOWNLOADS.md#english). A standalone
+[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.1.1/CalcLens-Guide.en.md)
+is also available. Python 3.12 and dependency
+installation are required; this is not a standalone executable.
+
+To clone the source with Git instead:
 
 ```bash
 git clone https://github.com/a123qsd/calclens.git
@@ -25,7 +32,7 @@ python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --require-hashes -r requirements.lock
 python -m pip install --no-deps --no-build-isolation .
-python -m streamlit run streamlit_app.py
+python run_app.py --language en
 ```
 
 On Windows, create the environment with `py -3.12 -m venv .venv` and activate it
@@ -34,7 +41,8 @@ Installing the packages initially requires an internet connection.
 
 Open the local address shown in the terminal. Select an example or provide a
 CIF file. Start with graphene, then compare `graphene_duplicate.cif` to see how
-a duplicate site is reported. Korean and English guidance is available.
+a duplicate site is reported. You can switch between English and Korean in the
+interface. Use `python run_app.py` to start with a ZIP's default language.
 
 Select a review check or contact pair to highlight the related sites and periodic image.
 Inspect the gap along the selected axis, and download the criteria and results
@@ -43,8 +51,8 @@ as JSON or CSV.
 Run the same check from the command line and save a JSON report:
 
 ```bash
-calclens examples/graphene.cif --normal-axis c --json report.json
-calclens examples/mos2_a_normal.cif --normal-axis a --csv report.csv
+calclens examples/graphene.cif --normal-axis c --language en --json report.json
+calclens examples/mos2_a_normal.cif --normal-axis a --language en --csv report.csv
 ```
 
 Choose either `--json` or `--csv` per command. Both create a new file and refuse
@@ -53,6 +61,26 @@ start at 0. Exit codes
 are `0` for no error-level findings (warnings may remain), `1` for a geometric
 error such as overlapping sites, and `2` for unsupported input, read, argument,
 or output errors.
+
+## Report language
+
+The report-language selector defaults to “Same as interface.” You can choose
+English or Korean independently before downloading JSON or CSV. Downloads use
+`_calclens_en` or `_calclens_ko` in the filename. The CLI uses English by default;
+pass `--language ko` for Korean explanations or `--language en` for English.
+The ZIP's default interface language does not change that CLI default.
+
+JSON keeps canonical English field names, issue codes, severity values, units,
+atom indices, and all numerical results unchanged. `report_language` identifies
+the selected language. Human-readable issue messages, assumptions, and
+limitations use that language. Korean JSON also preserves the original English
+text in `message_en`, `assumptions_en`, and `limitations_en` fields.
+
+CSV headings and explanation text follow the chosen language. Technical values
+such as issue codes, record types, severity, and units remain stable identifiers
+for comparison and automated processing. Korean CSV files from the app and CLI
+use UTF-8 with a BOM for spreadsheet compatibility; JSON uses UTF-8 without a BOM.
+Changing language does not change the scientific criteria or results.
 
 ## Read the results
 

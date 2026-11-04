@@ -4,13 +4,19 @@ from __future__ import annotations
 import hashlib
 import html
 import json
+import os
 from pathlib import Path
 
 import streamlit as st
 
 from slab_preflight.core import UnsupportedStructure, analyze_cif
 from slab_preflight.plotting import profile_figure, structure_figure
-from slab_preflight.reporting import report_csv
+from slab_preflight.reporting import (
+    localized_error_message,
+    localized_issue_message,
+    localized_report,
+    report_csv,
+)
 
 ROOT = Path(__file__).resolve().parent
 MAX_BYTES = 2 * 1024 * 1024
@@ -60,6 +66,11 @@ def set_sample_axis() -> None:
 
 
 header = st.columns([5.4, 1.25, 1.25, 1.35], vertical_alignment="center")
+if "language" not in st.session_state:
+    # Launchers choose a default only for a new session. Interactive changes
+    # remain authoritative for all later reruns in that session.
+    default_language = os.environ.get("CALCLENS_LANGUAGE", "ko").strip().lower()
+    st.session_state["language"] = "English" if default_language == "en" else "한국어"
 language = header[3].selectbox("Language / 언어", ["한국어", "English"], key="language", label_visibility="collapsed")
 ko = language == "한국어"
 
@@ -95,6 +106,29 @@ def localized_radio(label: str, options: list[str], *, key: str, **kwargs) -> st
                     on_change=sync_radio, args=(widget_key, key), **kwargs)
 
 
+def sync_selectbox(widget_key: str, logical_key: str, callback=None) -> None:
+    selected = st.session_state[widget_key]
+    if selected is None:
+        # Ignore a stale clear event from a previously mounted frontend.
+        st.session_state[widget_key] = st.session_state[logical_key]
+        return
+    st.session_state[logical_key] = selected
+    if callback is not None:
+        callback()
+
+
+def localized_selectbox(label: str, options: list[str], *, key: str, on_change=None, **kwargs) -> str:
+    """Remount translated dropdown labels while keeping the logical choice."""
+    logical_value = st.session_state.get(key, options[0])
+    if logical_value not in options:
+        logical_value = options[0]
+    st.session_state[key] = logical_value
+    widget_key = f"{key}_{'ko' if ko else 'en'}"
+    st.session_state[widget_key] = logical_value
+    return st.selectbox(label, options, index=0, key=widget_key,
+                        on_change=sync_selectbox, args=(widget_key, key, on_change), **kwargs)
+
+
 header[0].title(t("구조 개요", "Structure overview"), anchor="overview")
 header[1].button(t("CIF 열기", "Open CIF"), on_click=set_source, args=("upload",), key="open_cif", width="stretch")
 header[2].button(t("예제 보기", "Try sample"), on_click=set_source, args=("examples",), key="try_sample", width="stretch")
@@ -122,7 +156,7 @@ with st.sidebar:
     data = None
     filename = "structure.cif"
     if source == "examples":
-        filename = st.selectbox(t("예제 구조", "Example structure"), list(names), format_func=names.get, key="example", on_change=set_sample_axis)
+        filename = localized_selectbox(t("예제 구조", "Example structure"), list(names), format_func=names.get, key="example", on_change=set_sample_axis)
         data = (ROOT / "examples" / filename).read_bytes()
     else:
         uploaded = st.file_uploader(t("CIF · 최대 2 MiB", "CIF · maximum 2 MiB"), type=["cif"], max_upload_size=2, key="cif_upload")
@@ -138,6 +172,9 @@ with st.sidebar:
     st.caption(t("원소와 무관한 표시 기준입니다. 결합이나 안정성의 판정 기준이 아닙니다.", "An element-independent flag, not a bond or stability criterion."))
     st.divider()
     st.caption(t("프로젝트 · CIF 구조 점검", "PROJECT · CIF GEOMETRY"))
+    guide_language = "ko" if ko else "en"
+    st.markdown(f"[{t('사용 안내', 'User guide')} ↗](https://github.com/a123qsd/calclens/blob/main/README.{guide_language}.md)")
+    st.markdown(f"[{t('다운로드 파일', 'Download files')} ↗](https://github.com/a123qsd/calclens/releases)")
     st.markdown("[GitHub ↗](https://github.com/a123qsd/calclens)")
 
 if source == "examples":
@@ -156,7 +193,12 @@ try:
     report = analyze_cif(data, short_distance=float(threshold), normal_axis=normal_axis)
 except (UnsupportedStructure, ValueError) as exc:
     st.error(t("이 입력은 현재 지원 범위에서 해석할 수 없습니다.", "This input cannot be interpreted within the supported scope."))
-    st.write(str(exc))
+    original_reason = str(exc)
+    reason = localized_error_message(original_reason, language="ko" if ko else "en")
+    st.write(reason)
+    if ko and reason != original_reason:
+        with st.expander("원문 진단 / Original diagnostic"):
+            st.code(original_reason, language=None)
     st.info(t("단일 CIF 1.1 블록, 명시적 P1 원자 목록, 완전 점유, 원소와 분율 좌표, 셀 정보가 필요합니다. 선택한 수직 축도 확인하세요. 누락 정보를 추측하거나 원자를 삭제하지 않습니다.", "A single CIF 1.1 block, explicit P1 sites, full occupancy, elements, fractional coordinates and cell data are required. Check the selected normal axis too. Missing information is not guessed and sites are not deleted."))
     st.caption(t("다른 형식은 ASE 또는 pymatgen 등에서 사람이 검토하고 준비해 주세요. 부분 점유를 임의로 1로 바꾸지 마세요.", "Prepare other structures after human review in tools such as ASE or pymatgen. Do not arbitrarily replace partial occupancies with 1."))
     st.stop()
@@ -181,19 +223,8 @@ for col, (label, value) in zip(cols, values):
     col.metric(label, "—" if value is None else f"{value:.3f} Å")
 st.caption(t("두께·간격은 원자핵 위치 기준입니다. 단일 원자 평면의 두께는 0 Å이며, 핵 간격은 전자밀도 경계의 진공 폭이 아닙니다.", "Thickness and gap refer to nuclear positions. A single atomic plane has zero nuclear-span thickness; this gap is not an electron-density vacuum width."))
 
-issue_ko = {
-    "OVERLAPPING_SITES": "같은 위치 또는 주기적으로 같은 위치에 있는 원자가 있습니다. 입력 원자 목록을 확인하세요.",
-    "SHORT_DISTANCE": "기준보다 가까운 원자 쌍이 있습니다. 좌표와 단위를 확인하세요. 원소별 결합 판정은 아닙니다.",
-    "SELF_IMAGE_CONTACT": "원자가 자신의 주기적 복사본과 가깝습니다. 셀 크기와 단위를 확인하세요.",
-    "AMBIGUOUS_SLAB": "빈 간격이 작거나 셀 높이의 절반 이하입니다. 고립된 단일 층이라는 해석을 검토해야 합니다.",
-    "MULTIPLE_LARGE_GAPS": "큰 빈 간격이 여러 개 있습니다. 다층 구조나 여러 슬래브가 포함됐는지 확인하세요.",
-    "GEOMETRY_ONLY": "원자핵과 셀의 기하만 측정합니다. 결합, 안정성, 실제 차원성 또는 계산 정확성을 검증하지 않습니다.",
-    "VACUUM_CONVERGENCE": "핵 간격은 전자밀도가 없는 진공 폭과 다릅니다. 진공의 충분성은 계산별 수렴 검증이 필요합니다.",
-    "ASSUMED_FULL_OCCUPANCY": "점유율이 생략되어 모든 명시적 원자가 완전 점유라고 가정했습니다. 원본을 확인하세요.",
-}
-
 def explanation(item: dict) -> str:
-    return issue_ko.get(item["code"], item["message"]) if ko else item["message"]
+    return localized_issue_message(item, report, language="ko" if ko else "en")
 
 
 # Render the review controls first, so their current selection determines the
@@ -261,10 +292,18 @@ with viewer, st.container(border=True, key="viewer_card"):
     st.caption(t("실제 Å 좌표 비율입니다. 원자 크기는 표시용이며 결합을 추정하지 않습니다. 반복은 표시만 바꾸며, 강조는 원본 셀과 정확한 주기상 좌표에 적용됩니다.", "Axes retain the actual Å proportions. Marker sizes are visual; bonds are not inferred. Repeats affect display only; highlights use original-cell sites and exact periodic images."))
 
 with st.container(border=True, key="details_card"):
-    title, csv_button, json_button = st.columns([3, 1, 1], vertical_alignment="center")
+    title, export_language_column, csv_button, json_button = st.columns([2.5, 1.4, 1, 1], vertical_alignment="center")
     title.subheader(t("점검 결과와 원자 좌표", "Review results and site data"))
-    csv_button.download_button(t("CSV 내보내기", "Export CSV"), data=report_csv(report), file_name=f"{Path(filename).stem}_calclens.csv", mime="text/csv", key="download_csv", width="stretch")
-    json_button.download_button(t("JSON 내보내기", "Export JSON"), data=json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False), file_name=f"{Path(filename).stem}_calclens.json", mime="application/json", key="download_report", width="stretch")
+    export_labels = {"interface": t("화면과 같음", "Same as interface"), "en": "English", "ko": "한국어"}
+    with export_language_column:
+        export_choice = localized_selectbox(t("보고서 언어", "Report language"), list(export_labels), format_func=export_labels.get, key="report_language")
+    output_language = ("ko" if ko else "en") if export_choice == "interface" else export_choice
+    output_report = localized_report(report, language=output_language)
+    csv_text = report_csv(report, language=output_language)
+    csv_data = csv_text.encode("utf-8-sig" if output_language == "ko" else "utf-8")
+    export_stem = f"{Path(filename).stem}_calclens_{output_language}"
+    csv_button.download_button(t("CSV 내보내기", "Export CSV"), data=csv_data, file_name=f"{export_stem}.csv", mime="text/csv; charset=utf-8", key="download_csv", width="stretch")
+    json_button.download_button(t("JSON 내보내기", "Export JSON"), data=json.dumps(output_report, ensure_ascii=False, indent=2, allow_nan=False), file_name=f"{export_stem}.json", mime="application/json", key="download_report", width="stretch")
     contact_tab, coordinate_tab, issue_tab = st.tabs([t("짧은 거리", "Short contacts"), t("원자 좌표", "Site coordinates"), t("모든 진단", "All diagnostics")])
     with contact_tab:
         if report.get("short_contacts_truncated"):
@@ -274,7 +313,7 @@ with st.container(border=True, key="details_card"):
             st.dataframe(rows, hide_index=True, width="stretch")
         else:
             st.write(t(f"{threshold:.2f} Å 미만의 거리 기록이 없습니다. 이 결과가 구조의 타당성을 보장하지는 않습니다.", f"No contact records below {threshold:.2f} Å. This does not establish structural validity."))
-        st.caption(t("화면의 원자 번호는 1부터, JSON 인덱스는 0부터 시작합니다. CSV/JSON에는 선택 축과 점검 기준도 포함됩니다.", "Displayed site numbers start at 1; JSON indexes start at 0. CSV/JSON include the selected axis and screening criteria."))
+        st.caption(t("화면의 원자 번호는 1부터, JSON 인덱스는 0부터 시작합니다. CSV/JSON에는 선택 축·기준·보고서 언어가 포함됩니다. JSON 키·진단 코드는 두 언어에서 같습니다.", "Displayed site numbers start at 1; JSON indexes start at 0. CSV/JSON include the axis, criteria and report language. JSON keys and diagnostic codes remain the same in both languages."))
     with coordinate_tab:
         positions = [{t("원자", "Site"): i + 1, t("원소", "Element"): element, "x / Å": p[0], "y / Å": p[1], "z / Å": p[2]} for i, (element, p) in enumerate(zip(report["elements"], report["positions"]))]
         st.dataframe(positions, hide_index=True, width="stretch")

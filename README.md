@@ -1,133 +1,78 @@
 # CalcLens
 
+**Inspect a 2D material CIF before setting up a calculation.**
+
+CalcLens is a local tool for visualizing atomic structures, finding short periodic
+contacts and duplicate sites, and measuring the span of nuclear positions and
+the largest empty interval along a selected axis. It includes English and Korean
+interfaces, guides, and report explanations, plus analytical examples and
+JSON/CSV exports.
+
 **2차원 물질 계산을 시작하기 전, CIF 구조의 기하 정보를 확인하는 도구입니다.**
+원자 구조를 그려 보고 주기 경계를 넘는 짧은 거리, 중복 원자, 원자핵 기준 두께와
+빈 간격을 확인합니다. 화면·사용 안내·결과 설명을 한국어와 영어로 제공하며,
+예제와 JSON·CSV 내보내기를 지원합니다.
 
-CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 짧은 원자 간 거리,
-중복 원자, 층의 원자핵 기준 두께와 가장 큰 빈 간격을 살펴볼 수 있습니다.
-설치 후에는 로컬에서 실행하며, 외부 API 키나 유료 계산 서비스가 필요하지 않습니다.
+## Download / 다운로드
 
-[English guide](README.en.md) · [계산 방법과 한계](docs/METHODS.md) · [예제 출처](docs/PROVENANCE.md) · [개발 안내](docs/DEVELOPMENT.md) · [검증 기록](docs/VALIDATION.md)
+[Latest release / 최신 배포](https://github.com/a123qsd/calclens/releases/latest)
 
-> 이 도구는 구조의 안정성이나 계산의 정확성을 판정하지 않습니다.
-> 표시되는 간격은 원자핵 위치로 계산한 기하 정보입니다.
-> 진공 간격이 충분한지는 실제 계산에서 별도로 수렴 검증해야 합니다.
+| Language | Source ZIP for v0.1.1 | Read guide | Download guide |
+| --- | --- | --- | --- |
+| English | [calclens-0.1.1-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.1.1/calclens-0.1.1-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.1.1/CalcLens-Guide.en.md) |
+| 한국어 | [calclens-0.1.1-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.1.1/calclens-0.1.1-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.1.1/CalcLens-Guide.ko.md) |
 
-## 빠르게 실행하기
+Both ZIPs contain the same analysis engine and both interface languages. Each
+opens in its selected language by default. **Python 3.12 and dependency installation
+are required; these are source packages, not standalone executables.**
+Report language follows the interface by default and can be chosen separately.
+JSON keys and technical identifiers stay in standard English for compatibility;
+human explanations and CSV headings are localized.
+See [download and installation instructions](docs/DOWNLOADS.md).
 
-Python 3.12 환경에서 저장소를 내려받고 다음 명령을 실행합니다.
+두 ZIP의 검사 기능은 같으며, 처음 열리는 언어와 기본 안내 문서만 다릅니다.
+실행 후에도 언어를 전환할 수 있습니다. **Python 3.12와 의존성 설치가 필요한 소스
+패키지이며, 독립 실행 프로그램이 아닙니다.** 보고서 언어는 기본적으로 화면 언어를
+따르며 별도로 선택할 수도 있습니다. 설명과 CSV 열 제목은 번역하고, JSON 키와 기술
+식별자는 호환성을 위해 표준 영문을 유지합니다. [설치 안내](docs/DOWNLOADS.md#한국어)를 확인하세요.
 
-```bash
-git clone https://github.com/a123qsd/calclens.git
-cd calclens
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install --require-hashes -r requirements.lock
-python -m pip install --no-deps --no-build-isolation .
-python -m streamlit run streamlit_app.py
-```
+## What it checks / 검사 범위
 
-Windows에서는 가상환경을 `py -3.12 -m venv .venv`로 만들고,
-PowerShell에서 `.venv\Scripts\Activate.ps1`로 활성화합니다.
-처음 패키지를 설치할 때는 인터넷 연결이 필요합니다.
+- Interactive atoms and cell, with selected contacts and periodic images highlighted
+- Minimum periodic distances, overlapping sites, and configurable short-contact screening
+- Nuclei-span thickness and largest cyclic gap along a, b, or c
+- Explicit review notes, unsupported-input explanations, and report exports
 
-브라우저에 표시된 로컬 주소를 열고 예제를 선택하거나 CIF 파일을 넣으세요.
-그래핀 예제로 화면을 익힌 뒤 `graphene_duplicate.cif`를 열면 중복 원자를
-어떻게 표시하는지 비교할 수 있습니다. 한국어와 영어 안내를 제공합니다.
+원자·셀 시각화, 주기 거리와 겹침 검사, a·b·c 중 선택한 방향의 원자핵 기준
+두께·간격 측정, 검토 항목과 결과 내보내기를 지원합니다.
 
-화면에서 점검 항목이나 접촉 원자쌍을 선택하면 관련 위치와 주기 이미지를 강조해 볼 수 있습니다.
-선택한 방향의 빈 간격도 함께 확인하고, 기준과 결과를 JSON·CSV로 내려받을 수 있습니다.
+Input is limited to one explicit, fully occupied P1 CIF structure, up to 400 sites
+and 2 MiB. The chosen normal axis must be perpendicular to the other two cell
+vectors. Gaussian/ORCA logs and calculation execution are outside this release.
 
-명령행에서 같은 검사를 실행하고 JSON 결과를 저장할 수도 있습니다.
+원자 위치가 명시된 완전 점유 P1 CIF 1개를 받으며, 최대 400개 원자·2 MiB까지
+지원합니다. 선택한 수직 방향은 나머지 두 셀 벡터에 수직이어야 합니다.
+Gaussian·ORCA 로그 분석과 계산 실행은 지원하지 않습니다.
 
-```bash
-calclens examples/graphene.cif --normal-axis c --json report.json
-calclens examples/mos2_a_normal.cif --normal-axis a --csv report.csv
-```
+> Geometry checks do not establish material stability or calculation accuracy.
+> The reported gap uses nuclear positions; vacuum sufficiency requires separate
+> convergence tests for the intended calculation.
+>
+> 기하 검사만으로 물질의 안정성이나 계산 정확성을 보장하지 않습니다.
+> 간격은 원자핵 위치로 측정하며, 진공이 충분한지는 실제 계산에서 수렴 검증해야 합니다.
 
-`--json`과 `--csv`는 한 번에 하나만 지정하며, 새 파일에만 저장하고 기존 파일을 덮어쓰지 않습니다.
-CSV의 원자 번호는 1부터, JSON의 원자 인덱스는 0부터 시작합니다. 종료 코드는
-`0`(오류 수준 항목 없음, 경고는 있을 수 있음), `1`(겹침 등 기하 오류),
-`2`(미지원 입력·읽기·인수·출력 오류)입니다.
+## Details / 자세한 내용
 
-## 무엇을 보여 주나요?
+[Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) ·
+[Validation record](docs/VALIDATION.md) · [Development](docs/DEVELOPMENT.md) ·
+[Dependency notices](THIRD_PARTY_NOTICES.md)
 
-| 결과 | 읽는 방법 |
-| --- | --- |
-| 원자 구조와 셀 | 원소와 원자 위치를 확인하고 선택한 원자·접촉·주기 이미지를 강조합니다. 화면의 점 크기는 실제 원자 반지름이 아닙니다. |
-| 최소 주기 거리 | 이웃 셀까지 고려한 가장 가까운 원자핵 간 거리입니다. 원자와 자기 자신의 주기 이미지도 검사합니다. |
-| 짧은 거리와 중복 | 기본 1.0 Å 미만을 검토 대상으로 표시합니다. 원소별 결합 길이를 판정하는 기준이 아닙니다. |
-| 원자핵 기준 두께 | 선택한 수직 방향을 따라 가장 큰 빈 간격을 제외한 원자핵 위치의 범위입니다. 물질의 물리적 두께와 다릅니다. |
-| 원자핵 기준 간격 | 선택한 방향을 한 주기 돌며 구한 가장 큰 원자핵 없는 구간입니다. 전자 밀도가 없는 공간의 폭을 뜻하지 않습니다. |
-| 검토 사항 | 지원하지 않는 입력과 모호한 층 구성을 구분해 설명합니다. 경고가 없다는 이유만으로 계산을 진행해서는 안 됩니다. |
+Personal, educational, academic, and internal business use is free. Selling the
+software or charging for its use, access, or hosted functionality requires prior
+written permission. This is **source-available**, not OSI-approved open source.
+The English [LICENSE](LICENSE) governs; dependencies retain their own licenses.
 
-단일 원자 평면인 그래핀 예제의 원자핵 기준 두께는 `0 Å`입니다.
-이는 그래핀의 물리적 두께가 0이라는 뜻이 아닙니다.
-
-## 첫 버전의 지원 범위
-
-- 원자 위치가 모두 명시된 **P1 CIF 1.x**, 데이터 블록 1개
-- 분율 좌표와 정상 원소 기호, 완전 점유된 원자 자리
-- 층의 수직 방향으로 a·b·c 중 하나를 선택하며, 그 축이 나머지 두 축에 수직인 셀
-- 파일당 최대 2 MiB, 원자 1–400개
-
-P1 이외의 대칭, 부분·혼합 점유, 변조·초공간·복합 결정 구조,
-선택한 축이 나머지 축에 수직이 아닌 셀, 여러 데이터 블록은 지원하지 않습니다.
-대칭으로 같은 위치를 나타내거나 부분 점유를 표현하는 일반 CIF의 원자를
-단순 중복으로 판단해 지우지 않도록, 이런 입력은 이유를 표시하고 중단합니다.
-
-다른 구조 도구에서 점유를 별도로 검토한 뒤 대칭을 전개한 P1 파일로 내보내세요.
-공간군 이름만 P1으로 바꾸거나 원자를 임의로 삭제해서는 안 됩니다.
-변환한 좌표와 선택한 축이 실제 층의 수직 방향인지도 직접 확인해야 합니다.
-
-층이 여러 개인 구조나 빈 간격이 뚜렷하지 않은 구조에서는 가장 큰 빈 구간이
-원하는 진공을 가리키지 않을 수 있습니다. 자동 경고는 일부 모호한 경우를 알리는
-경험적 규칙이며, 모든 다층·벌크 구조를 찾아내지는 못합니다.
-모호한 결과는 ‘검토 필요’로 읽어야 합니다.
-
-CalcLens v0.1은 CIF 기하 검사 도구입니다. Gaussian·ORCA 로그, 계산 실행,
-SCF 수렴·구조 최적화·진동수 결과 분석은 지원하지 않습니다.
-세부 허용 오차와 계산식은 [METHODS.md](docs/METHODS.md)에 있습니다.
-
-## 예제와 검증
-
-[examples](examples/README.md)에는 그래핀·h-BN·MoS₂의 이상적인 기하 모델과
-중복 원자, 짧은 접촉, 경계에 걸친 층 등 의도적으로 바꾼 구조가 있습니다.
-모두 이 저장소를 위해 생성한 공개 예제이며 실험 구조나 최적화된 연구 결과가 아닙니다.
-
-```bash
-python scripts/generate_examples.py --check
-python -m pytest
-```
-
-테스트는 해석적으로 구할 수 있는 거리와 간격, 별도로 열거한 주기 이미지,
-전체 구조의 평행 이동, 셀 경계의 중복 원자, 단위와 미지원 입력을 확인합니다.
-검증 범위는 기하 계산과 프로그램 동작이며, 에너지·힘·전자 구조 계산은 포함하지 않습니다.
-
-## 사용하는 도구
-
-[ASE](https://docs.ase-lib.org/)의 CIF 파서와 주기 기하 계산을 사용하고,
-Streamlit과 Plotly로 화면을 구성합니다.
-[pymatgen](https://pymatgen.org/)도 CIF와 재료 구조 분석을 지원하는 도구입니다.
-CalcLens는 이들 도구의 기존 기능 위에 좁은 입력 범위, 설명과 검토 항목을 둡니다.
-범용 구조 분석이나 전문 시뮬레이션 도구를 대체하지 않습니다.
-
-## 파일과 개인정보
-
-이 앱에는 외부 AI·분석 API로 CIF를 보내는 기능이 없습니다.
-로컬 실행에서는 브라우저가 같은 컴퓨터의 Streamlit 서버로 파일을 전달합니다.
-다른 사람이 운영하는 서버에 배포된 앱을 이용하면 그 서버가 파일을 받으므로,
-미공개 연구 자료는 올리기 전에 운영 환경을 확인하세요.
-오류를 제보할 때는 공개해도 되는 작은 재현 예제만 첨부하세요.
-
-## 이용 조건
-
-개인·교육·학술 연구와 학교·사업체의 내부 이용은 무료입니다.
-조건을 지키는 무료 재배포와 수정도 허용합니다. 프로그램 판매, 프로그램의 사용·접근에 요금을 받는 경우,
-프로그램 기능을 제공하는 유료 서비스는 저작권자의 사전 서면 허락이 필요합니다.
-프로그램 자체에 요금을 받지 않고 관련 없는 유료 제품에 무료로 함께 제공하는 경우는 허용합니다.
-연구 결과·그림·보고서 등 출력물에는 이 제한을 적용하지 않습니다.
-
-판매와 유료 서비스에 제한이 있으므로 **소스 공개 소프트웨어(source-available)**이며,
-OSI 기준의 오픈소스로 표기하지 않습니다. 정확한 조건은 [LICENSE](LICENSE)를 따릅니다.
-ASE 등 외부 라이브러리의 이용 조건은 각각의 라이선스가 정하며,
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에 출처를 정리했습니다.
+개인·교육·학술 연구·사업체 내부 이용은 무료입니다. 프로그램 판매, 사용·접근 요금,
+기능을 제공하는 유료 서비스는 사전 서면 허락이 필요합니다. **소스 공개 소프트웨어**이며
+OSI 기준의 오픈소스가 아닙니다. 영문 [LICENSE](LICENSE)가 적용되며, 외부 라이브러리는
+각각의 라이선스를 따릅니다.
