@@ -25,12 +25,19 @@ reports, and contact evidence preserved outside detail tables.
 
 ## Run locally
 
-For an English-default ZIP, choose the English asset on the
+On Windows x64, download the
+[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-0.3.0-windows-x64-en.exe)
+and double-click it. Python and the app's dependencies are included. Keep the
+console window open while using the browser interface. See the
+[Windows guide](packaging/windows/README.en.md) for startup, closing the app,
+checksums, and license/source files.
+
+For an English-default source ZIP, choose the English ZIP asset on the
 [latest release](https://github.com/a123qsd/calclens/releases/latest) and follow
 the [download instructions](docs/DOWNLOADS.md#english). A standalone
 [English guide file](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-Guide.en.md)
 is also available. Python 3.12 or 3.13 and dependency
-installation are required; this is not a standalone executable.
+installation are required for that source ZIP.
 
 To clone the source with Git instead, use the commands below. These installation
 examples use Python 3.12.

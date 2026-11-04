@@ -2,6 +2,32 @@
 
 [Project home](../README.md) · [Full English guide](../README.en.md) · [한국어 전체 안내](../README.ko.md)
 
+## Windows EXE — Python included / Python 포함
+
+For Windows 10/11 x64, download an EXE and double-click it. CalcLens opens in
+your browser; keep the console window open while using it. Python does not need
+to be installed separately. The initial language differs; both EXEs have the same
+engine and can switch languages in the interface.
+
+Windows 10/11 x64에서는 EXE를 받은 뒤 더블클릭하세요. Python을 따로 설치할 필요가
+없습니다. 브라우저에서 앱이 열리며, 사용하는 동안 실행 창을 유지해야 합니다.
+두 파일은 처음 열리는 언어만 다르고, 화면에서 언어를 바꿀 수 있습니다.
+
+| Download / 다운로드 | Guide / 안내 |
+| --- | --- |
+| [한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-0.3.0-windows-x64-ko.exe) | [한국어 Windows 안내](../packaging/windows/README.ko.md) |
+| [English EXE](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-0.3.0-windows-x64-en.exe) | [English Windows guide](../packaging/windows/README.en.md) |
+
+[Windows checksums](https://github.com/a123qsd/calclens/releases/download/v0.3.0/WINDOWS-SHA256SUMS.txt) ·
+[Windows licenses and build source](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-0.3.0-windows-support.zip)
+
+The EXEs are unsigned. Windows may show an unknown-publisher or SmartScreen
+warning. These Windows assets were built from the packaging commit recorded
+inside each EXE (`--build-info`); the original v0.3.0 source ZIPs are unchanged.
+EXE에는 코드 서명이 없어 Windows에서 게시자를 알 수 없다는 경고가 표시될 수 있습니다.
+
+## Source packages / 소스 패키지
+
 **CalcLens v0.3.0** includes portable review projects, per-file comparison settings
 and filters, session caching, source identity in reports, and contact evidence
 preserved outside detail tables. Choose a language-specific source ZIP and install

@@ -1,5 +1,15 @@
 # CalcLens
 
+**Windows x64: no Python installation needed / Python 설치 없이 실행**
+
+[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-0.3.0-windows-x64-ko.exe) ·
+[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-0.3.0-windows-x64-en.exe) ·
+[실행 안내](packaging/windows/README.ko.md) · [Windows guide](packaging/windows/README.en.md)
+
+Double-click the EXE to open CalcLens in your browser. Keep its console window
+open while using the app. EXE를 더블클릭하면 브라우저에서 열립니다.
+사용하는 동안 함께 열린 실행 창을 유지하세요.
+
 **Inspect a 2D material CIF before setting up a calculation.**
 
 CalcLens is a local tool for visualizing atomic structures, finding short periodic

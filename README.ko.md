@@ -23,11 +23,16 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 
 ## 빠르게 실행하기
 
-[배포 파일](https://github.com/a123qsd/calclens/releases/latest)에서 한국어 기본 ZIP을 받으려면
+Windows x64에서는
+[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-0.3.0-windows-x64-ko.exe)를
+받아 더블클릭하세요. Python과 필요한 라이브러리가 포함되어 있습니다.
+브라우저에서 사용하는 동안 함께 열린 실행 창은 유지하세요.
+종료 방법과 파일 확인, 라이선스·소스 자료는 [Windows 안내](packaging/windows/README.ko.md)에 있습니다.
+
+[배포 파일](https://github.com/a123qsd/calclens/releases/latest)에서 한국어 기본 소스 ZIP을 받으려면
 [다운로드·설치 안내](docs/DOWNLOADS.md#한국어)를 따르세요.
 [한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.3.0/CalcLens-Guide.ko.md)만
-따로 받을 수도 있습니다. Python 3.12 또는 3.13과 의존성 설치가 필요합니다.
-독립 실행 프로그램은 아닙니다.
+따로 받을 수도 있습니다. 이 소스 ZIP에는 Python 3.12 또는 3.13과 의존성 설치가 필요합니다.
 
 Git으로 소스를 내려받는 경우에는 다음 명령을 실행합니다.
 설치 명령 예시는 Python 3.12를 사용합니다.

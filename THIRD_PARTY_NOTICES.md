@@ -23,6 +23,23 @@ license included in a Python wheel. If you redistribute an installed environment
 a container, a bundled executable, or dependency source, retain all applicable
 notices and meet that distribution's source and license obligations.
 
+## Windows executable distribution
+
+The Windows executables bundle CPython and the runtime libraries. Each executable
+contains their license and notice files under `third_party/` in its extracted
+runtime directory. The accompanying `CalcLens-0.3.0-windows-support.zip` provides
+the same notices, a dependency/version manifest, the exact unmodified ASE source
+archive with its upstream SHA-256, and the CalcLens source used for the Windows
+build. Build-tool notices are identified separately from runtime dependencies.
+NumPy/SciPy wheel notices also cover native libraries shipped in those wheels.
+
+The support archive's source includes locked build requirements, the PyInstaller
+specification, and English/Korean rebuild instructions. Those instructions allow
+rebuilding the application with a modified ASE installation. The application
+license permits modifications and debugging needed to exercise ASE's LGPL rights.
+The Windows packaging commit is recorded by `--build-info` and in the support
+archive manifest; it may be newer than the original v0.3.0 source-ZIP tag.
+
 ## ASE
 
 ASE remains available under LGPL-2.1-or-later. CalcLens imports it as a
