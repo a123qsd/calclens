@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+from contextlib import contextmanager
 import csv
 import hashlib
 import io
@@ -123,6 +124,29 @@ def stop_process_tree(process, output):
         else:
             process.kill()
         process.wait(timeout=10)
+
+
+def remove_isolated_directory(directory, *, timeout=30.0):
+    """Wait briefly for terminated Windows images/AV handles to be released."""
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            shutil.rmtree(directory)
+            return
+        except PermissionError:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise
+            time.sleep(min(0.25, remaining))
+
+
+@contextmanager
+def isolated_work_directory():
+    directory = Path(tempfile.mkdtemp(prefix="calclens-frozen-smoke-"))
+    try:
+        yield directory
+    finally:
+        remove_isolated_directory(directory)
 
 
 def browser_flow(base_url, language, output, originals, browser_events):
@@ -375,8 +399,7 @@ def main():
                                   for name, data in originals.items()}
         environment = child_environment()
         result["child_path"] = environment["PATH"]
-        with tempfile.TemporaryDirectory(prefix="calclens-frozen-smoke-") as temporary:
-            isolated = Path(temporary)
+        with isolated_work_directory() as isolated:
             app = isolated / "copied-application"
             if (source.parent / "_internal").is_dir():
                 shutil.copytree(source.parent, app)
