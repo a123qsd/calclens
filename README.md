@@ -6,12 +6,24 @@ CalcLens is a local tool for visualizing atomic structures, finding short period
 contacts and duplicate sites, and measuring the span of nuclear positions and
 the largest empty interval along a selected axis. It includes English and Korean
 interfaces, guides, and report explanations, plus analytical examples and
-JSON/CSV exports.
+JSON/CSV exports and comparisons of up to 20 CIF files with settings for each file.
 
 **2차원 물질 계산을 시작하기 전, CIF 구조의 기하 정보를 확인하는 도구입니다.**
 원자 구조를 그려 보고 주기 경계를 넘는 짧은 거리, 중복 원자, 원자핵 기준 두께와
 빈 간격을 확인합니다. 화면·사용 안내·결과 설명을 한국어와 영어로 제공하며,
-예제와 JSON·CSV 내보내기를 지원합니다.
+예제와 JSON·CSV 내보내기, 파일마다 조건을 정하는 최대 20개 CIF 비교를 지원합니다.
+
+This source tree is **v0.2.0**. The published ZIP links below are for **v0.1.1**;
+the new comparison, report-provenance, and contact-evidence features require
+the current source. No v0.2.0 release asset is linked here.
+
+현재 소스 버전은 **v0.2.0**이며, 아래에 연결된 공개 ZIP은 **v0.1.1**입니다.
+여러 파일 비교, 보고서의 원본 식별 정보, 접촉 근거 보강은 현재 소스에 포함된 기능입니다.
+
+![CalcLens local structure inspection / 로컬 구조 검사 화면](docs/assets/calclens-overview.png)
+
+[Short demo / 짧은 사용 영상](docs/assets/calclens-demo.webm) ·
+[Public graphite case / 공개 흑연 사례](docs/CASE_STUDY.md)
 
 ## Download / 다운로드
 
@@ -40,18 +52,23 @@ See [download and installation instructions](docs/DOWNLOADS.md).
 
 - Interactive atoms and cell, with selected contacts and periodic images highlighted
 - Minimum periodic distances, overlapping sites, and configurable short-contact screening
+- A nearest-pair view that works even when no distance warning is present
 - Nuclei-span thickness and largest cyclic gap along a, b, or c
-- Explicit review notes, unsupported-input explanations, and report exports
+- Up to 20 independent CIF checks, per-file axis/cutoff settings, and a comparison CSV
+- JSON/CSV reports with the original filename, SHA-256, CalcLens and ASE versions
 
 원자·셀 시각화, 주기 거리와 겹침 검사, a·b·c 중 선택한 방향의 원자핵 기준
-두께·간격 측정, 검토 항목과 결과 내보내기를 지원합니다.
+두께·간격 측정을 지원합니다. 경고가 없어도 가장 가까운 원자쌍을 열어 볼 수 있습니다.
+비교 표의 행을 선택하면 해당 파일의 상세 결과를 확인하고 JSON·CSV로 내보낼 수 있습니다.
 
-Input is limited to one explicit, fully occupied P1 CIF structure, up to 400 sites
-and 2 MiB. The chosen normal axis must be perpendicular to the other two cell
-vectors. Gaussian/ORCA logs and calculation execution are outside this release.
+Each file must contain one explicit, fully occupied P1 CIF structure, up to 400 sites
+and 2 MiB. Comparing files does not combine their structures. The chosen normal
+axis must be perpendicular to the other two cell vectors. Gaussian/ORCA logs
+and calculation execution are outside this release.
 
-원자 위치가 명시된 완전 점유 P1 CIF 1개를 받으며, 최대 400개 원자·2 MiB까지
-지원합니다. 선택한 수직 방향은 나머지 두 셀 벡터에 수직이어야 합니다.
+파일마다 원자 위치가 명시된 완전 점유 P1 CIF 구조 1개를 받으며, 파일당 최대 400개
+원자·2 MiB까지 지원합니다. 비교할 파일들은 각각 검사합니다.
+선택한 수직 방향은 나머지 두 셀 벡터에 수직이어야 합니다.
 Gaussian·ORCA 로그 분석과 계산 실행은 지원하지 않습니다.
 
 > Geometry checks do not establish material stability or calculation accuracy.
@@ -64,6 +81,7 @@ Gaussian·ORCA 로그 분석과 계산 실행은 지원하지 않습니다.
 ## Details / 자세한 내용
 
 [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) ·
+[Public graphite case](docs/CASE_STUDY.md) ·
 [Validation record](docs/VALIDATION.md) · [Development](docs/DEVELOPMENT.md) ·
 [Dependency notices](THIRD_PARTY_NOTICES.md)
 

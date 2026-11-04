@@ -10,6 +10,15 @@ service is required.
 
 [Project home](https://github.com/a123qsd/calclens) · [한국어 안내](README.ko.md) · [English ZIP and installation](docs/DOWNLOADS.md#english) · [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) · [Development](docs/DEVELOPMENT.md) · [Validation record](docs/VALIDATION.md)
 
+This guide describes source version **0.2.0**. The linked published packages
+remain **v0.1.1**. Comparisons of multiple files, source identity in reports,
+and the contact-evidence changes below require the current source tree.
+
+![CalcLens structure, nearest-pair and gap inspection](docs/assets/calclens-overview.png)
+
+[Watch the short demo](docs/assets/calclens-demo.webm) ·
+[Read the public graphite case](docs/CASE_STUDY.md)
+
 > This tool does not establish structural stability or calculation accuracy.
 > Its gap is a geometric measurement between nuclear positions.
 > Vacuum sufficiency requires convergence tests in the intended calculation.
@@ -45,8 +54,34 @@ a duplicate site is reported. You can switch between English and Korean in the
 interface. Use `python run_app.py` to start with a ZIP's default language.
 
 Select a review check or contact pair to highlight the related sites and periodic image.
+The **View nearest pair** button under the shortest-distance metric opens one
+pair realizing that minimum, even when it is above the warning cutoff.
 Inspect the gap along the selected axis, and download the criteria and results
-as JSON or CSV.
+as JSON or CSV. If a contact table reaches its 200-record limit, overlaps and
+shorter distances take priority, with minimum-distance and self-image evidence
+retained when below the cutoff. Exact issue counts and a representative pair
+or image remain in the exports.
+
+## Compare CIF files
+
+1. Choose **Compare CIF files** in the input selector and upload up to 20 CIFs.
+2. Set the axis and short-distance cutoff for each file. Every file starts at
+   c and 1.0 Å; check the actual layer direction before interpreting its gap.
+3. Read the comparison table and select a row to open that file's detailed
+   structure view, findings, and JSON/CSV downloads. The first file opens initially.
+4. Use **Export comparison CSV** to save one summary row per file.
+
+Each file is checked independently and keeps the 2 MiB and 400-site limits.
+An unsupported file stays in the table with its reason and blank measurements;
+the other files are still checked. Status values are `unsupported`,
+`review_required`, and `no_flags`. The last means that no screening warnings or
+errors were found, not that the structure is valid. Warning/error columns count
+findings, while distance-issue pair counts are in the detailed reports.
+
+The comparison table and summary CSV follow the interface language. Detailed
+JSON/CSV reports have the separate report-language setting described below.
+
+## Command line
 
 Run the same check from the command line and save a JSON report:
 
@@ -81,6 +116,19 @@ such as issue codes, record types, severity, and units remain stable identifiers
 for comparison and automated processing. Korean CSV files from the app and CLI
 use UTF-8 with a BOM for spreadsheet compatibility; JSON uses UTF-8 without a BOM.
 Changing language does not change the scientific criteria or results.
+
+## Source identity and contact evidence
+
+App and CLI JSON/CSV reports include the original filename, the SHA-256 of the
+exact file bytes, the CalcLens package version, and the ASE version. The hash is
+computed before decoding or newline conversion, so a line-ending change produces
+a different file identity even if the measured geometry stays the same.
+
+JSON stores these fields in `provenance`. CSV uses `provenance` rows and keeps a
+`minimum_pair` row with site numbers, elements, distance, and periodic image shift,
+including when the short-contact list is empty. Distance findings retain exact
+`contact_count` values and a `representative_contact`; CSV exports the representative
+as an `issue_contact` row. These are screening records, not a complete neighbor list.
 
 ## Read the results
 
@@ -119,7 +167,7 @@ be the intended vacuum. Warnings catch some ambiguous cases using explicit
 heuristics; they do not detect every multilayer or bulk structure.
 Ambiguous results are marked for review.
 
-CalcLens v0.1 inspects CIF geometry. Gaussian or ORCA logs, calculation execution,
+CalcLens inspects CIF geometry. Gaussian or ORCA logs, calculation execution,
 SCF convergence, optimization results, and vibrational frequencies are outside
 its scope. See [METHODS.md](docs/METHODS.md) for tolerances and equations.
 
@@ -129,6 +177,9 @@ The [examples](examples/README.md) include idealized graphene, h-BN, and MoS₂
 models, plus deliberately altered structures with overlaps, short contacts,
 and a layer crossing the cell boundary. They were generated for this repository;
 they are neither experimental structures nor relaxed research results.
+
+The separate [public graphite case](docs/CASE_STUDY.md) starts from a published
+Crystallography Open Database record and documents its conversion and limitations.
 
 ```bash
 python scripts/generate_examples.py --check

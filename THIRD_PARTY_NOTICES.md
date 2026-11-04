@@ -1,7 +1,7 @@
 # Third-party software and data
 
-The repository contains the CalcLens application and its original model
-fixtures. Dependencies are installed separately from their upstream packages;
+The repository contains the CalcLens application, its original model
+fixtures, and the public graphite case described below. Dependencies are installed separately from their upstream packages;
 the repository does not vendor or modify ASE, Streamlit, Plotly, or NumPy.
 The project's [license](LICENSE) applies only to its original material.
 It does not change any dependency's license or permission to sell that dependency.
@@ -46,8 +46,17 @@ visible in a small core module. Neither project's developers endorse CalcLens.
 
 ## Example data
 
-The CIF examples are analytical models created for this project and released
-with the repository under [LICENSE](LICENSE). No experimental CIF dataset is
-redistributed. Parameters, construction rules, and artificial defects are
+The top-level CIF examples are analytical models created for this project and released
+with the repository under [LICENSE](LICENSE). Parameters, construction rules, and artificial defects are
 recorded in [docs/PROVENANCE.md](docs/PROVENANCE.md). Material names identify the
 intended model; they do not establish experimental provenance or validation.
+
+`examples/public_case/` also includes [COD 9011577](https://www.crystallography.net/cod/9011577.html),
+revision 291877, and two documented derivatives. The source is Trucano and Chen,
+“Structure of graphite by neutron diffraction,” *Nature* 258 (1975), 136–137,
+DOI [10.1038/258136a0](https://doi.org/10.1038/258136a0).
+[COD distributes its data under CC0](https://www.crystallography.net/cod/).
+That data retains its CC0 status; the CalcLens application license does not
+restrict it. The source hash, preparation, occupancy assumption, and independent
+comparison are recorded in [the case study](docs/CASE_STUDY.md). The constructed
+isolated sheet is a geometric derivative, not an experimentally measured or relaxed slab.

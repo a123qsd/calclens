@@ -6,13 +6,15 @@ This naming difference does not indicate a second application.
 
 ## Local workflow
 
-Use Python 3.12 and install the pinned runtime, build, and test dependencies:
+The current source version is 0.2.0; the linked published release is v0.1.1.
+Use Python 3.12 or 3.13 and install the pinned runtime, build, and test dependencies:
 
 ```bash
 python -m pip install --require-hashes -r requirements.lock
 python -m pip install --no-deps --no-build-isolation .
 python -m pytest
 python -m ruff check .
+python scripts/generate_examples.py --check
 python run_app.py --language en
 ```
 
@@ -28,8 +30,10 @@ source of truth for how tests locate the code.
 | `src/slab_preflight/core.py` | Input validation, periodic distances, gap/span measurements, and structured findings |
 | `src/slab_preflight/cli.py` | Bounded file reading, options, JSON/CSV output, and exit status |
 | `src/slab_preflight/reporting.py` | English/Korean report descriptions and CSV export with criteria, units, findings, and numbering conventions |
+| `src/slab_preflight/provenance.py` | Exact-byte SHA-256, original filename, and CalcLens/ASE runtime identity at file-delivery boundaries |
+| `src/slab_preflight/batch.py` | Up to 20 independent per-file checks, preserved failures, comparison rows, and summary CSV |
 | `src/slab_preflight/plotting.py` | Visual representation of the report, including selected sites and periodic images |
-| `streamlit_app.py` | Korean/English interaction, example selection, uploaded CIFs, review messages, and downloads |
+| `streamlit_app.py` | Korean/English interaction, single/batch CIF input, nearest-pair and issue views, per-file settings, and downloads |
 | `scripts/generate_examples.py` | Reproducible analytical fixtures; no remote data retrieval |
 | `run_app.py` | Local launch and initial interface language |
 | `scripts/build_release.py` | Reproducible language-specific source packages from a clean committed tree |
@@ -59,6 +63,35 @@ The selected report language must not change criteria, findings, or exit codes.
 Keep English originals alongside Korean descriptions so that the evidence can
 be inspected in either language. Korean CSV headings are intended for readers;
 use JSON or the default English CSV for stable programmatic field names.
+
+Keep exact counts and representative contact evidence outside the 200-record
+contact sample. Changes to sampling must preserve overlap, shortest-pair, and
+self-image evidence rather than relying on the first records encountered.
+`metrics.minimum_pair` is independent of the cutoff and remains available when
+the short-contact sample is empty. CSV must retain the same site/image evidence.
+
+Attach file provenance with `with_provenance(report, original_bytes, filename)`
+at a file boundary. Pass the original `bytes`, not text encoded after parsing:
+line endings and other byte changes are part of the SHA-256 identity. Keep
+package versions synchronized in `pyproject.toml`, `__init__.py`, and `uv.lock`.
+Do not confuse the package version with the JSON schema version.
+
+Batch checks accept 1–20 files and reuse the single-file input contract for each.
+Preserve input order, per-file axis/cutoff, source hashes, and failed entries.
+Failed measurements must remain blank rather than becoming zeroes or a passing
+status. Summary finding counts count issue records, not affected atom pairs.
+Selecting a row must open the matching filename/hash/settings even after inputs
+are removed or reordered. The summary uses the interface language; detailed
+report downloads retain their separate language choice.
+
+## Continuous integration
+
+The workflow covers Ubuntu and Windows with Python 3.12 and 3.13. Each job
+installs hash-locked dependencies and the package, exercises the installed CLI
+with English JSON and Korean CSV, then runs pytest, Ruff, and generated-fixture
+checks. UTF-8 mode is enabled so bilingual tests use consistent text encoding.
+See [VALIDATION.md](VALIDATION.md) for observed local results; adding a matrix
+does not establish that its remote jobs have passed.
 
 ## Source release packages
 
@@ -105,3 +138,8 @@ maintain the current tool.
 버전을 먼저 정하고, CIF 보고서와 별도의 파서·스키마·테스트로 구현해야 합니다.
 CIF만 보고 SCF 수렴, 최적화 완료, 허수 진동수 유무를 추정해서는 안 됩니다.
 입력을 자동으로 고쳐 통과시키는 대신, 판단할 수 없는 이유를 남기는 원칙을 유지합니다.
+
+여러 파일 비교도 파일마다 같은 입력 제한과 계산 함수를 사용합니다. 실패한 파일의 행과
+원본 SHA-256을 남기고, 다른 파일의 검사는 계속합니다. 화면의 경고 수는 진단 항목 수이며
+원자쌍 개수와 다릅니다. 접촉 표를 줄이더라도 정확한 개수와 대표 근거를 따로 보존하고,
+최소 거리의 원자쌍은 경고 기준과 관계없이 확인할 수 있어야 합니다.

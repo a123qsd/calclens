@@ -10,6 +10,7 @@ import io
 import math
 import re
 import warnings
+from bisect import insort
 from typing import Any
 
 import numpy as np
@@ -41,12 +42,18 @@ def _issue(
     *,
     atom_indices: list[int] | None = None,
     area_id: str | None = None,
+    contact_count: int | None = None,
+    representative_contact: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     issue: dict[str, Any] = {"code": code, "severity": severity, "message": message}
     if atom_indices is not None:
         issue["atom_indices"] = atom_indices
     if area_id is not None:
         issue["area_id"] = area_id
+    if contact_count is not None:
+        issue["contact_count"] = contact_count
+    if representative_contact is not None:
+        issue["representative_contact"] = representative_contact
     return issue
 
 
@@ -238,6 +245,19 @@ def _read_cif(data: str | bytes, normal_axis: str) -> tuple[Atoms, list[dict[str
     return atoms, issues
 
 
+def _contact_order(contact: dict[str, Any]) -> tuple:
+    """Rank bounded contact evidence by severity, distance, then stable identity."""
+    overlap = not contact["is_self_image"] and contact["distance_angstrom"] <= OVERLAP_TOLERANCE
+    return (
+        not overlap,
+        contact["distance_angstrom"],
+        contact["is_self_image"],
+        contact["i"],
+        contact["j"],
+        *contact["shift"],
+    )
+
+
 def _distances(atoms: Atoms, threshold: float) -> tuple[dict[str, Any], list[dict[str, Any]], int, list[dict[str, Any]]]:
     cell = np.asarray(atoms.cell)
     elements = atoms.get_chemical_symbols()
@@ -248,11 +268,23 @@ def _distances(atoms: Atoms, threshold: float) -> tuple[dict[str, Any], list[dic
     index = int(np.argmin(np.linalg.norm(reduced, axis=1)))
     self_distance = float(np.linalg.norm(reduced[index]))
     self_shift = np.asarray(operation[index], dtype=int).tolist()
-    minimum = {"i": 0, "j": 0, "element_i": elements[0], "element_j": elements[0], "shift": self_shift, "distance_angstrom": self_distance, "is_self_image": True}
+    self_representative = {"i": 0, "j": 0, "element_i": elements[0], "element_j": elements[0], "shift": self_shift, "distance_angstrom": self_distance, "is_self_image": True}
+    minimum = self_representative
     contacts: list[dict[str, Any]] = []
+
+    def retain_contact(entry: dict[str, Any]) -> None:
+        # Keep memory bounded independently of the number of screened pairs.
+        # A later overlap or shorter pair can displace an earlier ordinary one.
+        if len(contacts) < MAX_CONTACTS or _contact_order(entry) < _contact_order(contacts[-1]):
+            insort(contacts, entry, key=_contact_order)
+            if len(contacts) > MAX_CONTACTS:
+                contacts.pop()
+
     contact_count = 0
     overlap_count = 0
     short_pair_count = 0
+    overlap_representative = None
+    short_representative = None
     overlap_sites: set[int] = set()
     short_sites: set[int] = set()
     inverse = np.linalg.inv(cell)
@@ -271,33 +303,49 @@ def _distances(atoms: Atoms, threshold: float) -> tuple[dict[str, Any], list[dic
             if length <= OVERLAP_TOLERANCE:
                 overlap_count += 1
                 overlap_sites.update((int(i), int(j)))
+                if overlap_representative is None or length < overlap_representative["distance_angstrom"]:
+                    overlap_representative = entry
             if length < threshold:
                 short_pair_count += 1
                 short_sites.update((int(i), int(j)))
                 contact_count += 1
-                if len(contacts) < MAX_CONTACTS:
-                    contacts.append(entry)
+                if short_representative is None or length < short_representative["distance_angstrom"]:
+                    short_representative = entry
+                retain_contact(entry)
     if self_distance < threshold:
         for i in range(len(atoms)):
             contact_count += 1
-            if len(contacts) < MAX_CONTACTS:
-                contacts.append({"i": i, "j": i, "element_i": elements[i], "element_j": elements[i], "shift": self_shift, "distance_angstrom": self_distance, "is_self_image": True})
+            retain_contact({"i": i, "j": i, "element_i": elements[i], "element_j": elements[i], "shift": self_shift, "distance_angstrom": self_distance, "is_self_image": True})
+    # Neither dense overlaps nor many shorter self-images may hide another
+    # distance issue's witness. These witnesses include the global minimum,
+    # and need at most two distinct records (shortest pair and self-image).
+    reserved = {
+        (entry["i"], entry["j"]): entry
+        for entry in (minimum, overlap_representative, short_representative, self_representative)
+        if entry is not None and entry["distance_angstrom"] < threshold
+    }
+    remaining = [entry for entry in contacts if (entry["i"], entry["j"]) not in reserved]
+    contacts = sorted(list(reserved.values()) + remaining[:MAX_CONTACTS - len(reserved)],
+                      key=_contact_order)
     issues = []
     if overlap_count:
-        issues.append(_issue("OVERLAPPING_SITES", "error", f"{overlap_count} distinct site pair(s) overlap within {OVERLAP_TOLERANCE:g} angstrom, including periodic images. Sites have been preserved.", atom_indices=sorted(overlap_sites)))
+        issues.append(_issue("OVERLAPPING_SITES", "error", f"{overlap_count} distinct site pair(s) overlap within {OVERLAP_TOLERANCE:g} angstrom, including periodic images. Sites have been preserved.", atom_indices=sorted(overlap_sites), contact_count=overlap_count, representative_contact=overlap_representative))
     if short_pair_count:
-        issues.append(_issue("SHORT_DISTANCE", "warning", f"{short_pair_count} distinct site pair(s) have a nearest image below the {threshold:g} angstrom screening threshold. This is an element-independent heuristic, not a bond or stability judgment.", atom_indices=sorted(short_sites)))
+        issues.append(_issue("SHORT_DISTANCE", "warning", f"{short_pair_count} distinct site pair(s) have a nearest image below the {threshold:g} angstrom screening threshold. This is an element-independent heuristic, not a bond or stability judgment.", atom_indices=sorted(short_sites), contact_count=short_pair_count, representative_contact=short_representative))
     if self_distance < threshold:
-        issues.append(_issue("SELF_IMAGE_CONTACT", "warning", f"Each site has a periodic image only {self_distance:.6g} angstrom away. Inspect the cell dimensions and units.", atom_indices=list(range(len(atoms)))))
+        issues.append(_issue("SELF_IMAGE_CONTACT", "warning", f"Each site has a periodic image only {self_distance:.6g} angstrom away. Inspect the cell dimensions and units.", atom_indices=list(range(len(atoms))), contact_count=len(atoms), representative_contact=self_representative))
     return minimum, contacts, contact_count, issues
 
 
 def analyze_cif(data: str | bytes, short_distance: float = 1.0, normal_axis: str = "c") -> dict[str, Any]:
     """Return JSON-compatible geometric observations, without modifying input.
 
-    Distances use all three periodic directions. The contact list retains one
-    nearest image per unordered site pair and one shortest self-image per site,
-    up to 200 entries; it is not a complete coordination/bond list.
+    Distances use all three periodic directions, counting one nearest image per
+    unordered site pair and one shortest self-image per site. Up to 200 contact
+    records are retained, prioritizing overlaps then shorter distances while
+    preserving minimum-distance and self-image evidence below the threshold.
+    Each distance issue also includes an exact count and representative contact;
+    this is not a complete coordination/bond list.
 
     The explicitly selected a, b or c lattice vector must be perpendicular to
     the other two vectors. Gap screening follows that fractional coordinate;
@@ -396,6 +444,6 @@ def analyze_cif(data: str | bytes, short_distance: float = 1.0, normal_axis: str
             "The thickness is a nuclei-center span; an ideal planar monolayer has zero nuclei-span thickness.",
             "The largest cyclic nuclei gap may be an interlayer gap or empty space in a molecule or bulk cell. Physical slab assignment is not verified.",
             "Ambiguity and short-distance thresholds are screening heuristics; absence of warnings is not validation.",
-            "Contacts retain only one nearest image per unordered site pair and one shortest self-image per site, at most 200 records.",
+            "Screening counts one nearest image per unordered site pair and one shortest self-image per site. The contact list retains at most 200 records, prioritizing overlaps then shorter distances and preserving minimum-distance and self-image evidence when below the threshold.",
         ],
     }

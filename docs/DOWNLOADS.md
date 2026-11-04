@@ -2,6 +2,15 @@
 
 [Project home](../README.md) · [Full English guide](../README.en.md) · [한국어 전체 안내](../README.ko.md)
 
+The asset links below download published **v0.1.1**. The current source tree is
+**0.2.0** and adds multiple-file comparison, report source identity, and improved
+contact evidence. To use those changes, install the current source folder with
+the same commands below; no v0.2.0 release asset is linked here.
+
+아래 배포 링크는 공개된 **v0.1.1** 파일입니다. 현재 소스 버전 **0.2.0**에는
+여러 파일 비교, 보고서의 원본 식별 정보, 접촉 근거 보강이 포함됩니다.
+새 기능을 사용하려면 현재 소스 폴더에서 아래와 같은 설치 명령을 실행하세요.
+
 ## English
 
 Download a language-specific source package from
@@ -78,6 +87,19 @@ are localized too. JSON keys, technical codes, severity values, units, indices,
 and numerical results stay consistent for comparison and automated processing.
 Korean JSON retains the English source explanations alongside its Korean text.
 App and CLI Korean CSV files use UTF-8 with a BOM; JSON uses UTF-8 without a BOM.
+
+### Compare files in the 0.2.0 source version
+
+Choose **Compare CIF files**, upload up to 20 CIFs, and set each file's axis and
+cutoff. Each file keeps the 2 MiB and 400-site limits. Select a summary row for
+the individual structure view and reports, or export the comparison CSV. An
+unsupported file keeps its reason without stopping the other checks.
+The summary follows the interface language; detailed report language is separate.
+
+App and CLI reports include the original filename, exact-byte SHA-256, and
+CalcLens/ASE versions. Use **View nearest pair** to inspect the minimum even
+when the short-contact list is empty. See the [English guide](../README.en.md)
+and [public graphite case](CASE_STUDY.md) for examples.
 
 Use only public or shareable structures when reporting an issue. The bundled
 examples are analytical test models, not experimental or relaxed structures.
@@ -156,6 +178,18 @@ Windows에서는 `.venv\Scripts\python.exe run_app.py --language ko`를 사용�
 단위, 인덱스와 수치는 비교·자동 처리를 위해 유지합니다. 한국어 JSON에는 영문 원문도
 함께 남깁니다. 앱과 명령행의 한국어 CSV는 BOM이 있는 UTF-8을 사용하며,
 JSON은 BOM 없는 UTF-8로 저장합니다.
+
+### 0.2.0 소스 버전에서 여러 파일 비교
+
+**여러 CIF 비교**를 고르고 최대 20개 CIF를 올린 뒤 파일별 축과 기준을 정합니다.
+파일당 2 MiB·400개 원자 제한은 같습니다. 요약 표의 행을 선택하면 해당 구조와
+개별 보고서가 열리고, **비교 요약 CSV 내보내기**로 전체 요약을 저장할 수 있습니다.
+지원하지 않는 파일은 이유를 표시하며 다른 파일의 검사는 계속합니다.
+요약은 화면 언어를 따르고, 개별 보고서의 언어는 별도로 선택합니다.
+
+앱과 명령행의 보고서에는 원본 파일명, 원본 바이트의 SHA-256, CalcLens·ASE 버전이
+들어갑니다. 짧은 접촉이 없어도 **원자쌍 보기**로 최소 거리의 근거를 확인할 수 있습니다.
+사용 예는 [한국어 안내](../README.ko.md)와 [공개 흑연 사례](CASE_STUDY.md)를 확인하세요.
 
 오류를 제보할 때는 공개해도 되는 구조만 사용하세요. 동봉한 예제는 기하 계산을 확인하기 위한
 모델이며 실험 구조나 최적화된 구조가 아닙니다. 입력 제한, 결과 해석, 명령행 사용법과

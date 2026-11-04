@@ -29,6 +29,15 @@ requires α and γ to be 90°; choosing c requires α and β to be 90°, within 
 tolerance above. This is a choice among cell axes, not arbitrary-vector or
 automatic layer-normal detection.
 
+The app can compare up to 20 files. Every file must independently satisfy this
+contract, including its 2 MiB and 400-site limits; a batch does not become a
+larger combined structure. Axis and cutoff are set per file, initially c and
+1.0 Å. An unsupported entry retains its filename, hash, settings, and reason,
+with blank measurements, while the other entries are still analyzed.
+
+앱에서 최대 20개 파일을 비교해도 파일당 2 MiB·400개 원자 제한은 같습니다.
+파일마다 축과 짧은 거리 기준을 정하며, 지원하지 않는 파일은 사유를 남기고 나머지를 검사합니다.
+
 Coordinates outside `[0, 1)` are wrapped periodically. Distances are in ångströms
 (Å); CIF cell angles are degrees. The file must use the standard CIF length
 convention. The program cannot detect a file whose numerical lengths have been
@@ -99,9 +108,25 @@ legitimate short bond can trigger it; an incorrect longer bond can escape it.
 
 The contact list records one nearest image per unordered pair of distinct sites
 and one shortest self-image per site when relevant. It is not an exhaustive
-neighbor or bond list. At most 200 contact records are displayed in the report;
-the total count and truncation status are retained. Tied nearest images need not
-all be listed. Records are retained in site order, not sorted by severity.
+neighbor or bond list. At most 200 contact records are retained, prioritizing
+overlaps, then shorter distances, with stable site/image ordering for ties.
+The bounded list also reserves representative minimum-distance, distinct-pair,
+and self-image evidence when those distances are below the cutoff. Exact total
+counts and truncation status are retained even when details are omitted.
+Tied nearest images need not all be listed.
+
+Distance findings carry `contact_count` and `representative_contact` independently
+of that bounded list. `OVERLAPPING_SITES` counts distinct overlapping pairs;
+`SHORT_DISTANCE` counts distinct pairs below the cutoff, including overlaps;
+`SELF_IMAGE_CONTACT` counts one shortest self-image per site. These counts are
+not coordination numbers. `metrics.minimum_pair` always preserves one pair/image
+realizing the global minimum, even when no distance is below the cutoff. The
+app's **View nearest pair** button opens that evidence directly.
+
+접촉 상세는 최대 200개이며, 겹침과 더 짧은 거리를 우선합니다. 표에서 생략되어도
+진단별 전체 개수와 대표 원자쌍·이미지는 보존합니다. 최소 거리의 원자쌍은 경고 기준과
+관계없이 남기므로, 경고가 없는 구조에서도 **원자쌍 보기**로 확인할 수 있습니다.
+
 Report indices `i` and `j` are zero-based. The integer `shift` is expressed in
 the original cell basis, so the contact vector is
 `r_j + shift @ cell − r_i`.
@@ -195,8 +220,29 @@ not physical validation. `geometric_candidate` is not a validation or convergenc
 The CSV export contains measurements, criteria, findings, short-contact details,
 assumptions, and limitations as labeled rows. CSV site numbers start at 1;
 JSON `i`, `j`, and `atom_indices` start at 0. The contact count and truncation
-status remain explicit. JSON preserves the full structured geometry report;
+status remain explicit. A `minimum_pair` metric row preserves site/element IDs,
+distance, and image shift even when `short_contacts` is empty. Issue rows carry
+exact `contact_count` values in `value`, using `pairs` or `sites` units; their
+representatives appear as `issue_contact` rows with the same issue code.
+JSON preserves the full structured geometry report;
 CSV is a readable summary, not a lossless replacement for the CIF or JSON.
+
+Reports delivered by the app and CLI include `provenance.original_filename`,
+`provenance.sha256`, `provenance.calclens_version`, and `provenance.ase_version`.
+SHA-256 covers the exact original bytes before text decoding or newline
+normalization. It identifies the input file, not just its geometry: different
+line endings can produce the same measurements and different hashes. CSV
+preserves these fields as `provenance` rows. The package version identifies the
+software release; schema `1.1` identifies the report format.
+
+The comparison CSV contains one row per input with its identity, selected axis
+and cutoff, formula, site count, minimum distance, thickness, gap, finding
+counts, and any input-error reason. Successful rows also carry package versions.
+Failed measurements and finding counts stay blank. `no_flags` means no warning
+or error findings; it does not establish scientific validity. Its warning/error
+counts refer to findings, while per-issue contact counts remain in the detailed
+reports. The summary follows the interface language; individual reports follow
+their own language selector.
 
 ## Verification scope
 
@@ -223,6 +269,6 @@ disorder, a normal that is not a supported cell axis, chemical bonding, or advan
 required. Check their own method assumptions before using the result for research.
 
 Gaussian/ORCA log parsing, SCF convergence, optimization histories, and frequency
-analysis are outside v0.1. A CIF geometry report supplies no evidence that any
-of those calculations ran or converged. See [DEVELOPMENT.md](DEVELOPMENT.md) for
+analysis are outside the current scope. A CIF geometry report supplies no
+evidence that any of those calculations ran or converged. See [DEVELOPMENT.md](DEVELOPMENT.md) for
 the boundary of a possible future log feature.

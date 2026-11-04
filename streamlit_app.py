@@ -9,8 +9,10 @@ from pathlib import Path
 
 import streamlit as st
 
+from slab_preflight.batch import MAX_BATCH_FILES, BatchInput, analyze_batch, batch_csv, batch_rows
 from slab_preflight.core import UnsupportedStructure, analyze_cif
 from slab_preflight.plotting import profile_figure, structure_figure
+from slab_preflight.provenance import with_provenance
 from slab_preflight.reporting import (
     localized_error_message,
     localized_issue_message,
@@ -58,11 +60,17 @@ h3 {font-size:1.12rem !important;}
 
 def set_source(value: str) -> None:
     st.session_state["source"] = value
+    if value == "examples":
+        set_sample_axis()
 
 
 def set_sample_axis() -> None:
-    sample = st.session_state["example"]
+    sample = st.session_state.get("example", "graphene.cif")
     st.session_state["normal_axis"] = "a" if "_a_normal" in sample else "b" if "_b_normal" in sample else "c"
+
+
+def show_minimum_pair() -> None:
+    st.session_state["review_focus"] = "minimum"
 
 
 header = st.columns([5.4, 1.25, 1.25, 1.35], vertical_alignment="center")
@@ -138,7 +146,8 @@ with st.sidebar:
     st.markdown('<div class="calclens-brand"><span class="calclens-mark">◎</span>CalcLens</div>', unsafe_allow_html=True)
     st.markdown('<div class="calclens-nav">' + f'<a href="#overview">▦ &nbsp; {t("구조 개요", "Overview")}</a><a href="#review-checks">☷ &nbsp; {t("점검 항목", "Review checks")}</a><a href="#method-notes">◇ &nbsp; {t("방법과 한계", "Method notes")}</a></div>', unsafe_allow_html=True)
     st.divider()
-    source = localized_radio(t("구조 불러오기", "Load structure"), ["examples", "upload"], format_func=lambda value: t("공개 예제", "Public examples") if value == "examples" else t("내 CIF 파일", "My CIF file"), key="source")
+    source_labels = {"examples": t("공개 예제", "Public examples"), "upload": t("내 CIF 파일", "My CIF file"), "batch": t("여러 CIF 비교", "Compare CIF files")}
+    source = localized_radio(t("구조 불러오기", "Load structure"), list(source_labels), format_func=source_labels.get, key="source")
     names = {
         "graphene.cif": t("그래핀 · 단일 원자층", "Graphene · single plane"),
         "hbn.cif": t("h-BN · 단일 원자층", "h-BN · single plane"),
@@ -154,21 +163,31 @@ with st.sidebar:
         "partial_occupancy.cif": t("미지원 · 부분 점유", "Unsupported · partial occupancy"),
     }
     data = None
+    uploads = []
     filename = "structure.cif"
     if source == "examples":
         filename = localized_selectbox(t("예제 구조", "Example structure"), list(names), format_func=names.get, key="example", on_change=set_sample_axis)
+        if st.session_state.get("previous_source") != "examples":
+            set_sample_axis()
         data = (ROOT / "examples" / filename).read_bytes()
-    else:
+    elif source == "upload":
         uploaded = st.file_uploader(t("CIF · 최대 2 MiB", "CIF · maximum 2 MiB"), type=["cif"], max_upload_size=2, key="cif_upload")
         if uploaded is not None:
             data = uploaded.getvalue()
             filename = uploaded.name
+    else:
+        uploads = st.file_uploader(t("CIF 여러 개 · 파일당 2 MiB", "Multiple CIFs · 2 MiB per file"), type=["cif"], accept_multiple_files=True, max_upload_size=2, key="batch_upload")
+        st.caption(t(f"한 번에 최대 {MAX_BATCH_FILES}개 파일을 비교합니다.", f"Compare up to {MAX_BATCH_FILES} files at a time."))
+    if source != "examples":
         st.caption(t("로컬 실행 시 내 컴퓨터에서 처리합니다. 호스팅된 앱에서는 파일이 해당 서버로 전송됩니다.", "Local runs process files on your computer. Hosted apps send uploads to their server."))
+    st.session_state["previous_source"] = source
     st.divider()
     st.caption(t("측정 조건", "MEASUREMENT SETTINGS"))
-    normal_axis = st.selectbox(t("층의 수직 방향", "Candidate layer normal"), ["c", "a", "b"], key="normal_axis")
+    normal_axis = st.selectbox(t("층의 수직 방향", "Candidate layer normal"), ["c", "a", "b"], key="normal_axis", disabled=source == "batch")
     st.caption(t("선택 축은 나머지 두 축에 수직이어야 합니다. 실제 층 방향은 사용자가 확인합니다.", "The selected axis must be perpendicular to the other two. You must verify the physical layer direction."))
-    threshold = st.number_input(t("짧은 거리 기준 / Å", "Short-distance cutoff / Å"), min_value=0.1, max_value=3.0, value=1.0, step=0.1, key="threshold")
+    threshold = st.number_input(t("짧은 거리 기준 / Å", "Short-distance cutoff / Å"), min_value=0.1, max_value=3.0, value=1.0, step=0.1, key="threshold", disabled=source == "batch")
+    if source == "batch":
+        st.caption(t("비교 화면의 ‘파일별 측정 조건’에서 각 파일의 축과 기준을 지정하세요.", "Set each file's axis and cutoff under Measurement settings by file."))
     st.caption(t("원소와 무관한 표시 기준입니다. 결합이나 안정성의 판정 기준이 아닙니다.", "An element-independent flag, not a bond or stability criterion."))
     st.divider()
     st.caption(t("프로젝트 · CIF 구조 점검", "PROJECT · CIF GEOMETRY"))
@@ -183,6 +202,60 @@ if source == "examples":
 else:
     st.caption(t("입력 파일의 좌표를 분석하며 원자를 삭제하거나 구조를 자동 보정하지 않습니다.", "Input coordinates are inspected without deleting sites or automatically repairing the structure."))
 
+report = None
+if source == "batch":
+    st.subheader(t("여러 CIF 비교", "Compare CIF files"))
+    if not uploads:
+        st.info(t("왼쪽에서 비교할 CIF 파일들을 선택하세요.", "Choose CIF files in the sidebar to compare."))
+        st.stop()
+    if len(uploads) > MAX_BATCH_FILES:
+        st.error(t(f"파일을 {MAX_BATCH_FILES}개 이하로 줄여 주세요.", f"Choose no more than {MAX_BATCH_FILES} files."))
+        st.stop()
+    inputs = []
+    occurrences = {}
+    with st.expander(t("파일별 측정 조건", "Measurement settings by file"), expanded=True):
+        st.caption(t("모든 파일의 기본값은 c축·1.0 Å입니다. 실제 층 방향을 확인하고 파일마다 조정하세요.", "Every file starts at c and 1.0 Å. Verify the physical layer direction and adjust each file."))
+        for index, uploaded in enumerate(uploads):
+            raw = uploaded.getvalue()
+            identity = hashlib.sha256(uploaded.name.encode() + b"\0" + raw).hexdigest()[:16]
+            occurrence = occurrences.get(identity, 0)
+            occurrences[identity] = occurrence + 1
+            settings_key = f"{identity}_{occurrence}"
+            label, axis_col, cutoff_col = st.columns([3, 1, 1.5])
+            label.write(f"{index + 1}. {uploaded.name}")
+            axis = axis_col.selectbox(t("축", "Axis"), ["c", "a", "b"], key=f"batch_axis_{settings_key}")
+            cutoff = cutoff_col.number_input(t("기준 / Å", "Cutoff / Å"), min_value=0.1, max_value=3.0, value=1.0, step=0.1, key=f"batch_cutoff_{settings_key}")
+            inputs.append(BatchInput(uploaded.name, raw, axis, float(cutoff)))
+    results = analyze_batch(inputs)
+    batch_language = "ko" if ko else "en"
+    rows = batch_rows(results, batch_language)
+    # Changing inputs/settings remounts selection; stale row indices must never
+    # select a different file after uploads are removed or reordered.
+    fingerprint = hashlib.sha256(json.dumps([
+        (item.filename, result["sha256"], item.normal_axis, item.short_distance)
+        for item, result in zip(inputs, results)
+    ]).encode()).hexdigest()[:16]
+    table = st.dataframe(rows, hide_index=True, width="stretch", on_select="rerun",
+                         selection_mode="single-row", key=f"batch_table_{fingerprint}")
+    st.download_button(t("비교 요약 CSV 내보내기", "Export comparison CSV"),
+                       data=batch_csv(results, batch_language).encode("utf-8-sig" if ko else "utf-8"),
+                       file_name=f"calclens_comparison_{batch_language}.csv", mime="text/csv; charset=utf-8", key="download_batch")
+    st.caption(t("표의 행을 선택하면 아래에 상세 결과를 표시합니다. 선택 전에는 첫 번째 파일을 보여줍니다. no_flags는 경고가 없다는 뜻이며 구조의 타당성을 보장하지 않습니다.", "Select a row for details below; the first file is shown initially. no_flags means no screening flags, not validated geometry."))
+    selected_rows = table.selection.rows
+    selected_index = selected_rows[0] if selected_rows else 0
+    if not 0 <= selected_index < len(results):
+        selected_index = 0
+    selected = results[selected_index]
+    filename = selected["filename"]
+    data = inputs[selected_index].data
+    normal_axis = selected["normal_axis"]
+    threshold = selected["short_distance_threshold_angstrom"]
+    report = selected["report"]
+    if report is None:
+        st.error(f"{filename}: {localized_error_message(selected['error'], batch_language)}")
+        st.stop()
+    st.divider()
+
 if data is None:
     st.info(t("왼쪽에서 CIF를 열거나 위의 예제 보기 버튼으로 시작하세요.", "Open a CIF in the sidebar, or use Try sample above."))
     st.stop()
@@ -190,7 +263,8 @@ if len(data) > MAX_BYTES:
     st.error(t("파일이 2 MiB를 초과합니다. 더 작은 CIF를 사용하세요.", "File exceeds 2 MiB. Please use a smaller CIF."))
     st.stop()
 try:
-    report = analyze_cif(data, short_distance=float(threshold), normal_axis=normal_axis)
+    if report is None:
+        report = with_provenance(analyze_cif(data, short_distance=float(threshold), normal_axis=normal_axis), data, filename)
 except (UnsupportedStructure, ValueError) as exc:
     st.error(t("이 입력은 현재 지원 범위에서 해석할 수 없습니다.", "This input cannot be interpreted within the supported scope."))
     original_reason = str(exc)
@@ -221,6 +295,7 @@ values = [
 ]
 for col, (label, value) in zip(cols, values):
     col.metric(label, "—" if value is None else f"{value:.3f} Å")
+cols[0].button(t("원자쌍 보기", "View nearest pair"), key="show_minimum_pair", on_click=show_minimum_pair)
 st.caption(t("두께·간격은 원자핵 위치 기준입니다. 단일 원자 평면의 두께는 0 Å이며, 핵 간격은 전자밀도 경계의 진공 폭이 아닙니다.", "Thickness and gap refer to nuclear positions. A single atomic plane has zero nuclear-span thickness; this gap is not an electron-density vacuum width."))
 
 def explanation(item: dict) -> str:
@@ -238,6 +313,7 @@ with review, st.container(border=True, key="review_card"):
     assumed = "ASSUMED_FULL_OCCUPANCY" in issue_by_code
     choices = {
         "overview": t("전체 구조 보기", "Show full structure"),
+        "minimum": t("가장 가까운 원자쌍", "Nearest atom pair"),
         "overlap": t("● 원자 겹침 · 확인 필요" if overlapping else "○ 원자 겹침 · 검출 없음", "● Overlap · needs review" if overlapping else "○ Overlap · none detected"),
         "short": t("● 짧은 거리 · 확인 필요" if close else "○ 짧은 거리 · 검출 없음", "● Short distance · needs review" if close else "○ Short distance · none detected"),
         "gap": t("● 층·핵 간격 · 해석 검토 필요" if gap_review else "◐ 층·핵 간격 · 수렴 검증 필요", "● Layer/gap · interpretation needed" if gap_review else "◐ Layer/gap · convergence needed"),
@@ -246,14 +322,22 @@ with review, st.container(border=True, key="review_card"):
     with st.container(key="review_focus"):
         focus = localized_radio(t("강조할 점검 항목", "Check to highlight"), list(choices), format_func=choices.get, key="review_focus", label_visibility="collapsed")
     related_codes = {
-        "overview": [], "overlap": ["OVERLAPPING_SITES"], "short": ["SHORT_DISTANCE", "SELF_IMAGE_CONTACT"],
+        "overview": [], "minimum": [], "overlap": ["OVERLAPPING_SITES"], "short": ["SHORT_DISTANCE", "SELF_IMAGE_CONTACT"],
         "gap": ["AMBIGUOUS_SLAB", "MULTIPLE_LARGE_GAPS", "VACUUM_CONVERGENCE"], "metadata": ["ASSUMED_FULL_OCCUPANCY"],
     }[focus]
     related_issues = [issue_by_code[code] for code in related_codes if code in issue_by_code]
     highlighted_atoms = sorted({i for item in related_issues for i in item.get("atom_indices", [])})
     selected_contact = None
+    if focus == "minimum":
+        selected_contact = metrics["minimum_pair"]
+        highlighted_atoms = sorted({selected_contact["i"], selected_contact["j"]})
+        st.caption(t("경고 기준과 관계없이 가장 짧은 주기적 거리를 보여줍니다. 같은 최솟값이 여럿이면 한 쌍을 표시합니다.", "Shows the shortest periodic distance regardless of the warning cutoff. One pair is shown when several share the minimum."))
     if focus in ("overlap", "short"):
-        contacts = report["short_contacts"]
+        contacts = list(report["short_contacts"])
+        for issue in related_issues:
+            evidence = issue.get("representative_contact")
+            if evidence is not None and evidence not in contacts:
+                contacts.append(evidence)
         if focus == "overlap":
             contacts = [item for item in contacts if not item["is_self_image"] and item["distance_angstrom"] <= overlap_tolerance]
         if contacts:
@@ -263,9 +347,13 @@ with review, st.container(border=True, key="review_card"):
             contact_index = st.selectbox(t("강조할 원자 쌍", "Contact to highlight"), list(range(len(contacts))), format_func=contact_label, key=f"contact_{focus}")
             selected_contact = contacts[contact_index]
             highlighted_atoms = sorted({selected_contact["i"], selected_contact["j"]})
-            st.caption(t(f"상대 원자의 주기 이동 [a,b,c]: {selected_contact['shift']}", f"Partner image shift [a,b,c]: {selected_contact['shift']}"))
         else:
             st.caption(t("이 항목에 해당하는 거리 기록이 없습니다.", "No contact records match this check."))
+        if report["short_contacts_truncated"]:
+            st.warning(t(f"전체 {report['short_contact_count']}개 중 중요한 원자쌍을 우선 보관한 일부 기록입니다. 경고 건수는 전체 구조에서 계산합니다.", f"This is a prioritized subset of {report['short_contact_count']} contacts. Warning counts cover the full structure."))
+    if selected_contact is not None:
+        st.write(f"**{selected_contact['element_i']}{selected_contact['i']+1}–{selected_contact['element_j']}{selected_contact['j']+1} · {selected_contact['distance_angstrom']:.6f} Å**")
+        st.caption(t(f"상대 원자의 주기 이동 [a,b,c]: {selected_contact['shift']}", f"Partner image shift [a,b,c]: {selected_contact['shift']}"))
     for item in related_issues:
         if item["severity"] == "error":
             st.error(explanation(item))
@@ -307,7 +395,7 @@ with st.container(border=True, key="details_card"):
     contact_tab, coordinate_tab, issue_tab = st.tabs([t("짧은 거리", "Short contacts"), t("원자 좌표", "Site coordinates"), t("모든 진단", "All diagnostics")])
     with contact_tab:
         if report.get("short_contacts_truncated"):
-            st.warning(t(f"총 {report['short_contact_count']}개 중 처음 {len(report['short_contacts'])}개만 표시합니다. 내보내기도 같은 상세 항목 수를 담습니다.", f"Showing the first {len(report['short_contacts'])} of {report['short_contact_count']} contacts. Exports contain the same limited detail list."))
+            st.warning(t(f"총 {report['short_contact_count']}개 중 겹침·최소 거리·자기 주기상 근거를 우선하여 {len(report['short_contacts'])}개를 표시합니다. 내보내기에 전체 건수와 대표 근거도 남깁니다.", f"Showing {len(report['short_contacts'])} of {report['short_contact_count']} contacts, prioritizing overlaps, the minimum and self-image evidence. Exports also retain total counts and representative evidence."))
         rows = [{t("원자 쌍", "Element pair"): f"{report['elements'][item['i']]}{item['i']+1}–{report['elements'][item['j']]}{item['j']+1}", t("거리 / Å", "Distance / Å"): round(item["distance_angstrom"], 6), t("기준 / Å", "Cutoff / Å"): float(threshold), t("주기 이동 [a,b,c]", "Image shift [a,b,c]"): str(item["shift"]), t("자기 주기상", "Self image"): item["is_self_image"]} for item in report.get("short_contacts", [])]
         if rows:
             st.dataframe(rows, hide_index=True, width="stretch")
@@ -318,6 +406,7 @@ with st.container(border=True, key="details_card"):
         positions = [{t("원자", "Site"): i + 1, t("원소", "Element"): element, "x / Å": p[0], "y / Å": p[1], "z / Å": p[2]} for i, (element, p) in enumerate(zip(report["elements"], report["positions"]))]
         st.dataframe(positions, hide_index=True, width="stretch")
     with issue_tab:
+        st.caption(t("보고서에는 원본 파일명·SHA-256·CalcLens 및 ASE 버전이 포함됩니다.", "Reports include the original filename, SHA-256, CalcLens version and ASE version."))
         for item in issues:
             message = f"**{item['code']}** — {explanation(item)}"
             if item["severity"] == "error":

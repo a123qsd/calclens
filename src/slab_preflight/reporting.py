@@ -38,6 +38,8 @@ _LIMITATIONS_KO = {
         "구조 해석의 모호함과 짧은 거리 기준은 예비 점검용 경험적 기준입니다. 경고가 없어도 구조가 검증된 것은 아닙니다.",
     "Contacts retain only one nearest image per unordered site pair and one shortest self-image per site, at most 200 records.":
         "접촉 목록에는 순서를 구분하지 않은 원자 쌍마다 가장 가까운 주기 이미지 하나와 각 원자의 가장 가까운 자체 이미지 하나만 남기며, 최대 200개 기록을 표시합니다.",
+    "Screening counts one nearest image per unordered site pair and one shortest self-image per site. The contact list retains at most 200 records, prioritizing overlaps then shorter distances and preserving minimum-distance and self-image evidence when below the threshold.":
+        "점검에서는 순서를 구분하지 않은 원자 쌍마다 가장 가까운 이미지 하나와 각 원자의 가장 짧은 자체 이미지 하나를 셉니다. 접촉 목록에는 중복과 더 짧은 거리를 우선하여 최대 200개 기록을 남기며, 기준보다 짧은 최소 거리와 자체 이미지의 근거를 보존합니다.",
 }
 
 _ERRORS_KO = {
@@ -91,6 +93,13 @@ _METRIC_NOTES = {
     "gap_start_fraction": ("Fractional start of the chosen gap along the selected axis.", "선택한 축에서 해당 간격이 시작하는 분율 좌표입니다."),
     "gap_end_fraction": ("Fractional end of the chosen gap; end <= start wraps through the periodic boundary.", "선택한 축에서 해당 간격이 끝나는 분율 좌표입니다. 끝값이 시작값 이하면 주기 경계를 통과합니다."),
     "second_largest_gap_angstrom": ("Second-largest cyclic nuclear gap along the selected axis.", "선택한 축을 따른 두 번째로 큰 주기적 핵 간격입니다."),
+}
+
+_PROVENANCE_NOTES = {
+    "original_filename": ("Original input filename supplied by the file reader.", "파일을 읽을 때 전달된 원본 입력 파일 이름입니다."),
+    "sha256": ("SHA-256 of the exact original file bytes, before decoding or newline conversion.", "디코딩하거나 줄바꿈을 변환하기 전의 원본 파일 바이트에 대한 SHA-256입니다."),
+    "calclens_version": ("Version of the CalcLens package producing this report.", "이 보고서를 생성한 CalcLens 패키지 버전입니다."),
+    "ase_version": ("Version of ASE used to parse and measure the structure.", "구조를 읽고 측정하는 데 사용한 ASE 버전입니다."),
 }
 
 _CRITERION_NOTES = {
@@ -208,6 +217,7 @@ def localized_report(report: dict, language: str = "en") -> dict:
     result["field_descriptions"] = {
         "metrics": {key: notes[text_index] for key, notes in _METRIC_NOTES.items()},
         "criteria": {key: notes[text_index] for key, notes in _CRITERION_NOTES.items()},
+        "provenance": {key: notes[text_index] for key, notes in _PROVENANCE_NOTES.items()},
         "review_required": ("하나 이상의 경고 또는 오류가 있음을 나타냅니다." if language == "ko" else
                             "True when at least one warning or error exists."),
         "gap_review_required": ("핵 간격을 실제 슬래브 간격으로 해석하는 데 모호함이 있음을 나타냅니다." if language == "ko" else
@@ -255,9 +265,20 @@ def report_csv(report: dict, language: str = "en") -> str:
     def write(**row):
         writer.writerow({headers[key]: _spreadsheet_text(value) for key, value in (shared | row).items()})
 
+    def write_contact(contact, record_type, code, *, note="", severity=""):
+        i, j = contact["i"], contact["j"]
+        write(record_type=record_type, code=code, severity=severity,
+              value=contact["distance_angstrom"], unit="angstrom", site_i=i + 1,
+              element_i=report["elements"][i], site_j=j + 1, element_j=report["elements"][j],
+              image_shift_a=contact["shift"][0], image_shift_b=contact["shift"][1],
+              image_shift_c=contact["shift"][2], note=note)
+
     write(record_type="metadata", code="report_language", value=language,
           note="열 이름과 설명은 한국어이며, 기록 종류·코드·심각도·단위 식별자와 수치는 원래 값을 유지합니다." if ko else
                "Headers and descriptions are in English; record types, codes, severity, unit identifiers and numbers retain their canonical values.")
+    for name, value in report.get("provenance", {}).items():
+        write(record_type="provenance", code=name, value=value,
+              note=report["field_descriptions"]["provenance"].get(name, ""))
     write(record_type="structure", code="formula", value=report["formula"])
     write(record_type="structure", code="atom_count", value=report["atom_count"], unit="sites")
     write(record_type="structure", code="schema_version", value=report["schema_version"])
@@ -266,6 +287,11 @@ def report_csv(report: dict, language: str = "en") -> str:
             write(record_type="metric", code=name, value=value,
                   unit="angstrom" if name.endswith("_angstrom") else "fraction",
                   note=report["field_descriptions"]["metrics"].get(name, ""))
+    minimum = report["metrics"].get("minimum_pair")
+    if minimum is not None:
+        write_contact(minimum, "metric", "minimum_pair",
+                      note=("가장 짧은 거리를 이루는 원자 쌍 또는 이미지 하나입니다. 짧은 거리 기준과 관계없이 보존합니다." if ko else
+                            "One pair/image realizing the shortest distance, retained independently of the short-contact threshold."))
     for name, value in report.get("criteria", {
         "short_distance_threshold_angstrom": report["short_distance_threshold_angstrom"],
     }).items():
@@ -274,21 +300,24 @@ def report_csv(report: dict, language: str = "en") -> str:
                     "degree" if name.endswith("_degree") else "dimensionless"),
               note=report["field_descriptions"]["criteria"].get(name, ""))
     for issue in report["issues"]:
+        count = issue.get("contact_count")
         write(record_type="issue", code=issue["code"], severity=issue["severity"],
+              value=count if count is not None else "",
+              unit=("sites" if issue["code"] == "SELF_IMAGE_CONTACT" else "pairs") if count is not None else "",
               related_sites=";".join(str(i + 1) for i in issue.get("atom_indices", [])),
               note=issue["message"])
+        representative = issue.get("representative_contact")
+        if representative is not None:
+            write_contact(representative, "issue_contact", issue["code"], severity=issue["severity"],
+                          note=("이 진단을 뒷받침하는 가장 짧은 원자 쌍·이미지의 대표 기록입니다. 전체 접촉 표의 생략 여부와 관계없이 보존합니다." if ko else
+                                "Shortest representative pair/image supporting this issue, retained independently of contact-table truncation."))
     for contact in report["short_contacts"]:
-        i, j = contact["i"], contact["j"]
-        write(record_type="contact", code="self_image" if contact["is_self_image"] else "pair",
-              value=contact["distance_angstrom"], unit="angstrom", site_i=i + 1,
-              element_i=report["elements"][i], site_j=j + 1, element_j=report["elements"][j],
-              image_shift_a=contact["shift"][0], image_shift_b=contact["shift"][1],
-              image_shift_c=contact["shift"][2])
+        write_contact(contact, "contact", "self_image" if contact["is_self_image"] else "pair")
     write(record_type="contact_summary", code="total_count", value=report["short_contact_count"])
     write(record_type="contact_summary", code="details_truncated",
           value=str(report["short_contacts_truncated"]).lower(),
-          note="가장 가까운 원자 쌍·자체 주기 이미지 기록을 최대 200개 표시합니다. 배위수 분석 목록이 아닙니다." if ko else
-               "At most 200 nearest-pair/self-image records; this is not a coordination list.")
+          note="가장 가까운 원자 쌍·자체 주기 이미지 기록을 최대 200개 표시합니다. 진단별 정확한 개수와 대표 기록, 최소 거리 기록은 별도로 보존합니다. 배위수 분석 목록이 아닙니다." if ko else
+               "At most 200 nearest-pair/self-image records; exact issue counts, issue representatives and the minimum pair are preserved separately. This is not a coordination list.")
     for kind in ("assumptions", "limitations"):
         for note in report[kind]:
             write(record_type=kind[:-1], note=note)

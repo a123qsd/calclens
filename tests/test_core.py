@@ -7,7 +7,9 @@ import runpy
 import numpy as np
 import pytest
 
-from slab_preflight.core import UnsupportedStructure, analyze_cif
+from ase import Atoms
+
+from slab_preflight.core import UnsupportedStructure, _distances, analyze_cif
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -166,6 +168,115 @@ def test_contact_truncation_preserves_total_count_and_reports_limit():
     assert len(report["short_contacts"]) == 200
     assert report["short_contacts_truncated"] is True
     assert "OVERLAPPING_SITES" in codes(report)
+
+
+def test_late_overlap_displaces_ordinary_contacts_after_retention_limit():
+    # Every pair is short, but the sole duplicate is pair 435 in traversal order.
+    sites = [("C", i / 100, 0, 0.5, 1) for i in range(30)]
+    sites[-1] = sites[-2]
+    report = analyze_cif(make_cif("late_overlap", (3, 3, 20, 90, 90, 90), sites))
+    issues = {issue["code"]: issue for issue in report["issues"]}
+    witness = issues["OVERLAPPING_SITES"]["representative_contact"]
+
+    assert report["short_contact_count"] == 435
+    assert len(report["short_contacts"]) == 200
+    assert report["short_contacts_truncated"] is True
+    assert (witness["i"], witness["j"]) == (28, 29)
+    assert witness["distance_angstrom"] == pytest.approx(0, abs=1e-12)
+    assert witness == report["short_contacts"][0] == report["metrics"]["minimum_pair"]
+    assert issues["OVERLAPPING_SITES"]["contact_count"] == 1
+    assert issues["OVERLAPPING_SITES"]["atom_indices"] == [28, 29]
+    assert issues["SHORT_DISTANCE"]["contact_count"] == 435
+    assert np.asarray(report["scaled_positions"]) == pytest.approx(
+        np.asarray([site[1:4] for site in sites]), abs=1e-12
+    )
+
+
+def test_late_shortest_pair_is_retained_without_any_overlaps():
+    sites = [("C", i / 100, 0, 0.5, 1) for i in range(29)]
+    sites.append(("C", 0.2801, 0, 0.5, 1))
+    report = analyze_cif(make_cif("late_minimum", (3, 3, 20, 90, 90, 90), sites))
+    minimum = report["metrics"]["minimum_pair"]
+    issue = next(issue for issue in report["issues"] if issue["code"] == "SHORT_DISTANCE")
+
+    assert "OVERLAPPING_SITES" not in codes(report)
+    assert report["short_contact_count"] == issue["contact_count"] == 435
+    assert (minimum["i"], minimum["j"]) == (28, 29)
+    assert minimum["distance_angstrom"] == pytest.approx(0.0003, abs=1e-12)
+    assert minimum == issue["representative_contact"] == report["short_contacts"][0]
+
+
+def test_many_overlaps_preserve_self_image_and_every_distance_issue_witness():
+    sites = [("C", 0, 0, 0.5, 1)] * 30
+    text = make_cif("overlaps_and_self_images", (0.5, 3, 20, 90, 90, 90), sites)
+    report = analyze_cif(text)
+    issues = {issue["code"]: issue for issue in report["issues"]}
+    contacts = report["short_contacts"]
+
+    assert report == analyze_cif(text)  # Stable retention, tie ordering and witnesses.
+    assert report["short_contact_count"] == 435 + 30
+    assert len(contacts) == 200
+    assert report["short_contacts_truncated"] is True
+    assert len({(contact["i"], contact["j"]) for contact in contacts}) == 200
+    assert sum(contact["is_self_image"] for contact in contacts) == 1
+    assert report["metrics"]["minimum_pair"] in contacts
+    for code, count in (("OVERLAPPING_SITES", 435), ("SHORT_DISTANCE", 435),
+                        ("SELF_IMAGE_CONTACT", 30)):
+        assert issues[code]["contact_count"] == count
+        assert issues[code]["representative_contact"] in contacts
+        assert issues[code]["atom_indices"] == list(range(30))
+    self_image = issues["SELF_IMAGE_CONTACT"]["representative_contact"]
+    assert self_image["is_self_image"] is True
+    assert self_image["i"] == self_image["j"] == 0
+    assert self_image["distance_angstrom"] == pytest.approx(0.5)
+    cell, positions = np.asarray(report["cell"]), np.asarray(report["positions"])
+    for issue in (issues[code] for code in ("OVERLAPPING_SITES", "SHORT_DISTANCE",
+                                           "SELF_IMAGE_CONTACT")):
+        witness = issue["representative_contact"]
+        displacement = (positions[witness["j"]] - positions[witness["i"]]
+                        + np.asarray(witness["shift"]) @ cell)
+        assert np.linalg.norm(displacement) == pytest.approx(
+            witness["distance_angstrom"], abs=1e-12
+        )
+
+
+def test_no_short_contacts_keeps_minimum_without_distance_issues():
+    report = analyze_cif(load("graphene.cif"), short_distance=1)
+    assert report["short_contact_count"] == 0
+    assert report["short_contacts"] == []
+    assert report["short_contacts_truncated"] is False
+    assert report["metrics"]["minimum_pair"]["distance_angstrom"] > 1
+    assert not codes(report) & {"OVERLAPPING_SITES", "SHORT_DISTANCE", "SELF_IMAGE_CONTACT"}
+
+
+def test_many_shorter_self_images_still_retain_distinct_short_pair_evidence():
+    sites = [("C", 0, i / 250, 0.5, 1) for i in range(250)]
+    report = analyze_cif(make_cif("many_self_images", (0.1, 100, 20, 90, 90, 90), sites))
+    issues = {issue["code"]: issue for issue in report["issues"]}
+    assert report["short_contact_count"] == 500 + 250
+    assert len(report["short_contacts"]) == 200
+    assert report["metrics"]["minimum_pair"]["is_self_image"] is True
+    assert report["metrics"]["minimum_pair"] in report["short_contacts"]
+    pair = issues["SHORT_DISTANCE"]["representative_contact"]
+    assert pair["is_self_image"] is False
+    assert pair["distance_angstrom"] == pytest.approx(0.4)
+    assert pair in report["short_contacts"]
+    assert issues["SHORT_DISTANCE"]["contact_count"] == 500
+    assert issues["SELF_IMAGE_CONTACT"]["contact_count"] == 250
+
+
+def test_distance_screening_does_not_mutate_supplied_atoms():
+    atoms = Atoms("C30", scaled_positions=[(i / 100, 0, 0.5) for i in range(30)],
+                  cell=(3, 3, 20), pbc=True)
+    original = (atoms.positions.copy(), np.asarray(atoms.cell).copy(),
+                atoms.numbers.copy(), atoms.pbc.copy())
+    minimum, contacts, count, issues = _distances(atoms, 1)
+    assert count == 435
+    assert len(contacts) == 200
+    assert minimum["distance_angstrom"] > 0
+    assert issues
+    for actual, expected in zip((atoms.positions, atoms.cell, atoms.numbers, atoms.pbc), original):
+        np.testing.assert_array_equal(actual, expected)
 
 
 def test_multiple_large_empty_intervals_require_review():
