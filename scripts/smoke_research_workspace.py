@@ -45,6 +45,25 @@ def overview(page):
     idle(page)
 
 
+def prepare_record_filters(page, expect):
+    """Establish the record visibility needed by this independently callable flow.
+
+    Frozen-Windows checks run after the basic workspace smoke on the same server.
+    Its final unsupported-only filter is intentionally preserved by CIF replacement,
+    and would hide both supported research inputs unless this flow resets it.
+    """
+    overview(page)
+    previous = {}
+    for name in ("geometry-filter", "progress-filter"):
+        control = page.get_by_test_id(name)
+        previous[name] = control.input_value()
+        if previous[name] != "all":
+            control.select_option("all")
+            idle(page)
+        expect(control).to_have_value("all")
+    return previous
+
+
 def edit_panel(page):
     panel = page.locator("details.tool-card").filter(
         has=page.get_by_text("Edit selected structure", exact=True),
@@ -587,6 +606,7 @@ def run(base_url, output, example_output=None):
                 page.get_by_test_id("language-toggle").click()
                 idle(page)
             expect(page.locator("html")).to_have_attribute("lang", "en")
+            report["inherited_record_filters"] = prepare_record_filters(page, expect)
             drafts = record("file-keyed drafts and persistent overview camera",
                             lambda: check_drafts_and_navigation(page, expect))
             record("actual water multi-dataset imports and signed orbital PNG",
