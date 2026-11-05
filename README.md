@@ -62,15 +62,16 @@ JSON/CSV exports and comparisons of up to 20 CIF files with settings for each fi
 
 ## Download / 다운로드
 
-[Latest release / 최신 배포](https://github.com/a123qsd/calclens/releases/latest)
+[Windows downloads / Windows 실행 파일](https://github.com/a123qsd/calclens/releases/latest) ·
+[Source packages, guides and verification files / 소스·안내·검증 자료](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources)
 
 | Language | Source ZIP for v0.7.0 | Read guide | Download guide |
 | --- | --- | --- | --- |
-| English | [calclens-0.7.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.en.md) |
-| 한국어 | [calclens-0.7.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.ko.md) |
+| English | [calclens-0.7.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.en.md) |
+| 한국어 | [calclens-0.7.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.ko.md) |
 
-[Windows checksums / Windows 체크섬](https://github.com/a123qsd/calclens/releases/download/v0.7.0/WINDOWS-SHA256SUMS.txt) ·
-[Windows licenses and build source / Windows 라이선스·빌드 소스](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-support.zip)
+[Windows checksums / Windows 체크섬](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/WINDOWS-SHA256SUMS.txt) ·
+[Windows licenses and build source / Windows 라이선스·빌드 소스](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-0.7.0-windows-support.zip)
 
 Both ZIPs contain the same analysis engine and both interface languages. Each
 opens in its selected language by default. **Python 3.12 or 3.13 and dependency

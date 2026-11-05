@@ -34,7 +34,7 @@ CalcLens는 CIF의 기하 정보를 점검합니다. 화학적 안정성, 전자
 체크섬이 같다는 것은 배포 페이지의 체크섬과 파일이 일치한다는 뜻입니다.
 게시자 인증이나 프로그램에 대한 안전 보증을 대신하지 않습니다.
 
-같은 배포 페이지에서 [WINDOWS-SHA256SUMS.txt](https://github.com/a123qsd/calclens/releases/download/v0.7.0/WINDOWS-SHA256SUMS.txt)를 받으세요. PowerShell에서
+[v0.7.0 자료 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources)에서 [WINDOWS-SHA256SUMS.txt](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/WINDOWS-SHA256SUMS.txt)를 받으세요. PowerShell에서
 다음 명령을 실행한 뒤, 표시된 값을 받은 파일에 해당하는 항목과 비교합니다.
 
 ```powershell
@@ -43,11 +43,11 @@ Get-FileHash .\CalcLens-0.7.0-windows-x64-ko.exe -Algorithm SHA256
 
 ## 라이선스, 소스와 다시 빌드하기
 
-[한국어 소스 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-ko.zip)과
-[영어 소스 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-en.zip)은
+[한국어 소스 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-ko.zip)과
+[영어 소스 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-en.zip)은
 Python 3.12 또는 3.13과 의존성 설치가 필요합니다. 화면 파일은 포함되어 있어 실행에
 Node.js는 필요하지 않습니다. Python을 설치하지 않고 사용하려면 위의 EXE나 폴더 ZIP을 받으세요.
-[CalcLens-0.7.0-windows-support.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-support.zip)에는
+[CalcLens-0.7.0-windows-support.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-0.7.0-windows-support.zip)에는
 타사 라이선스 고지, 빌드에 사용한 정확한
 ASE 소스 압축 파일, 의존성 정보와 CalcLens 소스가 들어 있습니다.
 실행 파일을 재배포할 때 지원 ZIP도 함께 보관하고 전달하세요.

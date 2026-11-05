@@ -26,10 +26,10 @@ Windows 10/11 x64에서는 EXE를 받은 뒤 더블클릭하세요. Python을 �
 | English | [English EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en.exe) | [English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en-folder.zip) | [English Windows guide](../packaging/windows/README.en.md) |
 
 These are the default workspace builds. If you need the previous Streamlit
-interface, choose the separate [Korean legacy EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko-legacy.exe)
-or [English legacy EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en-legacy.exe)
-and pass `--legacy-ui`. Matching `-legacy-folder.zip` archives are on the same
-release page. Keep the [legacy support ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-support-legacy.zip)
+interface, choose the separate [Korean legacy EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-0.7.0-windows-x64-ko-legacy.exe)
+or [English legacy EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-0.7.0-windows-x64-en-legacy.exe)
+and pass `--legacy-ui`. Matching `-legacy-folder.zip` archives are on the
+[resources page](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources). Keep the [legacy support ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-0.7.0-windows-support-legacy.zip)
 with those builds when redistributing them. Their notices and dependency
 inventory differ from the default distribution.
 
@@ -50,8 +50,8 @@ closing only the browser tab leaves it running. Save your project before quittin
 **진단 기록**, **종료**를 사용하세요. 관리 창을 닫으면 서버도 종료되며,
 브라우저 탭만 닫으면 계속 실행됩니다. 종료하기 전에 작업을 저장하세요.
 
-[Windows checksums](https://github.com/a123qsd/calclens/releases/download/v0.7.0/WINDOWS-SHA256SUMS.txt) ·
-[Windows licenses and build source](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-support.zip)
+[Windows checksums](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/WINDOWS-SHA256SUMS.txt) ·
+[Windows licenses and build source](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-0.7.0-windows-support.zip)
 
 The EXEs are unsigned. Windows may show an unknown-publisher or SmartScreen
 warning. Check the release owner, source and checksum before deciding whether to
@@ -84,16 +84,16 @@ See [Imported viewer data / 보조 자료 안내](VIEWER_DATA.md).
 ## English
 
 Download a language-specific source package from
-[CalcLens v0.7.0](https://github.com/a123qsd/calclens/releases/tag/v0.7.0):
+[CalcLens v0.7.0 resources](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources):
 
 | Asset | Initial interface and main guide |
 | --- | --- |
-| [calclens-0.7.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-en.zip) | English |
-| [calclens-0.7.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-ko.zip) | Korean |
+| [calclens-0.7.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-en.zip) | English |
+| [calclens-0.7.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-ko.zip) | Korean |
 
 You can also download the guides separately as Markdown files:
-[English guide](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.en.md) ·
-[Korean guide](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.ko.md).
+[English guide](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.en.md) ·
+[Korean guide](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.ko.md).
 These text files explain the app; they do not contain the program.
 
 Both packages contain the same geometry engine, examples, and English/Korean
@@ -200,17 +200,17 @@ See the [project guide](../README.en.md#pair-measurements-and-saved-work) for de
 
 ## 한국어
 
-[CalcLens v0.7.0 배포 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.7.0)에서
+[CalcLens v0.7.0 자료 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources)에서
 원하는 언어의 소스 ZIP을 받으세요.
 
 | 파일 | 처음 열리는 화면과 기본 안내 |
 | --- | --- |
-| [calclens-0.7.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-ko.zip) | 한국어 |
-| [calclens-0.7.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-en.zip) | 영어 |
+| [calclens-0.7.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-ko.zip) | 한국어 |
+| [calclens-0.7.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-en.zip) | 영어 |
 
 안내 문서만 필요하면 Markdown 파일로 따로 받을 수 있습니다.
-[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.ko.md) ·
-[영어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.en.md).
+[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.ko.md) ·
+[영어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.en.md).
 안내 파일에는 프로그램이 들어 있지 않습니다.
 
 두 파일의 검사 엔진과 예제는 같습니다. 둘 다 한국어·영어 화면을 제공하며, ZIP 안의

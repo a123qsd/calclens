@@ -36,8 +36,8 @@ Do not disable Windows protections to use CalcLens. A matching checksum confirms
 that your file matches the release checksum; it is not a publisher certificate
 or a guarantee about the program.
 
-Download [WINDOWS-SHA256SUMS.txt](https://github.com/a123qsd/calclens/releases/download/v0.7.0/WINDOWS-SHA256SUMS.txt)
-from the same release. In PowerShell, compare
+Download [WINDOWS-SHA256SUMS.txt](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/WINDOWS-SHA256SUMS.txt)
+from the [v0.7.0 resources page](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources). In PowerShell, compare
 the value below with the entry for your downloaded file:
 
 ```powershell
@@ -46,12 +46,12 @@ Get-FileHash .\CalcLens-0.7.0-windows-x64-en.exe -Algorithm SHA256
 
 ## Notices, source, and rebuilding
 
-The [English source ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-en.zip)
-and [Korean source ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-ko.zip)
+The [English source ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-en.zip)
+and [Korean source ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-ko.zip)
 require Python 3.12 or 3.13 and dependency installation. Their browser assets are
 included, so running them does not require Node.js. Use an EXE or folder ZIP above
 to run CalcLens without installing Python.
-[CalcLens-0.7.0-windows-support.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-support.zip)
+[CalcLens-0.7.0-windows-support.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-0.7.0-windows-support.zip)
 contains third-party notices, the exact ASE
 source archive, dependency details, and the CalcLens source used for the build.
 Keep that support ZIP with the executable when redistributing it. Its checksum

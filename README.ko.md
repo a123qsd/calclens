@@ -44,9 +44,9 @@ Windows x64에서는
 모두 풀고 안에 있는 EXE를 실행하세요. 실행 파일에는 코드 서명이 없습니다.
 종료 방법과 파일 확인, 라이선스·소스 자료는 [Windows 안내](packaging/windows/README.ko.md)에 있습니다.
 
-[배포 파일](https://github.com/a123qsd/calclens/releases/latest)에서 한국어 기본 소스 ZIP을 받으려면
+[v0.7.0 자료 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources)에서 한국어 기본 소스 ZIP을 받으려면
 [다운로드·설치 안내](docs/DOWNLOADS.md#한국어)를 따르세요.
-[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.ko.md)만
+[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.ko.md)만
 따로 받을 수도 있습니다. 이 소스 ZIP에는 Python 3.12 또는 3.13과 의존성 설치가 필요합니다.
 화면 파일은 포함되어 있어 실행에 Node.js는 필요하지 않습니다.
 

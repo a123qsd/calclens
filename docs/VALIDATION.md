@@ -38,7 +38,7 @@ Startup values are single observations on separate GitHub-hosted Windows runners
 not a controlled speed comparison or a guarantee for another computer.
 Executables remain unsigned. The complete public artifact inventory, hashes,
 run identities and execution matrix are supplied in
-[`VALIDATION-0.7.0.json`](https://github.com/a123qsd/calclens/releases/download/v0.7.0/VALIDATION-0.7.0.json),
+[`VALIDATION-0.7.0.json`](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/VALIDATION-0.7.0.json),
 with `SHA256SUMS.txt` and `WINDOWS-SHA256SUMS.txt` in the same release.
 
 ## v0.7.0 local research-workspace verification — 2026-11-05

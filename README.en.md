@@ -52,9 +52,9 @@ and run the EXE inside it. These executables are unsigned. See the
 checksums, and license/source files.
 
 For an English-default source ZIP, choose the English ZIP asset on the
-[latest release](https://github.com/a123qsd/calclens/releases/latest) and follow
+[v0.7.0 resources page](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources) and follow
 the [download instructions](docs/DOWNLOADS.md#english). A standalone
-[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.en.md)
+[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.en.md)
 is also available. Python 3.12 or 3.13 and dependency
 installation are required for that source ZIP. The browser workspace is already
 included; you do not need Node.js to run it.
