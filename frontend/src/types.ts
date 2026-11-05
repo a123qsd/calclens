@@ -57,4 +57,8 @@ export interface MolecularViewerProps {
   highlightedAtomIndices?: number[];
   onAtomPick?: (atom: AtomPick) => void;
   compact?: boolean;
+  auxiliary?: ViewerAuxiliaryData;
+  onViewerReady?: (viewer: GLViewer | null) => void;
 }
+import type { GLViewer } from '3dmol';
+import type { ViewerAuxiliaryData } from './viewerData';

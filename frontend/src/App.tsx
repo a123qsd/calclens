@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import MolecularViewer from './MolecularViewer.tsx';
+import AuxiliaryDataPanel from './AuxiliaryDataPanel.tsx';
+import { linkCameraViews } from './viewerCameraLink';
+import type { GLViewer } from '3dmol';
+import type { ViewerAuxiliaryData } from './viewerData';
 import {
   ApiError, bootstrap, dispatchAction, fileToBase64, importProject, measure,
   reloadWorkspace, reportUrl,
@@ -77,6 +81,8 @@ export default function App() {
   const [compareBefore, setCompareBefore] = useState('');
   const [compareAfter, setCompareAfter] = useState('');
   const [sampleName, setSampleName] = useState('');
+  const [reviewPanelOpen, setReviewPanelOpen] = useState(true);
+  const [auxiliaryBySource, setAuxiliaryBySource] = useState<Record<string, ViewerAuxiliaryData>>({});
   const cifInput = useRef<HTMLInputElement>(null);
   const addInput = useRef<HTMLInputElement>(null);
   const projectInput = useRef<HTMLInputElement>(null);
@@ -118,6 +124,13 @@ export default function App() {
 
   const selected = useMemo(() => workspace?.entries.find((entry) => entry.id === workspace.project.selected_id) ?? workspace?.entries[0] ?? null, [workspace]);
   const report = selected?.analysis.report ?? null;
+  const activeSources = useRef(new Set<string>());
+  activeSources.current = new Set(workspace?.entries.map((entry) => entry.sha256) ?? []);
+  useEffect(() => {
+    const sources = new Set(workspace?.entries.map((entry) => entry.sha256) ?? []);
+    setAuxiliaryBySource((previous) => Object.keys(previous).every((key) => sources.has(key))
+      ? previous : Object.fromEntries(Object.entries(previous).filter(([key]) => sources.has(key))));
+  }, [workspace?.entries]);
   const selectedState = selected ? entryState(selected) : 'unsupported';
   const minimumIssues = report?.issues.filter((issue) => ['OVERLAPPING_SITES', 'SHORT_DISTANCE', 'SELF_IMAGE_CONTACT'].includes(issue.code)) ?? [];
   const minimumState = !report || minimumIssues.some((issue) => issue.severity === 'error') ? 'unsupported'
@@ -313,14 +326,14 @@ export default function App() {
           <MetricCard label={c.gap} value={finite(report?.metrics.nuclei_gap_angstrom)} hint={report?.gap_review_required ? c.needsReview : (language === 'ko' ? '기하학적 후보 간격' : 'Geometric candidate')} tone={report?.gap_review_required ? 'amber' : 'teal'} />
         </section>
 
-        <section className="overview-grid">
+        <section className={`overview-grid ${reviewPanelOpen ? '' : 'overview-grid--wide'}`}>
           <article className="card viewer-card">
-            <div className="card-heading"><div><h2>{c.structure}</h2><span>{c.actual}</span></div><StatusPill entry={selected!} language={language} /></div>
-            {report ? <MolecularViewer key={`${selected?.id}:${selected?.sha256}:${selected?.normal_axis}:${selected?.short_distance}`} report={report} language={language} highlight={focusContact} highlightGap={highlightGap} highlightedAtomIndices={highlightedAtomIndices} onAtomPick={onAtomPick} /> : <div data-testid="unsupported-empty" className="empty-view"><Info /><strong>{(language === 'ko' ? selected?.analysis.error_ko : selected?.analysis.error) ?? selected?.analysis.error ?? c.unsupported}</strong></div>}
-            <div className="viewer-filename">{selected?.filename}</div>
+            <div className="card-heading"><div><h2>{c.structure}</h2><span>{c.actual}</span></div><div className="viewer-heading-actions"><StatusPill entry={selected!} language={language} /><button type="button" data-testid="review-panel-toggle" aria-expanded={reviewPanelOpen} aria-controls="overview-review-panel" onClick={() => setReviewPanelOpen((value) => !value)}>{reviewPanelOpen ? (language === 'ko' ? '검토 패널 접기' : 'Hide review panel') : (language === 'ko' ? '검토 패널 보기' : 'Show review panel')}</button></div></div>
+            {report ? <MolecularViewer key={`${selected?.id}:${selected?.sha256}:${selected?.normal_axis}:${selected?.short_distance}`} report={report} language={language} highlight={focusContact} highlightGap={highlightGap} highlightedAtomIndices={highlightedAtomIndices} onAtomPick={onAtomPick} auxiliary={auxiliaryBySource[selected!.sha256]} /> : <div data-testid="unsupported-empty" className="empty-view"><Info /><strong>{(language === 'ko' ? selected?.analysis.error_ko : selected?.analysis.error) ?? selected?.analysis.error ?? c.unsupported}</strong></div>}
+            <div className="viewer-filename" title={selected?.filename}>{selected?.filename}</div>
           </article>
 
-          <article className="card review-card">
+          <article id="overview-review-panel" className="card review-card" hidden={!reviewPanelOpen}>
             <div className="card-heading"><h2>{c.checks}</h2><span>{reviewedCount}/{workspace.entries.length}</span></div>
             <button className="check-row" onClick={() => void inspectFocus('minimum')}><StatusMark state={minimumState} /><span><b>{c.minimum}</b><small>{finite(report?.metrics.minimum_distance_angstrom, 4)}</small></span></button>
             <button className="check-row" onClick={() => void inspectFocus('gap')}><StatusMark state={gapState} /><span><b>{c.gap}</b><small>{!report ? c.unsupported : report.gap_review_required ? c.needsReview : c.clear}</small></span></button>
@@ -342,9 +355,14 @@ export default function App() {
           saveCurrentPair={saveCurrentPair} measuredSelection={measuredSelection}
         />
 
+        {report && selected && <AuxiliaryDataPanel key={`${selected.id}:${selected.sha256}`} report={report} sourceSha256={selected.sha256} language={language} data={auxiliaryBySource[selected.sha256]} onChange={(data) => {
+          const sha = selected.sha256;
+          if (activeSources.current.has(sha)) setAuxiliaryBySource((previous) => ({ ...previous, [sha]: data }));
+        }} />}
+
       </>}
 
-      {view === 'compare' && <ComparisonView workspace={workspace} language={language} before={before} after={after} beforeId={compareBefore} afterId={compareAfter} setBefore={setCompareBefore} setAfter={setCompareAfter} />}
+      {view === 'compare' && <ComparisonView workspace={workspace} language={language} before={before} after={after} beforeId={compareBefore} afterId={compareAfter} setBefore={setCompareBefore} setAfter={setCompareAfter} auxiliaryBySource={auxiliaryBySource} />}
       {view === 'review' && <ReviewView workspace={workspace} selected={selected!} issues={localizedIssues} language={language} act={act} onInspect={(issue) => void inspectFocus(focusForIssue(issue), issue)} />}
       {view === 'methods' && <MethodView selected={selected!} language={language} reportLanguage={reportLanguage} setReportLanguage={setReportLanguage} />}
       <footer>CalcLens · Local workflow · Inspectable results</footer>
@@ -414,12 +432,18 @@ function Records({ workspace, entries, selected, language, act }: { workspace: W
   </section>;
 }
 
-function ComparisonView({ workspace, language, before, after, beforeId, afterId, setBefore, setAfter }: { workspace: Workspace; language: Language; before: Entry | null; after: Entry | null; beforeId: string; afterId: string; setBefore: (id: string) => void; setAfter: (id: string) => void }) {
+function ComparisonView({ workspace, language, before, after, beforeId, afterId, setBefore, setAfter, auxiliaryBySource }: { workspace: Workspace; language: Language; before: Entry | null; after: Entry | null; beforeId: string; afterId: string; setBefore: (id: string) => void; setAfter: (id: string) => void; auxiliaryBySource: Record<string, ViewerAuxiliaryData> }) {
   const c = copy(language);
+  const [synchronized, setSynchronized] = useState(false);
+  const [leftViewer, setLeftViewer] = useState<GLViewer | null>(null);
+  const [rightViewer, setRightViewer] = useState<GLViewer | null>(null);
+  useEffect(() => {
+    if (synchronized && leftViewer && rightViewer) return linkCameraViews(leftViewer, rightViewer);
+  }, [synchronized, leftViewer, rightViewer]);
   const selectors = (value: string, setter: (id: string) => void, label: string, testId: string) => <label>{label}<select data-testid={testId} value={value} onChange={(event) => setter(event.target.value)}>{workspace.entries.map((entry) => <option value={entry.id} key={entry.id}>{entry.filename}</option>)}</select></label>;
   return <>
-    <section className="compare-controls card"><div>{selectors(beforeId, setBefore, c.before, 'compare-before')}{selectors(afterId, setAfter, c.after, 'compare-after')}</div><a className="button-link" href={`/api/v1/comparison.csv?lang=${language}`} download><Download />{c.exportCsv}</a></section>
-    <section className="comparison-grid">{[before, after].map((entry, index) => <article data-testid={`compare-card-${index}`} className="card compare-card" key={`${entry?.id}-${index}`}><div className="card-heading"><div><h2>{index ? c.after : c.before}</h2><span>{entry?.filename}</span></div>{entry && <StatusPill entry={entry} language={language} />}</div>{entry?.analysis.report ? <MolecularViewer key={`${entry.id}:${entry.sha256}:${entry.normal_axis}:${entry.short_distance}`} report={entry.analysis.report} language={language} compact /> : <div className="empty-view">{entry?.analysis.error ?? c.unsupported}</div>}<MetricRows entry={entry} language={language} /></article>)}</section>
+    <section className="compare-controls card"><div>{selectors(beforeId, setBefore, c.before, 'compare-before')}{selectors(afterId, setAfter, c.after, 'compare-after')}</div><label className="compare-sync"><span><input data-testid="compare-sync" type="checkbox" checked={synchronized} onChange={(event) => setSynchronized(event.target.checked)} />{language === 'ko' ? '회전·확대 동기화' : 'Sync rotation & zoom'}</span><small>{language === 'ko' ? '각 구조의 중심 유지 · 자동 구조 정렬 아님' : 'Keeps each center · no automatic structure alignment'}</small></label><a className="button-link" href={`/api/v1/comparison.csv?lang=${language}`} download><Download />{c.exportCsv}</a></section>
+    <section className="comparison-grid">{[before, after].map((entry, index) => <article data-testid={`compare-card-${index}`} className="card compare-card" key={`${entry?.id}-${index}`}><div className="card-heading"><div><h2>{index ? c.after : c.before}</h2><span title={entry?.filename}>{entry?.filename}</span></div>{entry && <StatusPill entry={entry} language={language} />}</div>{entry?.analysis.report ? <MolecularViewer key={`${entry.id}:${entry.sha256}:${entry.normal_axis}:${entry.short_distance}`} report={entry.analysis.report} language={language} compact auxiliary={auxiliaryBySource[entry.sha256]} onViewerReady={index === 0 ? setLeftViewer : setRightViewer} /> : <div className="empty-view">{entry?.analysis.error ?? c.unsupported}</div>}<MetricRows entry={entry} language={language} /></article>)}</section>
     <ComparisonDetails before={before} after={after} language={language} />
   </>;
 }

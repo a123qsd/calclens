@@ -10,11 +10,24 @@ service is required.
 
 [Project home](https://github.com/a123qsd/calclens) · [한국어 안내](README.ko.md) · [English ZIP and installation](docs/DOWNLOADS.md#english) · [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) · [Development](docs/DEVELOPMENT.md) · [Validation record](docs/VALIDATION.md)
 
-**CalcLens v0.5.0** includes project editing, review history, chosen-pair
+**CalcLens v0.6.0** includes project editing, review history, chosen-pair
 measurements, side-by-side comparison, a molecular workspace and a Windows
 launch manager.
 
-![CalcLens molecular workspace](docs/assets/calclens-workspace.png)
+Version 0.6.0 adds ball-and-stick, stick and space-filling views, element
+legends, metal-element highlighting, graphics quality, top/side views,
+orthographic projection, fullscreen, linked comparison cameras and 1600/3200-pixel
+PNG export. Display counts and label/connection caps are visible.
+
+Use **Charge & electronic surface data** to download a source-matched JSON
+template or import a Cube grid. Partial, formal and ionic charges and oxidation
+states have distinct meanings; missing values remain unknown. Density and
+orbital displays use supplied grids, without electronic-structure calculations.
+Auxiliary data lasts **only for the current browser session** and is not included
+in saved projects. See [Imported viewer data](docs/VIEWER_DATA.md) for formats,
+coordinate matching and units.
+
+![CalcLens molecular workspace](docs/assets/calclens-viewer-0.6.0.png)
 
 [Watch the earlier Streamlit demo](docs/assets/calclens-demo.webm) ·
 [Read the public graphite case](docs/CASE_STUDY.md)
@@ -26,12 +39,12 @@ launch manager.
 ## Run locally
 
 On Windows x64, download the
-[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-en.exe)
+[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-en.exe)
 and double-click it. Python and the app's dependencies are included. A launch
 manager opens the browser workspace and provides **Open CalcLens**, **Diagnostics**
 and **Quit**. Closing the manager stops the server; closing only the browser tab
 leaves it running. For faster repeat launches, extract the complete
-[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-en-folder.zip)
+[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-en-folder.zip)
 and run the EXE inside it. These executables are unsigned. See the
 [Windows guide](packaging/windows/README.en.md) for startup, closing the app,
 checksums, and license/source files.
@@ -39,7 +52,7 @@ checksums, and license/source files.
 For an English-default source ZIP, choose the English ZIP asset on the
 [latest release](https://github.com/a123qsd/calclens/releases/latest) and follow
 the [download instructions](docs/DOWNLOADS.md#english). A standalone
-[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-Guide.en.md)
+[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-Guide.en.md)
 is also available. Python 3.12 or 3.13 and dependency
 installation are required for that source ZIP. The browser workspace is already
 included; you do not need Node.js to run it.

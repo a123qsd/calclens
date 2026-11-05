@@ -9,6 +9,17 @@ energy, phonon, charge, or electronic-structure calculation.
 이 도구는 P1 셀에 명시된 원자핵 위치를 검사합니다. 물질의 안정성, 결합의 적절성,
 계산 설정의 정확성을 판정하지 않으며 구조를 자동으로 고치지 않습니다.
 
+The optional viewer can display externally supplied charge assignments and Cube
+density/orbital grids. Those displays do not change these calculations or relax
+the CIF input contract. Source/coordinate checks establish a display mapping,
+not the correctness of the external calculation. Unknown charges are not zero,
+oxidation states are not partial charges, and orbital colors denote wavefunction
+sign rather than positive/negative electron charges. See [Imported viewer
+data](VIEWER_DATA.md) for the separate display-data contract and session-only lifetime.
+
+가져온 전하·전자 표면은 표시용 보조 자료이며 기하 분석이나 입력 제한을 바꾸지 않습니다.
+표면의 기준값은 그래픽 품질과 별개이고, 원자핵 기준 두께·간격은 전자 표면을 반영하지 않습니다.
+
 ## Input contract
 
 | Input | Accepted values |

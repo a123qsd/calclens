@@ -62,7 +62,7 @@ svg { width: 22px; height: 22px; flex: 0 0 auto; }
 .header-actions { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
 .button, .button-link, .header-actions button { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 19px; border: 1px solid #adb7c0; border-radius: 9px; background: white; font-weight: 650; text-decoration: none; cursor: pointer; }
 .button.primary { min-width: 160px; color: white; border-color: var(--teal); background: linear-gradient(105deg, var(--teal-dark), #00a696); box-shadow: 0 5px 14px rgb(0 126 117 / 16%); }
-.sample-control { display: flex; align-items: stretch; }.sample-control select { width: 180px; height: 42px; margin-right: -9px; padding: 0 17px 0 9px; color: #075f58; border-color: var(--teal-dark); border-radius: 9px 0 0 9px; background: #ecf8f6; font-size: 11px; }.sample-control .button { position: relative; min-width: 125px; border-radius: 9px; }
+.sample-control { display: grid; grid-template-columns: minmax(0, 180px) auto; align-items: stretch; gap: 6px; min-width: 0; }.sample-control select { width: 100%; min-width: 0; height: 42px; padding: 0 17px 0 9px; color: #075f58; border-color: var(--teal-dark); border-radius: 9px; background: #ecf8f6; font-size: 11px; }.sample-control .button { position: relative; min-width: 125px; border-radius: 9px; }
 .header-actions .language { min-width: 94px; padding: 0 13px; gap: 7px; color: #647184; font-weight: 500; }
 .language b { color: #183653; padding: 3px 6px; border-radius: 5px; background: #e9eff5; }
 
@@ -122,7 +122,7 @@ footer { padding: 15px 3px 0; color: #425063; font-size: 12px; }
 }
 
 @media (max-width: 820px) {
-  .sample-control { flex: 2; }.sample-control select { width: 42%; }.sample-control .button { width: 58%; }
+  .sample-control { flex: 2; grid-template-columns: minmax(0, 1fr) auto; }.sample-control select, .sample-control .button { width: 100%; }
   .app-shell { display: block; }.sidebar { position: sticky; width: 100%; height: 62px; flex-direction: row; align-items: center; padding: 7px 11px; }.brand { width: auto; padding: 0 10px 0 0; }.brand > svg { width: 36px; height: 36px; }.sidebar nav { display: flex; flex: 1; justify-content: center; }.sidebar nav button { width: 48px; min-height: 46px; }.sidebar-spacer, .project-chip, .side-links, .version { display: none; }.workspace { padding: 14px; }.topbar { min-height: auto; flex-direction: column; padding-bottom: 16px; }.header-actions { width: 100%; justify-content: stretch; }.header-actions .button { flex: 1; }.metrics-grid, .overview-grid, .tool-grid, .comparison-grid, .review-layout, .method-grid { grid-template-columns: 1fr; }.truth-banner > span { display: none; }.truth-banner { align-items: flex-start; }.compare-controls { align-items: stretch; flex-direction: column; }.compare-controls > div { flex-direction: column; }.compare-controls select { width: 100%; min-width: 0; }.record-actions select { display: block; }
 }
 
@@ -159,3 +159,48 @@ footer { padding: 15px 3px 0; color: #425063; font-size: 12px; }
 .conflict-recovery > div { width: 100%; }
 .conflict-recovery textarea { display: block; width: 100%; min-height: 90px; margin: 8px 0; }
 .conflict-recovery button { margin-right: 8px; padding: 6px 10px; }
+
+.topbar { flex-wrap: wrap; }
+.topbar > div:first-child { min-width: 0; flex: 1 1 220px; }
+.header-actions { min-width: 0; flex-wrap: wrap; }
+.breadcrumb, .topbar h1, .card-heading h2 { overflow-wrap: anywhere; }
+.card-heading { flex-wrap: wrap; }
+.card-heading > div { flex-wrap: wrap; gap: 6px 12px; }
+.card-heading span { overflow-wrap: anywhere; }
+.viewer-heading-actions { margin-left: auto; justify-content: flex-end; }
+.viewer-heading-actions button { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); background: white; font: inherit; font-size: 11px; cursor: pointer; }
+.overview-grid--wide { grid-template-columns: minmax(0, 1fr); }
+.viewer-filename { overflow-wrap: anywhere; }
+.records-card td:first-child { max-width: 330px; }
+.records-card td > button { max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+.compare-controls { flex-wrap: wrap; }
+.compare-controls > div { min-width: 0; flex-wrap: wrap; }
+.compare-controls label { min-width: 0; max-width: 100%; }
+.compare-controls select { max-width: 100%; }
+.compare-sync span { display: flex; align-items: center; gap: 8px; }
+.compare-sync input { width: 16px; height: 16px; }
+.compare-sync small { max-width: 250px; line-height: 1.4; }
+.auxiliary-panel { margin-top: 16px; }
+.auxiliary-body { padding-top: 14px; }
+.auxiliary-body fieldset { min-width: 0; margin: 0; padding: 14px; border: 1px solid var(--line); border-radius: 8px; }
+.auxiliary-body legend { color: var(--ink); font-size: 13px; font-weight: 650; }
+.auxiliary-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; gap: 12px; }
+.auxiliary-fields label { min-width: 0; display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+.auxiliary-fields input, .auxiliary-fields select { min-width: 0; max-width: 100%; }
+.auxiliary-fields input[type="file"] { height: auto; padding: 8px; font-size: 12px; }
+.auxiliary-fields button { min-height: 37px; padding: 7px 11px; border: 1px solid var(--teal-dark); border-radius: 7px; color: var(--teal-dark); background: var(--teal-soft); cursor: pointer; }
+.auxiliary-note { margin: 4px 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.auxiliary-error { padding: 10px; border: 1px solid #dfaaaa; border-radius: 7px; color: var(--red); background: #fff0f0; overflow-wrap: anywhere; font-size: 13px; }
+.auxiliary-datasets > div { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 9px; background: #f3f7f7; border-radius: 6px; font-size: 12px; }
+.auxiliary-datasets span { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.auxiliary-datasets small { display: block; margin-top: 3px; color: var(--muted); }
+.auxiliary-datasets button { min-width: 30px; min-height: 30px; border: 1px solid var(--line); border-radius: 5px; background: white; cursor: pointer; }
+@media (max-width: 820px) {
+  .topbar > div:first-child { flex-basis: auto; }
+  .header-actions .sample-control { min-width: 0; }
+  .compare-controls label, .compare-controls > div { width: 100%; }
+}
+@media (max-width: 520px) {
+  .auxiliary-fields { grid-template-columns: 1fr; }
+  .viewer-heading-actions { margin-left: 0; justify-content: flex-start; }
+}

@@ -12,6 +12,8 @@ export interface DisplayAtom {
 export interface DisplayBond { a: number; b: number }
 export interface LineSegment { start: Vec3; end: Vec3 }
 
+// Covalent radii in Å: Cordero et al. (2008), DOI:10.1039/B801115J,
+// as tabulated in ASE's ase.data.covalent_radii. Used only for display sticks.
 const COVALENT_RADII: Record<string, number> = {
   H: 0.31, He: 0.28, Li: 1.28, Be: 0.96, B: 0.84, C: 0.76, N: 0.71,
   O: 0.66, F: 0.57, Ne: 0.58, Na: 1.66, Mg: 1.41, Al: 1.21, Si: 1.11,
@@ -20,7 +22,7 @@ const COVALENT_RADII: Record<string, number> = {
   Cu: 1.32, Zn: 1.22, Ga: 1.22, Ge: 1.20, As: 1.19, Se: 1.20, Br: 1.20,
   Kr: 1.16, Rb: 2.20, Sr: 1.95, Y: 1.90, Zr: 1.75, Nb: 1.64, Mo: 1.54,
   Ru: 1.46, Rh: 1.42, Pd: 1.39, Ag: 1.45, Cd: 1.44, In: 1.42, Sn: 1.39,
-  Sb: 1.39, Te: 1.38, I: 1.39, Xe: 1.40, Cs: 2.44, Ba: 2.15, Pt: 1.36,
+  Sb: 1.39, Te: 1.38, I: 1.39, Xe: 1.40, Cs: 2.44, Ba: 2.15, W: 1.62, Pt: 1.36,
   Au: 1.36, Hg: 1.32, Pb: 1.46,
 };
 
