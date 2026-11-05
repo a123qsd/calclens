@@ -8,10 +8,20 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 
 [Project home](https://github.com/a123qsd/calclens) · [English guide](README.en.md) · [한국어 ZIP 받기·설치](docs/DOWNLOADS.md#한국어) · [계산 방법과 한계](docs/METHODS.md) · [예제 출처](docs/PROVENANCE.md) · [개발 안내](docs/DEVELOPMENT.md) · [검증 기록](docs/VALIDATION.md)
 
-**CalcLens v0.5.0**에는 프로젝트 편집, 검토 이력, 선택 거리 측정, 두 구조 비교,
+**CalcLens v0.6.0**에는 프로젝트 편집, 검토 이력, 선택 거리 측정, 두 구조 비교,
 입체 구조 작업공간과 Windows 실행 관리 창이 포함됩니다.
 
-![CalcLens 입체 구조 작업공간](docs/assets/calclens-workspace.png)
+0.6.0의 뷰어에는 구·막대/막대/공간 채움, 원소 범례와 금속 원소 강조,
+그래픽 품질, 위·옆 시점과 정사영, 전체 화면, 비교 시점 동기화 및
+1600/3200픽셀 PNG 저장이 포함됩니다. 표시 원자 수와 라벨·연결 제한도 확인할 수 있습니다.
+
+**전하·전자 표면 자료**에서 현재 CIF에 맞는 JSON 서식을 저장하거나 Cube 파일을
+불러올 수 있습니다. 부분전하·형식전하·이온 순전하·산화수는 구분되며, 값이 없으면
+정보 없음으로 표시합니다. 전자밀도·오비탈은 가져온 격자만 표시하며 계산하지 않습니다.
+보조 자료는 **현재 브라우저 세션에만 보관**하고 작업 저장 파일에 포함하지 않습니다.
+파일 형식·좌표 및 단위 조건은 [보조 자료 안내](docs/VIEWER_DATA.md)를 참고하세요.
+
+![CalcLens 입체 구조 작업공간](docs/assets/calclens-viewer-0.6.0.png)
 
 [이전 Streamlit 화면 사용 영상](docs/assets/calclens-demo.webm) ·
 [공개 흑연 구조 검사 사례](docs/CASE_STUDY.md)
@@ -23,18 +33,18 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 ## 빠르게 실행하기
 
 Windows x64에서는
-[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-ko.exe)를
+[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-ko.exe)를
 받아 더블클릭하세요. Python과 필요한 라이브러리가 포함되어 있습니다.
 실행 관리 창에서 브라우저 화면을 열고 **CalcLens 열기**, **진단 기록**, **종료**를
 사용할 수 있습니다. 관리 창을 닫으면 서버도 종료되며, 브라우저 탭만 닫으면
 계속 실행됩니다. 반복 실행 시간을 줄이려면
-[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-ko-folder.zip)을
+[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-ko-folder.zip)을
 모두 풀고 안에 있는 EXE를 실행하세요. 실행 파일에는 코드 서명이 없습니다.
 종료 방법과 파일 확인, 라이선스·소스 자료는 [Windows 안내](packaging/windows/README.ko.md)에 있습니다.
 
 [배포 파일](https://github.com/a123qsd/calclens/releases/latest)에서 한국어 기본 소스 ZIP을 받으려면
 [다운로드·설치 안내](docs/DOWNLOADS.md#한국어)를 따르세요.
-[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-Guide.ko.md)만
+[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-Guide.ko.md)만
 따로 받을 수도 있습니다. 이 소스 ZIP에는 Python 3.12 또는 3.13과 의존성 설치가 필요합니다.
 화면 파일은 포함되어 있어 실행에 Node.js는 필요하지 않습니다.
 

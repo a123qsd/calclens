@@ -50,3 +50,6 @@ jobs:
       - name: Check incremental 3D viewer updates
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         run: python scripts/smoke_viewer_updates.py --samples 1 --output build/viewer-updates
+      - name: Check viewer controls, scientific data imports and image export
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        run: python scripts/smoke_viewer_features.py --output build/viewer-features

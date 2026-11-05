@@ -1,19 +1,32 @@
 # CalcLens
 
-**CalcLens v0.5.0** includes project file editing, review provenance,
+**CalcLens v0.6.0** includes project file editing, review provenance,
 chosen-pair measurement, side-by-side comparison, a Windows launch manager,
-and a React/TypeScript workspace with an offline 3Dmol.js sphere-and-stick viewer.
+and an offline 3D workspace. The viewer adds ball-and-stick, stick and
+space-filling views, graphics controls, linked comparison cameras and
+1600/3200-pixel PNG export.
 
-**CalcLens v0.5.0**에는 프로젝트 파일 편집, 검토 이력, 원자쌍 측정,
-두 구조 비교와 Windows 실행 관리 창에 더해 React/TypeScript 화면과 오프라인
-3Dmol.js 구·막대 뷰어가 포함됩니다.
+**CalcLens v0.6.0**에는 프로젝트 파일 편집, 검토 이력, 원자쌍 측정,
+두 구조 비교, Windows 실행 관리 창과 오프라인 3D 작업공간이 포함됩니다.
+뷰어에서 구·막대/막대/공간 채움, 그래픽 설정, 비교 시점 동기화와
+1600/3200픽셀 PNG 저장을 사용할 수 있습니다.
+
+Externally supplied charge JSON and density/orbital Cube files can be displayed
+for a matching CIF. CalcLens does not calculate those quantities. Imported viewer
+data lasts only for the current browser session and is not saved in projects.
+See [Imported viewer data](docs/VIEWER_DATA.md) for formats and limits.
+
+CIF와 일치하는 전하 JSON 및 전자밀도·오비탈 Cube 자료를 불러와 표시할 수 있습니다.
+CalcLens가 이 값을 계산하지는 않습니다. 보조 자료는 현재 브라우저 세션에만
+보관하며 작업 저장 파일에 포함하지 않습니다. 형식과 제한은
+[보조 자료 안내](docs/VIEWER_DATA.md)를 참고하세요.
 
 **Windows x64: no Python installation needed / Python 설치 없이 실행**
 
-[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-ko.exe) ·
-[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-en.exe) ·
-[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-ko-folder.zip) ·
-[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-x64-en-folder.zip) ·
+[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-ko.exe) ·
+[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-en.exe) ·
+[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-ko-folder.zip) ·
+[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-en-folder.zip) ·
 [실행 안내](packaging/windows/README.ko.md) · [Windows guide](packaging/windows/README.en.md)
 
 Double-click the EXE to open the launch manager and browser workspace. Use the
@@ -39,7 +52,7 @@ JSON/CSV exports and comparisons of up to 20 CIF files with settings for each fi
 빈 간격을 확인합니다. 화면·사용 안내·결과 설명을 한국어와 영어로 제공하며,
 예제와 JSON·CSV 내보내기, 파일마다 조건을 정하는 최대 20개 CIF 비교를 지원합니다.
 
-![CalcLens molecular workspace / 입체 구조 작업공간](docs/assets/calclens-workspace.png)
+![CalcLens molecular workspace / 입체 구조 작업공간](docs/assets/calclens-viewer-0.6.0.png)
 
 [Earlier Streamlit demo / 이전 Streamlit 화면 영상](docs/assets/calclens-demo.webm) ·
 [Public graphite case / 공개 흑연 사례](docs/CASE_STUDY.md)
@@ -48,13 +61,13 @@ JSON/CSV exports and comparisons of up to 20 CIF files with settings for each fi
 
 [Latest release / 최신 배포](https://github.com/a123qsd/calclens/releases/latest)
 
-| Language | Source ZIP for v0.5.0 | Read guide | Download guide |
+| Language | Source ZIP for v0.6.0 | Read guide | Download guide |
 | --- | --- | --- | --- |
-| English | [calclens-0.5.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.5.0/calclens-0.5.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-Guide.en.md) |
-| 한국어 | [calclens-0.5.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.5.0/calclens-0.5.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-Guide.ko.md) |
+| English | [calclens-0.6.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.6.0/calclens-0.6.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-Guide.en.md) |
+| 한국어 | [calclens-0.6.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.6.0/calclens-0.6.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-Guide.ko.md) |
 
-[Windows checksums / Windows 체크섬](https://github.com/a123qsd/calclens/releases/download/v0.5.0/WINDOWS-SHA256SUMS.txt) ·
-[Windows licenses and build source / Windows 라이선스·빌드 소스](https://github.com/a123qsd/calclens/releases/download/v0.5.0/CalcLens-0.5.0-windows-support.zip)
+[Windows checksums / Windows 체크섬](https://github.com/a123qsd/calclens/releases/download/v0.6.0/WINDOWS-SHA256SUMS.txt) ·
+[Windows licenses and build source / Windows 라이선스·빌드 소스](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-support.zip)
 
 Both ZIPs contain the same analysis engine and both interface languages. Each
 opens in its selected language by default. **Python 3.12 or 3.13 and dependency

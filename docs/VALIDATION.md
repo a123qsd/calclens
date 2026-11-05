@@ -1,5 +1,57 @@
 # Validation record
 
+## v0.6.0 local viewer verification — 2026-11-05
+
+The expanded viewer retains the tungsten and model-reuse corrections below.
+Local checks passed **39 frontend tests**, TypeScript checking, the production
+build, **547 Python tests** and Ruff. After reinstalling the rebuilt package,
+all 22 web-API tests passed again. The existing 11 ASE/NumPy deprecation warnings
+remain. No new project dependency was added.
+
+Real Chromium/WebGL checks passed three suites: eight existing workspace groups,
+nine incremental-viewer groups and nine new feature groups. The new feature
+suite recorded zero page or console errors. The workspace suite's two intentional
+HTTP 409 conflicts remained the only expected errors in that suite.
+
+- Korean and English overview layouts passed at 390, 820, 1100 and 1584 pixels,
+  with long filenames and no horizontal overflow or overlapping sample controls.
+  Comparison controls also stayed within their own viewer containers at all
+  four widths.
+- All three representations and graphics-quality levels retained the atoms and
+  camera without replacing the atom model. Top/side presets, projections,
+  fullscreen focus, review-panel collapse and repeat changes were exercised.
+  Comparison rotation and zoom synchronized while retaining each center and pan;
+  unlinking restored independent camera control.
+- A 400-site structure displayed 3,600 atoms. Across the 17 measured toolbar,
+  report and highlight changes, whole-model rebuilding remained at zero. Label
+  priority updated after review selection even when labels were already enabled.
+  The 180-label and 8,000-connection truncation notices matched actual limits.
+  This single-sample regression run is not a cross-hardware performance claim.
+- Four charge kinds retained their own scientific meaning, source and method.
+  Missing values, explicit zero and signed values had distinct colors. Wrong CIF
+  identity, element mapping, missing metadata and invalid integer charges were
+  rejected without replacing valid data. Selection highlights were checked using
+  3Dmol's resolved color function, including restoration after selection changes.
+- A synthetic 125-point orbital fixture produced both signed surfaces. Hiding
+  and showing surfaces, or changing only opacity, reused their meshes. Coordinate,
+  unit and negative-density mismatches were rejected. Parser tests also cover
+  numeric underflow and grid collapse after float32 conversion; a separate test
+  rejects surface complexity above 25,000 intersected cells before allocation.
+- Downloaded PNGs were **1600 × 736** and **3200 × 1472** pixels. The white
+  image's corner was opaque white; the High-quality/AO transparent image's corner
+  had alpha zero. Camera, canvas dimensions, background and labels were restored
+  after both successful export and an injected export failure.
+- Auxiliary data survived switching back to the same CIF in the session,
+  stayed isolated from other structures, and was invalidated by source-byte
+  replacement. It is intentionally excluded from saved projects.
+
+Electronic fixtures above test data handling and rendering, not physical accuracy.
+CalcLens does not compute electronic structure; the existing fully occupied P1
+CIF input contract remains. See [VIEWER_DATA.md](VIEWER_DATA.md) for accepted
+formats and bounds. These are local macOS/Chromium results; remote CI and native
+Windows outcomes are recorded with the published release rather than inferred
+from the presence of workflow steps.
+
 ## Viewer update verification (unreleased) — 2026-11-05
 
 Compared with source `7e97deff51eede207f73cf1c61c97fe3c1dd296e`, the local

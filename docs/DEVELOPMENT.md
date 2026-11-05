@@ -6,7 +6,7 @@ This naming difference does not indicate a second application.
 
 ## Local workflow
 
-The source tree is v0.5.0. Release package names and installation instructions
+The source tree is v0.6.0. Release package names and installation instructions
 are listed in [DOWNLOADS.md](DOWNLOADS.md).
 Use Python 3.12 or 3.13 and install the pinned runtime, build, and test dependencies:
 
@@ -162,7 +162,15 @@ files. Run the same focused check locally after installing the browser tools:
 python -m pip install --require-hashes -r packaging/windows/smoke-requirements.lock
 python -m playwright install chromium
 python scripts/smoke_workspace_regressions.py --output build/workspace-regressions
+python scripts/smoke_viewer_updates.py --samples 1 --output build/viewer-updates
+python scripts/smoke_viewer_features.py --output build/viewer-features
 ```
+
+The incremental-viewer check starts a temporary Vite server and asserts model
+reuse on a 400-site / 3,600-displayed-atom fixture. The feature check serves the
+built workspace and covers responsive controls, camera synchronization, bounded
+charge/Cube imports and actual high-resolution PNG downloads. Electronic fields
+in these tests are synthetic format fixtures, not scientific calculations.
 
 The Windows release workflow builds and checks each locale in both one-file and
 folder forms. It verifies the extracted folder ZIP before collecting release
@@ -189,9 +197,9 @@ The committed browser assets are included, so using a source package does not
 require Node.js or a frontend build.
 See [DOWNLOADS.md](DOWNLOADS.md) for setup instructions.
 
-Windows release assets are `CalcLens-0.5.0-windows-x64-ko.exe`,
-`CalcLens-0.5.0-windows-x64-en.exe`, matching `-folder.zip` archives,
-`CalcLens-0.5.0-windows-support.zip` and `WINDOWS-SHA256SUMS.txt`. The support
+Windows release assets are `CalcLens-0.6.0-windows-x64-ko.exe`,
+`CalcLens-0.6.0-windows-x64-en.exe`, matching `-folder.zip` archives,
+`CalcLens-0.6.0-windows-support.zip` and `WINDOWS-SHA256SUMS.txt`. The support
 archive records the dependency versions and source commit and includes the
 CalcLens source and required third-party notices and source materials.
 Executable build metadata and support manifests identify their own build commit;

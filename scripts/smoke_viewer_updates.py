@@ -240,13 +240,41 @@ def run(url, output, mode, samples, browser_executable=None):
             # Check selection style is applied to all nine copies and removed again.
             page.evaluate(MEASURE, {"patch": {"highlightedAtomIndices": [0]}})
             highlighted = page.evaluate("""() => window.__viewerProbe.viewer.getModel(0)
-                .selectedAtoms({}).filter(a => a.style.sphere?.color === '#F59E0B').length""")
+                .selectedAtoms({}).filter(a => (a.style.sphere?.colorfunc?.(a)
+                    ?? a.style.sphere?.color)?.toUpperCase() === '#F59E0B').length""")
             require(highlighted == 9, f"Expected nine highlighted copies, got {highlighted}.")
             page.evaluate(MEASURE, {"patch": {"highlightedAtomIndices": []}})
             require(page.evaluate("""() => window.__viewerProbe.viewer.getModel(0)
-                .selectedAtoms({}).every(a => a.style.sphere?.color !== '#F59E0B')"""),
+                .selectedAtoms({}).every(a => (a.style.sphere?.colorfunc?.(a)
+                    ?? a.style.sphere?.color)?.toUpperCase() !== '#F59E0B')"""),
                 "Clearing a selection left stale highlight styles.")
             results["checks"].append("all repeated atom highlights update and clear")
+
+            if mode == "verify":
+                expect(page.get_by_test_id("viewer-counts")).to_contain_text("Original cell: 400")
+                expect(page.get_by_test_id("viewer-counts")).to_contain_text("Displayed atoms: 3600")
+                expect(page.get_by_test_id("viewer-counts")).to_contain_text("3×3×1")
+                page.get_by_title("Atom IDs", exact=True).click()
+                page.wait_for_function("window.__viewerProbe.labels.size === 180")
+                require(page.evaluate("[...window.__viewerProbe.labels.values()].every(text => text !== 'C400')"),
+                        "The label-priority fixture unexpectedly starts with C400 visible.")
+                page.evaluate(MEASURE, {"patch": {"highlightedAtomIndices": [399]}})
+                expect(page.get_by_test_id("viewer-notices")).to_contain_text("180/3600")
+                require(page.evaluate("[...window.__viewerProbe.labels.values()].filter(text => text === 'C400').length") == 9,
+                        "The label cap omitted highlighted atoms outside the first 180 display entries.")
+                page.get_by_title("Atom IDs", exact=True).click()
+                page.evaluate("""() => {
+                    const report = structuredClone(window.__viewerHarness.report);
+                    report.positions = report.positions.map((_, i) => [i % 20, Math.floor(i / 20), 0]);
+                    report.scaled_positions = report.positions.map(p => [p[0] / 32, p[1] / 32, 0]);
+                    window.__viewerHarness.setProps({report, highlightedAtomIndices: []});
+                }""")
+                expect(page.get_by_test_id("viewer-notices")).to_contain_text("8,000")
+                require(page.evaluate("window.__viewerProbe.viewer.getModel(0).selectedAtoms({}).reduce((n,a)=>n+a.bonds.length,0)/2") == 8000,
+                        "The disclosed connection cap does not match the displayed connections.")
+                page.evaluate("window.__viewerHarness.reset()")
+                page.wait_for_function("window.__viewerProbe.viewer.getModel(0).selectedAtoms({})[1].x - window.__viewerProbe.viewer.getModel(0).selectedAtoms({})[0].x > 1.5")
+                results["checks"].append("source/display counts and caps are disclosed; selected labels have priority")
 
             # Repeat and coordinate changes must rebuild the actual model.
             page.locator(".molecule-toolbar select").select_option("1")
