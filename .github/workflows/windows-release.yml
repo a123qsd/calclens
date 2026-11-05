@@ -80,11 +80,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Collect bundled licenses and exact ASE source
         run: |
-          $legacyFlags = if ($env:CALCLENS_INCLUDE_LEGACY_UI -eq '1') { @('--include-legacy-ui') } else { @() }
+          $legacyFlags = @(if ($env:CALCLENS_INCLUDE_LEGACY_UI -eq '1') { '--include-legacy-ui' })
           python scripts/collect_windows_licenses.py --output "build/windows/notices$env:CALCLENS_VARIANT_SUFFIX" --source-commit ${{ github.sha }} @legacyFlags
       - name: Build directory bundle
         run: |
-          $legacyFlags = if ($env:CALCLENS_INCLUDE_LEGACY_UI -eq '1') { @('--include-legacy-ui') } else { @() }
+          $legacyFlags = @(if ($env:CALCLENS_INCLUDE_LEGACY_UI -eq '1') { '--include-legacy-ui' })
           python scripts/build_windows.py --language ${{ matrix.language }} --mode onedir --output dist/onedir @legacyFlags
       - name: Install browser test tools
         run: |
@@ -116,7 +116,7 @@ jobs:
           if ($selfTest.status -ne "ok" -or $selfTest.frozen -ne $true) { throw "Extracted folder ZIP self-test failed." }
       - name: Build final standalone executable
         run: |
-          $legacyFlags = if ($env:CALCLENS_INCLUDE_LEGACY_UI -eq '1') { @('--include-legacy-ui') } else { @() }
+          $legacyFlags = @(if ($env:CALCLENS_INCLUDE_LEGACY_UI -eq '1') { '--include-legacy-ui' })
           python scripts/build_windows.py --language ${{ matrix.language }} --mode onefile --output dist/windows @legacyFlags
       - name: Exercise final executable in isolation
         run: python scripts/smoke_windows_exe.py --exe "dist/windows/$env:CALCLENS_NAME.exe" --language ${{ matrix.language }} --output build/smoke-onefile
