@@ -1,6 +1,7 @@
 """Pure checks for the Windows frozen-executable smoke harness."""
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -87,3 +88,34 @@ def test_windows_smoke_requires_checks_for_the_declared_ui_variant():
     with pytest.raises(AssertionError, match="imported legacy"):
         smoke.verify_self_test_checks({"includes_legacy_ui": False, "checks": core,
                                        "module_origins": {"plotly": "unexpected"}})
+
+
+def test_legacy_project_download_uses_the_current_serializer_contract(tmp_path):
+    from slab_preflight.project import Project, ProjectEntry, SCHEMA_VERSION, dumps_project
+
+    path = tmp_path / "legacy.calclens.json"
+    path.write_bytes(dumps_project(Project([
+        ProjectEntry("water", "water.cif", (ROOT / "examples/electronic_case/water.cif").read_bytes()),
+    ])))
+    document = smoke.read_legacy_project_document(path)
+    assert document["schema_version"] == SCHEMA_VERSION
+    assert document["workspace_state"] == {}
+
+
+@pytest.mark.parametrize("schema", [1, 2, 999, True, 3.0, "3", None])
+def test_legacy_project_download_rejects_mismatched_or_noninteger_schema(tmp_path, schema):
+    from slab_preflight.project import PROJECT_FORMAT
+
+    path = tmp_path / "wrong-schema.json"
+    path.write_text(json.dumps({"format": PROJECT_FORMAT, "schema_version": schema}))
+    with pytest.raises(AssertionError, match="format/schema"):
+        smoke.read_legacy_project_document(path)
+
+
+def test_legacy_project_download_rejects_a_foreign_format(tmp_path):
+    from slab_preflight.project import SCHEMA_VERSION
+
+    path = tmp_path / "wrong-format.json"
+    path.write_text(json.dumps({"format": "other.project", "schema_version": SCHEMA_VERSION}))
+    with pytest.raises(AssertionError, match="format/schema"):
+        smoke.read_legacy_project_document(path)

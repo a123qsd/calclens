@@ -349,6 +349,18 @@ def isolated_work_directory():
         remove_isolated_directory(directory)
 
 
+def read_legacy_project_document(path):
+    """Legacy JSON downloads use the same declared serializer as the workspace."""
+    from slab_preflight.project import PROJECT_FORMAT, SCHEMA_VERSION
+
+    document = json.loads(path.read_text("utf-8"))
+    require(document.get("format") == PROJECT_FORMAT
+            and type(document.get("schema_version")) is int
+            and document["schema_version"] == SCHEMA_VERSION,
+            "Downloaded project format/schema is wrong.")
+    return document
+
+
 def browser_flow(base_url, language, version, output, originals, browser_events):
     # Import only in the CI harness, never in the frozen application.
     from playwright.sync_api import expect, sync_playwright
@@ -378,9 +390,23 @@ def browser_flow(base_url, language, version, output, originals, browser_events)
     def radio(page, logical_key, choice):
         widget = page.locator(f".st-key-{logical_key}_{language}")
         control = widget.get_by_role("radio", name=LABELS[language][choice], exact=True)
+        previous_tables = []
+        if logical_key == "batch_filter" and not control.is_checked():
+            previous_tables = page.locator('[class*="st-key-batch_table_"]').evaluate_all(
+                "nodes => nodes.map(node => [...node.classList].find(name => name.startsWith('st-key-batch_table_')))"
+            )
         control.focus()
         control.press("Space")
         expect(control).to_be_checked()
+        if previous_tables:
+            # A radio checks locally before Streamlit starts its rerun. The table
+            # fingerprint changes only after the server applies the new filter;
+            # waiting for that acknowledgement also prevents an old download.
+            page.wait_for_function("""previous => {
+                const keys=[...document.querySelectorAll('[class*="st-key-batch_table_"]')]
+                    .map(node => [...node.classList].find(name => name.startsWith('st-key-batch_table_')));
+                return keys.length>0 && keys.every(key => !previous.includes(key));
+            }""", arg=previous_tables, timeout=30_000)
         idle(page)
 
     def download(page, key, filename):
@@ -417,9 +443,7 @@ def browser_flow(base_url, language, version, output, originals, browser_events)
         return page
 
     def read_project(path):
-        document = json.loads(path.read_text("utf-8"))
-        require(document.get("format") == "calclens.project" and document.get("schema_version") == 2,
-                "Downloaded project format/schema is wrong.")
+        document = read_legacy_project_document(path)
         entries = document["entries"]
         require(len(entries) == 3 and len({entry["id"] for entry in entries}) == 3,
                 "Project lost or merged uploaded files.")
