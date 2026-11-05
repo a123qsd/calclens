@@ -10,7 +10,7 @@ service is required.
 
 [Project home](https://github.com/a123qsd/calclens) · [한국어 안내](README.ko.md) · [English ZIP and installation](docs/DOWNLOADS.md#english) · [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) · [Development](docs/DEVELOPMENT.md) · [Validation record](docs/VALIDATION.md)
 
-**CalcLens v0.6.0** includes project editing, review history, chosen-pair
+**CalcLens v0.7.0 source** includes project editing, review history, chosen-pair
 measurements, side-by-side comparison, a molecular workspace and a Windows
 launch manager.
 
@@ -23,8 +23,10 @@ Use **Charge & electronic surface data** to download a source-matched JSON
 template or import a Cube grid. Partial, formal and ionic charges and oxidation
 states have distinct meanings; missing values remain unknown. Density and
 orbital displays use supplied grids, without electronic-structure calculations.
-Auxiliary data lasts **only for the current browser session** and is not included
-in saved projects. See [Imported viewer data](docs/VIEWER_DATA.md) for formats,
+Electronic files, drafts and viewer settings are included in portable ZIP projects.
+A structure can have multiple datasets, with independent selections and shared
+charge scales in Compare. See the [workspace guide](docs/WORKSPACE_SAVE.md) and
+[real H2O calculation case](docs/ELECTRONIC_CASE.md). See [Imported viewer data](docs/VIEWER_DATA.md) for formats,
 coordinate matching and units.
 
 ![CalcLens molecular workspace](docs/assets/calclens-viewer-0.6.0.png)
@@ -38,7 +40,8 @@ coordinate matching and units.
 
 ## Run locally
 
-On Windows x64, download the
+The currently published Windows binaries are v0.6.0 and do not include the
+0.7.0 source changes. On Windows x64, download the
 [English EXE](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-en.exe)
 and double-click it. Python and the app's dependencies are included. A launch
 manager opens the browser workspace and provides **Open CalcLens**, **Diagnostics**
@@ -87,7 +90,8 @@ The default screen uses React/TypeScript and a bundled 3Dmol.js viewer. Python
 still owns CIF parsing, geometric measurements and project storage. The three
 summary cards show the minimum periodic distance, nuclear-span thickness and
 candidate nuclear gap. They do not represent SCF, optimization or frequency results.
-The earlier Streamlit screen remains available with `python run_app.py --legacy-ui`.
+After installing the optional `legacy-ui` extra, the earlier Streamlit screen
+remains available with `python run_app.py --legacy-ui`.
 
 Drag the structure to rotate it and scroll to zoom. **Fit atoms** frames the
 structure; **Fit cell** includes the full unit cell. Use **Repeat** to display
@@ -139,8 +143,9 @@ distance. Save up to 50 selections per entry; distances are recalculated from
 the original source when reopening. Index fields explicitly identify their
 numbering convention; raw JSON indices are zero based.
 
-**Save project** downloads a `.calclens.json` containing original CIF bytes,
-IDs, settings, notes, review stamps, selections and view filters. **Open project**
+**Save project** downloads a `.calclens.zip` containing original CIF bytes,
+IDs, settings, notes, review stamps, selections, drafts, imported electronic files
+and viewer state. Older schema-1/2 JSON projects remain readable. **Open project**
 restores it and recomputes reports. Corrupt payloads, missing originals and hash
 mismatches are rejected. Report JSON/CSV downloads are evidence exports and
 cannot be imported as projects.
@@ -258,13 +263,15 @@ python -m pytest
 Tests cover analytical distances and gaps, an independently enumerated periodic
 image reference, translation invariance, duplicates across a cell boundary,
 units, and unsupported inputs. The scope is geometric and software verification.
-No energy, force, or electronic-structure calculation is performed.
+CalcLens itself does not run energy, force or electronic-structure calculations.
+The separate [water example](docs/ELECTRONIC_CASE.md) includes an actual PySCF
+calculation and checks for importing its results.
 
 ## Tools used
 
 [ASE](https://docs.ase-lib.org/) supplies CIF parsing and periodic geometry.
 React and TypeScript provide the workspace; 3Dmol.js draws the molecular viewer.
-Streamlit and Plotly remain available in the legacy interface (`--legacy-ui`).
+Streamlit and Plotly are optional dependencies for the legacy interface (`--legacy-ui`).
 [pymatgen](https://pymatgen.org/) also supports CIF and materials analysis.
 CalcLens adds a narrow input contract and beginner-facing explanations to
 existing tools; it does not replace general materials analysis or simulation software.
@@ -291,3 +298,7 @@ These restrictions do not apply to research results, figures, reports, or other 
 This is **source-available software**, not OSI-approved open source, because sale
 and paid services are restricted. [LICENSE](LICENSE) contains the governing terms.
 Dependencies retain their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+For the previous Streamlit interface, install `.[legacy-ui]` or the pinned
+`requirements-legacy.lock` environment before launching with `--legacy-ui`.
+The default installation excludes Streamlit and Plotly.

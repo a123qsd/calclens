@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "calclens"
-version = "0.6.0"
+version = "0.7.0"
 description = "A local CIF geometry preflight tool for simple two-dimensional slabs."
 readme = "README.en.md"
 requires-python = ">=3.12,<3.14"
@@ -13,11 +13,10 @@ license-files = ["LICENSE"]
 dependencies = [
   "ase>=3.26,<4",
   "numpy>=2,<3",
-  "plotly>=6,<7",
-  "streamlit>=1.53,<2",
 ]
 
 [project.optional-dependencies]
+legacy-ui = ["plotly>=6,<7", "streamlit>=1.53,<2"]
 dev = ["pytest>=8,<10", "ruff>=0.14,<1", "hatchling==1.33.0"]
 
 [project.scripts]

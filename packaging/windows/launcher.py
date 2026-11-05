@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from contextlib import contextmanager
 import importlib.metadata
+import importlib.util
 import json
 import math
 import multiprocessing
@@ -23,7 +24,9 @@ import webbrowser
 
 
 HOST = "127.0.0.1"
-METADATA_PACKAGES = ("ase", "numpy", "plotly", "streamlit", "starlette", "uvicorn")
+CORE_METADATA_PACKAGES = ("ase", "numpy")
+LEGACY_METADATA_PACKAGES = ("plotly", "streamlit")
+METADATA_PACKAGES = CORE_METADATA_PACKAGES + LEGACY_METADATA_PACKAGES
 
 
 class LauncherError(ValueError):
@@ -226,6 +229,7 @@ def read_build_info(root: Path, language: str) -> dict:
             "format": "calclens.source-checkout", "version": __version__,
             "language": language, "architecture": platform.machine(),
             "python_version": platform.python_version(), "build_mode": "source",
+            "includes_legacy_ui": _legacy_dependencies_available(),
         }
     try:
         info = json.loads(path.read_text(encoding="utf-8"))
@@ -237,24 +241,52 @@ def read_build_info(root: Path, language: str) -> dict:
     return info
 
 
+def _legacy_dependencies_available() -> bool:
+    try:
+        return all(name in sys.modules or importlib.util.find_spec(name) is not None
+                   for name in LEGACY_METADATA_PACKAGES)
+    except (ImportError, ValueError):
+        return False
+
+
+def _require_legacy_ui(root: Path, language: str) -> None:
+    if getattr(sys, "frozen", False):
+        if read_build_info(root, language).get("includes_legacy_ui") is not True:
+            raise LauncherError(
+                "This workspace executable does not include the legacy UI. "
+                "Use a CalcLens -legacy Windows bundle to run --legacy-ui."
+            )
+    if not (root / "streamlit_app.py").is_file():
+        raise LauncherError("streamlit_app.py is missing from the CalcLens legacy bundle.")
+    if not _legacy_dependencies_available():
+        raise LauncherError(
+            "The legacy UI needs optional Streamlit and Plotly packages. "
+            'Install the source extra with: python -m pip install ".[legacy-ui]"; '
+            "or use the CalcLens -legacy Windows bundle."
+        )
+
+
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise LauncherError(f"Self-test failed: {message}")
 
 
-def self_test(root: Path, language: str) -> dict:
+def self_test(root: Path, language: str, *, include_legacy_ui: bool | None = None) -> dict:
     """Exercise bundled computation and resources offline, without starting a server."""
     import ase
     import numpy
-    import plotly
-    import streamlit
 
     from slab_preflight import __version__, analyze_cif
     from slab_preflight.batch import BatchInput, analyze_batch
-    from slab_preflight.plotting import profile_figure, structure_figure
     from slab_preflight.project import (
         Project, ProjectEntry, dumps_project, loads_project, mark_reviewed,
     )
+    info = read_build_info(root, language)
+    if include_legacy_ui is None:
+        declared = info.get("includes_legacy_ui")
+        include_legacy_ui = declared if isinstance(declared, bool) else (
+            not getattr(sys, "frozen", False) and _legacy_dependencies_available()
+        )
 
     def close(actual, expected):
         return math.isclose(actual, expected, rel_tol=0.0, abs_tol=1e-8)
@@ -305,23 +337,38 @@ def self_test(root: Path, language: str) -> dict:
     restored = loads_project(dumps_project(project))
     _require(restored == project, "project originals, notes, and review state must round-trip")
 
-    charts = [structure_figure(axis_reports["b"], korean=language == "ko", highlight_gap=True),
-              profile_figure(axis_reports["b"], korean=language == "ko")]
-    chart_json = [json.loads(figure.to_json()) for figure in charts]
-    _require(all(document.get("data") and document.get("layout") for document in chart_json),
-             "both Plotly charts must serialize with traces and layout")
-    _require(any(trace.get("type") == "scatter3d" for trace in chart_json[0]["data"]),
-             "the structure chart must contain a 3D trace")
-    _require(any(trace.get("type") == "scatter" for trace in chart_json[1]["data"]),
-             "the profile chart must contain a profile trace")
-
-    static_index = Path(streamlit.__file__).resolve().parent / "static" / "index.html"
-    validators = Path(plotly.__file__).resolve().parent / "validators" / "_validators.json"
-    _require(static_index.is_file() and static_index.stat().st_size > 0,
-             "Streamlit's static/index.html must be bundled")
-    _require(validators.is_file(), "Plotly's validators/_validators.json must be bundled")
-    _require(bool(json.loads(validators.read_text(encoding="utf-8"))),
-             "Plotly's validator data must contain valid JSON")
+    charts = []
+    modules = {"ase": ase, "numpy": numpy}
+    checks = {name: True for name in (
+        "graphene_geometry", "mos2_axes", "invalid_cell_isolation", "project_roundtrip",
+        "metadata", "workspace_assets",
+    )}
+    if include_legacy_ui:
+        _require_legacy_ui(root, language)
+        # Runtime-only imports keep the default frozen self-test independent of
+        # the optional renderer. The spec explicitly excludes these modules.
+        plotly = importlib.import_module("plotly")
+        streamlit = importlib.import_module("streamlit")
+        plotting = importlib.import_module("slab_preflight.plotting")
+        charts = [plotting.structure_figure(axis_reports["b"], korean=language == "ko",
+                                           highlight_gap=True),
+                  plotting.profile_figure(axis_reports["b"], korean=language == "ko")]
+        chart_json = [json.loads(figure.to_json()) for figure in charts]
+        _require(all(document.get("data") and document.get("layout") for document in chart_json),
+                 "both Plotly charts must serialize with traces and layout")
+        _require(any(trace.get("type") == "scatter3d" for trace in chart_json[0]["data"]),
+                 "the structure chart must contain a 3D trace")
+        _require(any(trace.get("type") == "scatter" for trace in chart_json[1]["data"]),
+                 "the profile chart must contain a profile trace")
+        static_index = Path(streamlit.__file__).resolve().parent / "static" / "index.html"
+        validators = Path(plotly.__file__).resolve().parent / "validators" / "_validators.json"
+        _require(static_index.is_file() and static_index.stat().st_size > 0,
+                 "Streamlit's static/index.html must be bundled")
+        _require(validators.is_file(), "Plotly's validators/_validators.json must be bundled")
+        _require(bool(json.loads(validators.read_text(encoding="utf-8"))),
+                 "Plotly's validator data must contain valid JSON")
+        modules.update(plotly=plotly, streamlit=streamlit)
+        checks.update(plotly_charts=True, streamlit_static=True, plotly_validators=True)
     import slab_preflight
     workspace_assets = Path(slab_preflight.__file__).resolve().parent / "web_assets"
     _require((workspace_assets / "index.html").is_file(), "Workspace HTML must be bundled")
@@ -329,8 +376,8 @@ def self_test(root: Path, language: str) -> dict:
     _require((workspace_assets / "THIRD_PARTY_LICENSES.txt").is_file(),
              "Workspace dependency licenses must be bundled")
 
-    versions = {name: importlib.metadata.version(name) for name in METADATA_PACKAGES}
-    info = read_build_info(root, language)
+    packages = CORE_METADATA_PACKAGES + (LEGACY_METADATA_PACKAGES if include_legacy_ui else ())
+    versions = {name: importlib.metadata.version(name) for name in packages}
     _require(info["version"] == __version__, "build metadata version must match the engine")
     if (root / "DEFAULT_LANGUAGE.txt").exists():
         _require(info["language"] == package_language(root),
@@ -341,7 +388,6 @@ def self_test(root: Path, language: str) -> dict:
         if name in expected_dependencies:
             _require(expected_dependencies[name] == actual, f"{name} metadata version mismatch")
 
-    modules = {"streamlit": streamlit, "ase": ase, "numpy": numpy, "plotly": plotly}
     origins = {name: str(Path(module.__file__).resolve()) for name, module in modules.items()}
     frozen = bool(getattr(sys, "frozen", False))
     if frozen:
@@ -352,10 +398,7 @@ def self_test(root: Path, language: str) -> dict:
         "executable": sys.executable, "meipass": getattr(sys, "_MEIPASS", None),
         "platform": sys.platform, "bundle_root": str(root), "build_info": info,
         "versions": versions, "module_origins": origins,
-        "checks": {name: True for name in (
-            "graphene_geometry", "mos2_axes", "invalid_cell_isolation", "project_roundtrip",
-            "plotly_charts", "streamlit_static", "plotly_validators", "metadata", "workspace_assets",
-        )},
+        "includes_legacy_ui": include_legacy_ui, "checks": checks,
         "chart_count": len(charts),
     }
 
@@ -618,8 +661,8 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
     language = args.language or "en"
     try:
         root = project_dir.resolve() if project_dir is not None else bundle_root()
-        if not (root / "streamlit_app.py").is_file():
-            raise LauncherError("streamlit_app.py is missing from the CalcLens bundle.")
+        if not root.is_dir():
+            raise LauncherError("The CalcLens package directory is missing.")
         language = args.language or package_language(root)
         # A source invocation is useful for verifying the same launcher before a
         # Windows build. Frozen imports are supplied exclusively by PyInstaller.
@@ -628,6 +671,8 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
             if source not in sys.path:
                 sys.path.insert(0, source)
         with _runtime_environment(root, language):
+            if args.legacy_ui:
+                _require_legacy_ui(root, language)
             if args.build_info:
                 print(json.dumps(read_build_info(root, language), sort_keys=True))
                 return 0

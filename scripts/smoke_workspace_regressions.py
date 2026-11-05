@@ -11,9 +11,11 @@ import threading
 import traceback
 import urllib.parse
 
+from smoke_workspace import accept_workspace_dialog
+
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUTPUT = ROOT.parent / "workspace-regressions"
+DEFAULT_OUTPUT = ROOT.parent.parent / "work" / "browser" / "workspace-regressions"
 sys.path.insert(0, str(ROOT / "src"))
 
 
@@ -449,6 +451,7 @@ def run_regressions(base_url: str, output: Path) -> dict:
         return detail
 
     def attach(page) -> None:
+        page.on("dialog", accept_workspace_dialog)
         page.on("console", lambda message: events["console_errors"].append({
             "type": message.type, "text": message.text,
         }) if message.type == "error" else None)
@@ -550,7 +553,13 @@ def run_regressions(base_url: str, output: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--url", help="Existing isolated workspace server")
     args = parser.parse_args()
+
+    if args.url:
+        report = run_regressions(args.url, args.output.resolve())
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0
 
     from slab_preflight.web_api import create_server
 

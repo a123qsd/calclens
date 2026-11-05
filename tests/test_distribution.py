@@ -121,7 +121,6 @@ def test_launcher_rejects_invalid_marker_without_launch(tmp_path, monkeypatch, c
 
 
 def test_default_launcher_uses_bundled_workspace_and_current_sources(tmp_path, monkeypatch):
-    (tmp_path / "streamlit_app.py").write_text("# fixture")
     (tmp_path / "src").mkdir()
     monkeypatch.setenv("PYTHONPATH", "old-location")
     calls = []
@@ -134,6 +133,17 @@ def test_default_launcher_uses_bundled_workspace_and_current_sources(tmp_path, m
                        "--port", "8502", "--language", "en", "--no-browser"]
     assert options["env"]["PYTHONPATH"] == str(tmp_path / "src") + os.pathsep + "old-location"
     assert os.environ["PYTHONPATH"] == "old-location"
+
+
+def test_source_legacy_launcher_explains_the_optional_extra(tmp_path, monkeypatch, capsys):
+    (tmp_path / "streamlit_app.py").write_text("# fixture")
+    monkeypatch.setattr(launcher.importlib.util, "find_spec", lambda name: None)
+    monkeypatch.setattr(launcher.subprocess, "run", lambda *args, **kwargs:
+                        pytest.fail("Missing optional UI must not launch a child process"))
+    with pytest.raises(SystemExit) as error:
+        launcher.main(["--legacy-ui"], project_dir=tmp_path)
+    assert error.value.code == 2
+    assert '[legacy-ui]' in capsys.readouterr().err
 
 
 def test_explicit_language_recovers_invalid_marker_and_supports_port(tmp_path, monkeypatch):

@@ -23,7 +23,8 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_ROOTS = ("streamlit", "plotly", "ase", "numpy")
+RUNTIME_ROOTS = ("ase", "numpy")
+LEGACY_RUNTIME_ROOTS = ("streamlit", "plotly")
 BUILD_TOOLS = ("pyinstaller", "pyinstaller-hooks-contrib")
 NOTICE_WORDS = ("license", "licence", "copying", "notice", "copyright", "authors")
 MAX_DOWNLOAD = 64 * 1024 * 1024
@@ -92,8 +93,9 @@ def archive_notices(filename: str, data: bytes) -> list[tuple[str, bytes]]:
                 if item.isfile() and is_notice(item.name)]
 
 
-def runtime_closure(environment: dict[str, str]) -> list[str]:
-    pending = [(name, frozenset()) for name in RUNTIME_ROOTS]
+def runtime_closure(environment: dict[str, str], *, include_legacy_ui: bool = False) -> list[str]:
+    roots = RUNTIME_ROOTS + (LEGACY_RUNTIME_ROOTS if include_legacy_ui else ())
+    pending = [(name, frozenset()) for name in roots]
     visited, packages = set(), set()
     while pending:
         name, extras = pending.pop()
@@ -147,7 +149,7 @@ def collect_distribution(name: str, output: Path, category: str) -> dict:
     return result
 
 
-def collect(output: Path, source_commit: str) -> dict:
+def collect(output: Path, source_commit: str, *, include_legacy_ui: bool = False) -> dict:
     if not re.fullmatch(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}", source_commit):
         raise ValueError("--source-commit must be a full hexadecimal Git commit ID")
     if output.exists() and any(output.iterdir()):
@@ -155,7 +157,7 @@ def collect(output: Path, source_commit: str) -> dict:
     environment = default_environment()
     environment.update(os_name="nt", sys_platform="win32", platform_system="Windows",
                        platform_machine="AMD64", extra="")
-    runtime = runtime_closure(environment)
+    runtime = runtime_closure(environment, include_legacy_ui=include_legacy_ui)
     candidates = [Path(sys.base_prefix) / "LICENSE.txt", Path(sys.base_prefix) / "LICENSE",
                   Path(sysconfig.get_path("stdlib")) / "LICENSE.txt",
                   Path(sys.base_prefix) / "Lib" / "LICENSE.txt"]
@@ -174,7 +176,10 @@ def collect(output: Path, source_commit: str) -> dict:
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     manifest = {
         "schema_version": 1, "application": project["name"], "version": project["version"],
-        "source_commit": source_commit.lower(), "runtime_roots": list(RUNTIME_ROOTS),
+        "source_commit": source_commit.lower(),
+        "includes_legacy_ui": include_legacy_ui,
+        "variant": "legacy" if include_legacy_ui else "workspace",
+        "runtime_roots": list(RUNTIME_ROOTS + (LEGACY_RUNTIME_ROOTS if include_legacy_ui else ())),
         "marker_environment": environment,
         "python": {"implementation": "CPython", "version": platform.python_version(),
                    "license_file": python_notice},
@@ -190,9 +195,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--source-commit", required=True)
+    parser.add_argument("--include-legacy-ui", action="store_true",
+                        help="Include notices for the optional Streamlit/Plotly bundle.")
     args = parser.parse_args()
     try:
-        result = collect(args.output, args.source_commit)
+        result = collect(args.output, args.source_commit, include_legacy_ui=args.include_legacy_ui)
     except (OSError, ValueError, KeyError, metadata.PackageNotFoundError) as error:
         parser.exit(1, f"Notice collection failed: {error}\n")
     print(f"Collected notices for {len(result['runtime_dependencies'])} runtime distributions, "

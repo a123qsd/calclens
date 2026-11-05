@@ -10,8 +10,11 @@ import type { DisplayAtom, DisplayBond } from './viewerGeometry';
 import { atomicNumber, isMetalElement } from './viewerData';
 import type { ChargeKind, VolumeDataset } from './viewerData';
 import { BOND_LIMIT, LABEL_LIMIT, assertSurfaceBudget, chargeColor, elementColor, exportDimensions,
-  labelAtoms, repeatDimensions } from './viewerPresentation';
+  chargeDisplayRange, labelAtoms, repeatDimensions } from './viewerPresentation';
 import type { ColorMode, Quality, Representation } from './viewerPresentation';
+import { reconcileViewerDatasets, restoreViewerState, sameCamera, selectedCharge, selectedVolume, validCamera } from './viewerState';
+import type { ViewerState } from './viewerState';
+import { observeCamera } from './viewerCameraLink';
 import './viewer.css';
 
 type RepeatCount = 1 | 2 | 3;
@@ -68,7 +71,7 @@ function defaultCamera(viewer: GLViewer, report: GeometryReport, preset = 'defau
 
 export default function MolecularViewer({
   report, language, highlight = null, highlightGap = false, highlightedAtomIndices,
-  onAtomPick, compact = false, auxiliary, onViewerReady,
+  onAtomPick, compact = false, auxiliary, onViewerReady, state, onStateChange, chargeRange,
 }: MolecularViewerProps) {
   const labels = text[language];
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -84,37 +87,48 @@ export default function MolecularViewer({
   const distanceLabelRef = useRef<Label | null>(null);
   const exportingRef = useRef(false);
   const sceneRef = useRef<ViewerScene | null>(null);
-  const [repeat, setRepeat] = useState<RepeatCount>(compact ? 1 : 3);
-  const [showBonds, setShowBonds] = useState(true);
-  const [showCell, setShowCell] = useState(false);
-  const [showLabels, setShowLabels] = useState(false);
-  const [spinning, setSpinning] = useState(false);
+  const [settings, setSettings] = useState(() => restoreViewerState(state, compact));
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const onStateChangeRef = useRef(onStateChange);
+  onStateChangeRef.current = onStateChange;
+  const lastPublishedRef = useRef(JSON.stringify(settings));
+  const applyingCameraRef = useRef(false);
+  const { repeat, showBonds, showCell, showLabels, spinning, representation, colorMode, quality,
+    preset, projection, expanded, showDistance, surface } = settings;
+  function settingSetter<K extends keyof ViewerState>(key: K) {
+    return (value: ViewerState[K] | ((current: ViewerState[K]) => ViewerState[K])) => {
+      setSettings((current) => {
+        const next = typeof value === 'function' ? (value as (previous: ViewerState[K]) => ViewerState[K])(current[key]) : value;
+        return current[key] === next ? current : { ...current, [key]: next };
+      });
+    };
+  }
+  const setRepeat = settingSetter('repeat');
+  const setShowBonds = settingSetter('showBonds'); const setShowCell = settingSetter('showCell');
+  const setShowLabels = settingSetter('showLabels'); const setSpinning = settingSetter('spinning');
+  const setRepresentation = settingSetter('representation'); const setColorMode = settingSetter('colorMode');
+  const setQuality = settingSetter('quality'); const setPreset = settingSetter('preset');
+  const setProjection = settingSetter('projection'); const setExpanded = settingSetter('expanded');
+  const setShowDistance = settingSetter('showDistance'); const setSurface = settingSetter('surface');
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<AtomPick | null>(null);
-  const [representation, setRepresentation] = useState<Representation>('ball-stick');
-  const [colorMode, setColorMode] = useState<ColorMode>('element');
-  const [quality, setQuality] = useState<Quality>('balanced');
-  const [preset, setPreset] = useState('default');
-  const [projection, setProjection] = useState('perspective');
-  const [expanded, setExpanded] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
-  const [showDistance, setShowDistance] = useState(true);
   const [exportSize, setExportSize] = useState(1600);
   const [exportBackground, setExportBackground] = useState('white');
   const [exportDistance, setExportDistance] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
   const [displayStats, setDisplayStats] = useState({ atoms: report.atom_count * (compact ? 1 : 9), bonds: 0, capped: false });
-  const volume = auxiliary?.volume;
-  const [surface, setSurface] = useState<{ source?: VolumeDataset; enabled: boolean; level: number; opacity: number }>({ enabled: false, level: 0.01, opacity: 0.35 });
-  const [draftLevel, setDraftLevel] = useState('0.01');
-  const [draftOpacity, setDraftOpacity] = useState('0.35');
-  const surfaceEnabled = Boolean(volume && surface.source === volume && surface.enabled);
-  const charge = colorMode === 'element' || colorMode === 'metal' ? undefined : auxiliary?.charges[colorMode];
+  const volume = selectedVolume(auxiliary, settings);
+  const [draftLevel, setDraftLevel] = useState(String(surface.level));
+  const [draftOpacity, setDraftOpacity] = useState(String(surface.opacity));
+  const surfaceEnabled = Boolean(volume && surface.enabled);
+  const charge = selectedCharge(auxiliary, settings);
   const effectiveColor = colorMode !== 'element' && colorMode !== 'metal' && !charge ? 'element' : colorMode;
-  const chargeExtent = charge ? Math.max(0, ...charge.values.map((value) => Math.abs(value ?? 0))) : 0;
+  const colorRange = chargeDisplayRange(charge?.values ?? [], chargeRange);
   const chargeKey = charge ? JSON.stringify([charge.kind, charge.values]) : '';
-  const styleKey = JSON.stringify([showBonds, representation, effectiveColor, chargeKey, picked?.index, picked?.shift]);
+  const styleKey = JSON.stringify([showBonds, representation, effectiveColor, chargeKey, colorRange, picked?.index, picked?.shift]);
   const t = (ko: string, en: string) => language === 'ko' ? ko : en;
 
   const structureKey = useMemo(() => JSON.stringify([
@@ -127,6 +141,35 @@ export default function MolecularViewer({
   const overlayKey = JSON.stringify([showCell, showLabels, highlightKey, highlight?.distance_angstrom, gapKey, language, showDistance, showLabels ? [picked?.index, atomHighlightKey] : null]);
 
   useEffect(() => { onAtomPickRef.current = onAtomPick; }, [onAtomPick]);
+  useEffect(() => { setPicked(null); }, [report.normal_axis, report.short_distance_threshold_angstrom]);
+
+  useEffect(() => {
+    if (!state) return;
+    const restored = restoreViewerState(state, compact);
+    const key = JSON.stringify(restored);
+    if (key === JSON.stringify(settingsRef.current)) return;
+    // Parent echoes are identical. A genuinely different archive restore must be
+    // applied without publishing the stale state from this same effect flush.
+    settingsRef.current = restored;
+    lastPublishedRef.current = key;
+    setSettings(restored);
+    const viewer = viewerRef.current;
+    if (viewer && restored.camera && !sameCamera(viewer.getView(), restored.camera)) {
+      applyingCameraRef.current = true;
+      try { viewer.setView(restored.camera); viewer.render(); }
+      finally { applyingCameraRef.current = false; }
+    }
+  }, [state, compact]);
+
+  useEffect(() => {
+    const key = JSON.stringify(settings);
+    if (key !== JSON.stringify(settingsRef.current) || key === lastPublishedRef.current) return;
+    lastPublishedRef.current = key;
+    onStateChangeRef.current?.(settings);
+  }, [settings]);
+
+  useEffect(() => { setSettings((current) => reconcileViewerDatasets(current, auxiliary)); },
+    [auxiliary, settings.chargeDatasetIds, settings.volumeDatasetId]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -136,11 +179,16 @@ export default function MolecularViewer({
         backgroundColor: '#FFFFFF', backgroundAlpha: 0,
       });
       viewerRef.current = viewer;
+      const stopCamera = observeCamera(viewer, (view: number[]) => {
+        if (exportingRef.current || applyingCameraRef.current || !sceneRef.current || !validCamera(view)) return;
+        setSettings((current) => sameCamera(current.camera, view) ? current : { ...current, camera: [...view] });
+      });
       setError(null);
       const observer = new ResizeObserver(() => { if (!exportingRef.current) viewer.resize(); });
       observer.observe(host);
       return () => {
         observer.disconnect();
+        stopCamera();
         viewer.spin(false);
         viewer.removeAllLabels();
         viewer.removeAllShapes();
@@ -229,7 +277,7 @@ export default function MolecularViewer({
           const element = String(atom.elem ?? '');
           if (effectiveColor === 'metal') return isMetalElement(element) ? '#B9824F' : '#BEC7CF';
           if (charge && effectiveColor !== 'element') {
-            return chargeColor(charge.values[Number(atom.properties?.calclensIndex)], chargeExtent);
+            return chargeColor(charge.values[Number(atom.properties?.calclensIndex)], colorRange);
           }
           return elementColor(element);
         };
@@ -315,15 +363,18 @@ export default function MolecularViewer({
       if (previousView) {
         viewer.setView(previousView);
       }
+      const savedCamera = settingsRef.current.camera;
+      const restoredCamera = !previous && savedCamera;
       if (!sameStructure) {
-        defaultCamera(viewer, report, preset);
+        if (savedCamera) viewer.setView(savedCamera);
+        else defaultCamera(viewer, report, preset);
       } else if (updateStyles || updateOverlays) {
         viewer.render();
       }
-      if (shouldFitGap) {
+      if (shouldFitGap && !restoredCamera) {
         viewer.zoomTo({ model: [0, 1] }, sameStructure ? 350 : 0);
         viewer.render();
-      } else if (shouldFitContact) {
+      } else if (shouldFitContact && !restoredCamera) {
         viewer.zoomTo({ model: 0 }, sameStructure ? 350 : 0);
         viewer.render();
       }
@@ -331,6 +382,8 @@ export default function MolecularViewer({
         structureKey, highlightKey, atomHighlightKey, extraAtomsKey, overlayKey, gapKey,
         highlightGap, styleKey, bondsTruncated, baseAtoms, bonds, displayAtoms, atomModel, cornerModel,
       };
+      const camera = viewer.getView();
+      if (validCamera(camera)) setSettings((current) => sameCamera(current.camera, camera) ? current : { ...current, camera: [...camera] });
       setDisplayStats((current) => current.atoms === displayAtoms.length && current.bonds === bonds.length && current.capped === bondsTruncated
         ? current : { atoms: displayAtoms.length, bonds: bonds.length, capped: bondsTruncated });
       setError(null);
@@ -339,7 +392,7 @@ export default function MolecularViewer({
       setError(cause instanceof Error ? cause.message : labels.fallback);
     }
   }, [atomHighlightKey, highlight, highlightGap, highlightKey, labels.fallback, language, repeat,
-    report, showBonds, showCell, showLabels, structureKey, gapKey, overlayKey, styleKey, representation, effectiveColor, charge, chargeExtent, picked?.index, showDistance, preset]);
+    report, showBonds, showCell, showLabels, structureKey, gapKey, overlayKey, styleKey, representation, effectiveColor, charge, picked?.index, showDistance, preset]);
 
   useEffect(() => {
     viewerRef.current?.spin(spinning ? 'y' : false, 0.8, true);
@@ -380,10 +433,10 @@ export default function MolecularViewer({
   }, []);
 
   useEffect(() => {
-    setDraftLevel(String(volume?.suggestedIsovalue ?? 0.01));
-    setDraftOpacity('0.35');
+    setDraftLevel(String(surface.level));
+    setDraftOpacity(String(surface.opacity));
     setActionMessage('');
-  }, [volume]);
+  }, [volume, surface.level, surface.opacity]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -400,6 +453,8 @@ export default function MolecularViewer({
       return;
     }
     try {
+      const extent = volume.kind === 'density' ? volume.max : Math.max(Math.abs(volume.min), Math.abs(volume.max));
+      if (surface.level > extent) throw new Error(t('등치값이 선택한 자료의 범위를 벗어났습니다.', 'Isovalue exceeds the selected dataset range.'));
       if (volumeCacheRef.current?.source !== volume) {
         volumeCacheRef.current = { source: volume, data: new $3Dmol.VolumeData(volume.cubeText, 'cube') };
       }
@@ -440,11 +495,11 @@ export default function MolecularViewer({
         'Use a positive isovalue within the data range and opacity from 0.05 to 1.'));
       return;
     }
-    setSurface({ source: volume, enabled, level, opacity });
+    setSurface({ enabled, level, opacity });
     setActionMessage('');
   }
 
-  function cameraPreset(value: string) {
+  function cameraPreset(value: ViewerState['preset']) {
     const viewer = viewerRef.current;
     if (!viewer) return;
     viewer.spin(false); setSpinning(false); setPreset(value);
@@ -573,27 +628,36 @@ export default function MolecularViewer({
         </select></label>
         <label>{t('색상 기준', 'Color by')}<select data-testid="viewer-color" value={effectiveColor} onChange={(event) => setColorMode(event.target.value as ColorMode)}>
           <option value="element">{t('원소', 'Element')}</option><option value="metal">{t('금속 원소 강조', 'Metal elements')}</option>
-          <option value="ionic_charge" disabled={!auxiliary?.charges.ionic_charge}>{t('이온 순전하', 'Ionic net charge')}</option>
-          <option value="formal_charge" disabled={!auxiliary?.charges.formal_charge}>{t('형식전하', 'Formal charge')}</option>
-          <option value="partial_charge" disabled={!auxiliary?.charges.partial_charge}>{t('부분전하', 'Partial charge')}</option>
-          <option value="oxidation_state" disabled={!auxiliary?.charges.oxidation_state}>{t('산화수', 'Oxidation state')}</option>
+          <option value="ionic_charge" disabled={!auxiliary?.charges.some((dataset) => dataset.kind === 'ionic_charge')}>{t('이온 순전하', 'Ionic net charge')}</option>
+          <option value="formal_charge" disabled={!auxiliary?.charges.some((dataset) => dataset.kind === 'formal_charge')}>{t('형식전하', 'Formal charge')}</option>
+          <option value="partial_charge" disabled={!auxiliary?.charges.some((dataset) => dataset.kind === 'partial_charge')}>{t('부분전하', 'Partial charge')}</option>
+          <option value="oxidation_state" disabled={!auxiliary?.charges.some((dataset) => dataset.kind === 'oxidation_state')}>{t('산화수', 'Oxidation state')}</option>
         </select></label>
+        {charge && <label>{t('전하·산화수 자료 선택', 'Charge / oxidation-state dataset')}<select data-testid="viewer-charge-dataset" value={charge.id} onChange={(event) => {
+          const id = event.target.value;
+          setSettings((current) => ({ ...current, chargeDatasetIds: { ...current.chargeDatasetIds, [charge.kind]: id } }));
+        }}>{auxiliary!.charges.filter((dataset) => dataset.kind === charge.kind).map((dataset) => <option key={dataset.id} value={dataset.id}>{dataset.name} · {dataset.method}</option>)}</select></label>}
         <label>{t('그래픽 품질', 'Graphics quality')}<select data-testid="viewer-quality" value={quality} onChange={(event) => setQuality(event.target.value as Quality)}>
           <option value="light">{t('가볍게 · 추가 효과 없음', 'Light · no extra effects')}</option><option value="balanced">{t('균형 · 얇은 외곽선', 'Balanced · fine outlines')}</option><option value="high">{t('고품질 · 입체 음영', 'High · ambient shading')}</option>
         </select></label>
-        <label>{t('시점', 'Viewpoint')}<select data-testid="viewer-preset" value={preset} onChange={(event) => cameraPreset(event.target.value)}>
+        <label>{t('시점', 'Viewpoint')}<select data-testid="viewer-preset" value={preset} onChange={(event) => cameraPreset(event.target.value as ViewerState['preset'])}>
           <option value="default">{t('기본 입체 시점', 'Default 3D')}</option><option value="top">{t('위에서 보기', 'Top')}</option><option value="side">{t('옆에서 보기', 'Side')}</option>
         </select></label>
-        <label>{t('투영', 'Projection')}<select data-testid="viewer-projection" value={projection} onChange={(event) => setProjection(event.target.value)}>
+        <label>{t('투영', 'Projection')}<select data-testid="viewer-projection" value={projection} onChange={(event) => setProjection(event.target.value as ViewerState['projection'])}>
           <option value="perspective">{t('원근', 'Perspective')}</option><option value="orthographic">{t('정사영', 'Orthographic')}</option>
         </select></label>
         <label className="viewer-checkbox"><input data-testid="viewer-distance" type="checkbox" checked={showDistance} onChange={(event) => setShowDistance(event.target.checked)} />{t('선택 거리 표시', 'Show selected distance')}</label>
       </div>
       <fieldset className="viewer-electronic">
         <legend>{t('전자 표면', 'Electronic surface')}</legend>
+        {Boolean(auxiliary?.volumes.length) && <label>{t('전자밀도·오비탈 자료 선택', 'Density / orbital dataset')}<select data-testid="viewer-volume-dataset" value={volume?.id ?? ''} onChange={(event) => {
+          const dataset = auxiliary?.volumes.find((item) => item.id === event.target.value);
+          if (dataset) setSettings((current) => ({ ...current, volumeDatasetId: dataset.id,
+            surface: { ...current.surface, enabled: false, level: dataset.suggestedIsovalue } }));
+        }}>{auxiliary!.volumes.map((dataset) => <option key={dataset.id} value={dataset.id}>{dataset.name} · {dataset.kind === 'density' ? t('전자밀도', 'Density') : t('오비탈', 'Orbital')}</option>)}</select></label>}
         <label className="viewer-checkbox"><input data-testid="viewer-volume-enabled" type="checkbox" disabled={!volume} checked={surfaceEnabled} onChange={(event) => event.target.checked ? applySurface(true) : setSurface((current) => ({ ...current, enabled: false }))} />{volume?.kind === 'orbital' ? t('오비탈 등치면', 'Orbital isosurfaces') : t('전자밀도 등치면', 'Electron-density isosurface')}</label>
         {!volume ? <p>{t('전자밀도 또는 오비탈 .cube 파일을 가져오면 사용할 수 있습니다.', 'Import an electron-density or orbital .cube file to enable this view.')}</p> : <>
-          <p className="viewer-source">{volume.filename} · {volume.units} · {volume.pointCount.toLocaleString()} {t('격자점', 'grid points')}<br />{volume.source}</p>
+          <p className="viewer-source">{volume.name} · {volume.filename} · {volume.units} · {volume.pointCount.toLocaleString()} {t('격자점', 'grid points')}<br />{volume.source}</p>
           <div className="viewer-settings-grid">
             <label>{t('등치값 크기', 'Isovalue magnitude')}<input data-testid="viewer-isovalue" type="number" min="0" step="any" value={draftLevel} onChange={(event) => setDraftLevel(event.target.value)} /></label>
             <label>{t('불투명도', 'Opacity')}<input data-testid="viewer-opacity" type="number" min="0.05" max="1" step="0.05" value={draftOpacity} onChange={(event) => setDraftOpacity(event.target.value)} /></label>
@@ -617,11 +681,11 @@ export default function MolecularViewer({
     <div data-testid="viewer-legend" className="viewer-legend" aria-label={t('색상 범례', 'Color legend')}>
       {effectiveColor === 'element' ? [...new Set(report.elements)].map((element) => <span key={element}><i className="legend-dot" style={{ background: elementColor(element) }} />{element}</span>) : effectiveColor === 'metal' ? <><span><i className="legend-dot" style={{ background: '#B9824F' }} />{t('금속 원소', 'Metal element')}</span><span><i className="legend-dot" style={{ background: '#BEC7CF' }} />{t('다른 원소', 'Other element')}</span><small>{t('물질의 금속성을 판정하지 않습니다.', 'Does not classify the material as metallic.')}</small></> : charge && <>
         <strong>{charge.kind === 'partial_charge' ? t('부분전하', 'Partial charge') : charge.kind === 'formal_charge' ? t('형식전하', 'Formal charge') : charge.kind === 'ionic_charge' ? t('이온 순전하', 'Ionic net charge') : t('산화수 · 무차원', 'Oxidation state · dimensionless')}</strong>
-        <span><i className="legend-dot" style={{ background: chargeColor(-chargeExtent, chargeExtent) }} />−{chargeExtent.toPrecision(3)}</span>
-        <span><i className="legend-dot" style={{ background: chargeColor(0, chargeExtent) }} />0</span>
-        <span><i className="legend-dot" style={{ background: chargeColor(chargeExtent, chargeExtent) }} />+{chargeExtent.toPrecision(3)} {charge.kind === 'oxidation_state' ? '' : 'e'}</span>
-        <span><i className="legend-dot" style={{ background: chargeColor(null, chargeExtent) }} />{t('정보 없음', 'Unknown')}</span>
-        <small>{charge.method} · {charge.source}</small>
+        <span><i className="legend-dot" style={{ background: chargeColor(colorRange[0], colorRange) }} />{colorRange[0].toPrecision(3)}</span>
+        {colorRange[0] < 0 && colorRange[1] > 0 && <span><i className="legend-dot" style={{ background: chargeColor(0, colorRange) }} />0</span>}
+        <span><i className="legend-dot" style={{ background: chargeColor(colorRange[1], colorRange) }} />{colorRange[1].toPrecision(3)} {charge.kind === 'oxidation_state' ? '' : 'e'}</span>
+        <span><i className="legend-dot" style={{ background: chargeColor(null, colorRange) }} />{t('정보 없음', 'Unknown')}</span>
+        <small>{charge.name} · {charge.method} · {charge.source}<br />{chargeRange ? t('비교 화면에서 지정한 색상 범위 · 범위를 벗어난 값은 끝 색으로 표시', 'Color range set by comparison · values beyond the range use endpoint colors') : t('이 자료의 자동 색상 범위', 'Automatic range for this dataset')}</small>
       </>}
       {(picked || highlight || Boolean(highlightedAtomIndices?.length)) && <span><i className="legend-dot" style={{ background: '#F59E0B' }} />{t('선택·검토 강조', 'Selection / review highlight')}</span>}
     </div>
@@ -634,8 +698,8 @@ export default function MolecularViewer({
         ['partial_charge', t('부분전하', 'Partial charge')],
         ['oxidation_state', t('산화수', 'Oxidation state')],
       ] as [ChargeKind, string][]).map(([kind, name]) => {
-        const dataset = auxiliary?.charges[kind]; const value = dataset?.values[picked.index];
-        return <span key={kind}>{name}: {value == null ? t('정보 없음', 'Unknown') : `${value > 0 ? '+' : ''}${value}${kind === 'oxidation_state' ? '' : ' e'} · ${dataset?.method}`}</span>;
+        const dataset = selectedCharge(auxiliary, settings, kind); const value = dataset?.values[picked.index];
+        return <span key={kind}>{name}: {value == null ? t('정보 없음', 'Unknown') : `${value > 0 ? '+' : ''}${value}${kind === 'oxidation_state' ? '' : ' e'}`}{dataset ? ` · ${dataset.name} · ${dataset.method}` : ''}</span>;
       })}
     </div>}
     {highlight && showDistance && <p className="viewer-contact-note">{highlight.element_i}{highlight.i + 1} [{(highlight.start_shift ?? [0, 0, 0]).join(',')}] ↔ {highlight.element_j}{highlight.j + 1} [{(highlight.end_shift ?? highlight.shift).join(',')}] · {highlight.distance_angstrom.toFixed(3)} Å<br />{t('[a,b,c]는 각 격자 벡터 방향으로 이동한 셀 수입니다.', '[a,b,c] gives the integer cell translation along each lattice vector.')}</p>}

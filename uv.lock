@@ -62,13 +62,11 @@ wheels = [
 
 [[package]]
 name = "calclens"
-version = "0.6.0"
+version = "0.7.0"
 source = { editable = "." }
 dependencies = [
     { name = "ase" },
     { name = "numpy" },
-    { name = "plotly" },
-    { name = "streamlit" },
 ]
 
 [package.optional-dependencies]
@@ -77,18 +75,22 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
 ]
+legacy-ui = [
+    { name = "plotly" },
+    { name = "streamlit" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "ase", specifier = ">=3.26,<4" },
     { name = "hatchling", marker = "extra == 'dev'", specifier = "==1.33.0" },
     { name = "numpy", specifier = ">=2,<3" },
-    { name = "plotly", specifier = ">=6,<7" },
+    { name = "plotly", marker = "extra == 'legacy-ui'", specifier = ">=6,<7" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8,<10" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14,<1" },
-    { name = "streamlit", specifier = ">=1.53,<2" },
+    { name = "streamlit", marker = "extra == 'legacy-ui'", specifier = ">=1.53,<2" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["legacy-ui", "dev"]
 
 [[package]]
 name = "certifi"

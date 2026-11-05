@@ -1,5 +1,8 @@
 # Windows용 CalcLens
 
+현재 소스에는 0.7.0 변경 사항이 들어 있습니다. 아래 다운로드 링크는 공개된
+0.6.0 배포 파일을 가리키므로 이번 변경 사항은 포함하지 않습니다.
+
 Windows 10/11 x64용 CalcLens 0.6.0에는 Python, 필요한 패키지와 화면 파일이
 들어 있습니다. Python이나 Node.js를 따로 설치할 필요가 없습니다.
 
@@ -89,7 +92,19 @@ ASE를 수정하려면 지원 ZIP의 `sources/ase-3.29.0.tar.gz`를 풀어 편�
 ## 새 화면과 이전 화면
 
 기본 화면은 React/TypeScript와 3Dmol.js를 사용합니다. 화면 스크립트와 라이선스는
-실행 파일에 포함되므로 Node.js나 CDN 연결이 필요하지 않습니다. 이전 Streamlit
-화면이 필요하면 실행 파일 뒤에 `--legacy-ui`를 붙이세요. 소스의 화면을 수정해
+실행 파일에 포함되므로 Node.js나 CDN 연결이 필요하지 않습니다. 공개된 0.6.0
+배포판에는 이전 Streamlit 화면도 들어 있어 `--legacy-ui`로 실행할 수 있습니다.
+
+0.7.0 소스부터 기본 Windows 빌드는 Streamlit과 Plotly를 제외합니다. 이전 화면도
+포함하려면 `requirements.lock` 대신 `requirements-legacy.lock`을 설치하고,
+`build_windows.py`에 `--include-legacy-ui`를 추가하세요. 이 배포판은 파일명에
+`-legacy`가 붙으며 실행할 때 `--legacy-ui`를 사용할 수 있습니다. 빌드 정보에는
+`includes_legacy_ui: true`가 기록됩니다. 기본 배포판에서 이전 화면을 요청하면
+포함되지 않았다는 안내가 나옵니다. 두 배포판의 지원 ZIP과 라이선스 목록도 별도로
+만듭니다. 이전 화면 포함 지원 ZIP의 소스 파일명은
+`CalcLens-windows-source-legacy.zip`이므로 위 `Expand-Archive` 명령에도
+이 파일명을 사용하세요. 실제 파일 크기와 시작 시간 차이는 Windows에서 빌드한 뒤 측정해야 합니다.
+
+소스의 화면을 수정해
 다시 빌드할 때는 Node 26.7.0에서 `cd frontend`, `npm ci --ignore-scripts`,
 `npm run build`를 실행하고 루트로 돌아와 위의 패키지 설치·빌드 명령을 실행합니다.

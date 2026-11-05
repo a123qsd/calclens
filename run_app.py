@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import os
 from pathlib import Path
 import subprocess
@@ -41,8 +42,14 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
     parser.add_argument("--no-browser", action="store_true", help="Do not open the browser.")
     args = parser.parse_args(argv)
     root = (project_dir or Path(__file__).resolve().parent).resolve()
-    if not (root / "streamlit_app.py").is_file():
-        parser.error("streamlit_app.py is missing; run this launcher from a complete CalcLens package.")
+    if not root.is_dir():
+        parser.error("The CalcLens package directory is missing.")
+    if args.legacy_ui:
+        if not (root / "streamlit_app.py").is_file():
+            parser.error("streamlit_app.py is missing from the optional legacy UI package.")
+        if any(importlib.util.find_spec(name) is None for name in ("streamlit", "plotly")):
+            parser.error('The legacy UI requires optional packages. Install them with '
+                         'python -m pip install ".[legacy-ui]", or use a -legacy Windows bundle.')
     try:
         language = args.language or package_language(root)
     except ValueError as error:

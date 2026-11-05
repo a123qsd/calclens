@@ -23,16 +23,19 @@ import ase
 
 from . import __version__
 from .batch import BatchInput, batch_csv
-from .core import measure_atom_pair
+from .core import UnsupportedStructure, _read_cif, measure_atom_pair
+from .preparation import PreparationError, prepare_p1
 from .project import (
     ANALYSIS_REVISION,
     MAX_ENCODED_FILE_BYTES,
+    MAX_ARCHIVE_BYTES,
     MAX_FILE_BYTES,
     MAX_IMAGE_SHIFT,
     MAX_PAIR_SELECTIONS,
     MAX_PROJECT_BYTES,
     MAX_PROJECT_FILES,
     MAX_SITE_INDEX,
+    MAX_WORKSPACE_BYTES,
     PAIR_MODES,
     PairSelection,
     Project,
@@ -40,12 +43,14 @@ from .project import (
     ProjectError,
     add_entries,
     dumps_project,
+    dumps_project_archive,
     loads_project,
     mark_reviewed,
     refresh_review,
     remove_entry,
     replace_entry,
     review_is_current,
+    validate_workspace_state,
 )
 from .reporting import (
     localized_error_message,
@@ -207,6 +212,7 @@ class Workspace:
         self.lock = threading.RLock()
         self.cache: dict = {}
         self.project = self._example_project("graphene.cif")
+        self._validated_workspace: tuple[dict, int] = (self.project.workspace_state, 2)
 
     def _example_data(self, name: str) -> bytes:
         if name not in EXAMPLE_NAMES:
@@ -229,22 +235,25 @@ class Workspace:
             raise APIError(404, "entry_not_found", "Entry ID does not identify a workspace file.")
         return entry
 
-    def _results(self) -> list[dict]:
+    def _results(self, project: Project | None = None) -> list[dict]:
+        detached = project is not None
+        project = self.project if project is None else project
         return cached_batch([
             BatchInput(item.filename, item.data, item.normal_axis, item.short_distance)
-            for item in self.project.entries
-        ], self.cache)
+            for item in project.entries
+        ], {} if detached else self.cache)
 
     def _result(self, entry_id: str) -> tuple[ProjectEntry, dict]:
         entry = self._entry(entry_id)
         index = self.project.entries.index(entry)
         return entry, self._results()[index]
 
-    def snapshot(self) -> dict:
+    def snapshot(self, project: Project | None = None, *, include_workspace: bool = False) -> dict:
         with self.lock:
-            results = self._results()
+            results = self._results(project)
+            project = self.project if project is None else project
             entries = []
-            for entry, result in zip(self.project.entries, results):
+            for entry, result in zip(project.entries, results):
                 report = result["report"]
                 analysis: dict[str, Any] = {"report": report, "error": result["error"]}
                 if report is not None:
@@ -254,6 +263,10 @@ class Workspace:
                     analysis["limitations_ko"] = korean["limitations"]
                 elif result["error"] is not None:
                     analysis["error_ko"] = localized_error_message(result["error"], "ko")
+                    if include_workspace:
+                        structure = self._auxiliary_structure(entry)
+                        if structure is not None:
+                            analysis["auxiliary_structure"] = structure
                 entries.append({
                     "id": entry.id,
                     "filename": entry.filename,
@@ -265,10 +278,10 @@ class Workspace:
                     "review_current": review_is_current(entry),
                     "review_stamp": _stamp(entry.review_stamp),
                     "measurements": [_selection(item) for item in entry.measurements],
+                    "preparation": self._preparation_summary(entry),
                     "analysis": analysis,
                 })
-            project = self.project
-            return {
+            snapshot = {
                 "api_version": API_VERSION,
                 "token": self.token,
                 "revision": self.revision,
@@ -281,6 +294,8 @@ class Workspace:
                     "max_files": MAX_PROJECT_FILES,
                     "max_file_bytes": MAX_FILE_BYTES,
                     "max_pair_selections": MAX_PAIR_SELECTIONS,
+                    "max_project_bytes": MAX_PROJECT_BYTES,
+                    "max_workspace_bytes": MAX_WORKSPACE_BYTES,
                 },
                 "runtime": {
                     "calclens_version": __version__,
@@ -298,10 +313,84 @@ class Workspace:
                 },
                 "entries": entries,
             }
+            if include_workspace:
+                snapshot["project"]["workspace_state"] = project.workspace_state
+            return snapshot
+
+    @staticmethod
+    def _auxiliary_structure(entry: ProjectEntry) -> dict | None:
+        """Read actual explicit-P1 sites for data matching, without a report.
+
+        A user's chosen slab normal may be unsupported while the original P1
+        structure remains valid. This does not change that setting, manufacture
+        metrics, or expand symmetry. Every original core input guard still runs.
+        """
+        for axis in dict.fromkeys((entry.normal_axis, "a", "b", "c")):
+            try:
+                atoms, _ = _read_cif(entry.data, axis)
+            except UnsupportedStructure:
+                continue
+            return {
+                "atom_count": len(atoms), "elements": atoms.get_chemical_symbols(),
+                "positions": atoms.positions.tolist(),
+            }
+        return None
+
+    @staticmethod
+    def _preparation_summary(entry: ProjectEntry) -> dict | None:
+        if entry.preparation is None:
+            return None
+        record = entry.preparation
+        return {
+            **{key: value for key, value in record.items() if key != "source"},
+            "source_filename": record["source"]["filename"],
+        }
 
     def _validated(self, project: Project) -> Project:
-        dumps_project(project)
+        project = self._prune_workspace_bindings(project)
+        state = project.workspace_state
+        previous, previous_size = self._validated_workspace
+        # HTTP actions never mutate the already-validated extension in place.
+        # Keep the large raw-data extension out of minor-action serialization.
+        state_size = previous_size if state is previous else validate_workspace_state(state)
+        lean = dumps_project(replace(project, workspace_state={}))
+        if len(lean) + state_size - 2 > MAX_PROJECT_BYTES:
+            raise ProjectError(f"Project JSON exceeds the {MAX_PROJECT_BYTES}-byte limit.")
+        self._validated_workspace = (state, state_size)
         return project
+
+    def _prune_workspace_bindings(self, project: Project) -> Project:
+        """Drop known client references when their exact source disappears."""
+        if [(item.id, item.data) for item in project.entries] == [
+                (item.id, item.data) for item in self.project.entries]:
+            return project
+        state = project.workspace_state
+        if not isinstance(state, dict) or state.get("schema_version") != 1:
+            return project
+        if any(not isinstance(state.get(key), dict) for key in ("auxiliary", "viewers", "drafts")):
+            return replace(project, workspace_state={})
+        sources = {hashlib.sha256(entry.data).hexdigest() for entry in project.entries}
+        bindings = {entry.id: hashlib.sha256(entry.data).hexdigest() for entry in project.entries}
+        viewer_keys = {f"{slot}:{entry_id}:{digest}" for entry_id, digest in bindings.items()
+                       for slot in ("overview", "left", "right")}
+        updated = {
+            **state,
+            "auxiliary": {key: value for key, value in state["auxiliary"].items() if key in sources},
+            "viewers": {key: value for key, value in state["viewers"].items() if key in viewer_keys},
+            "drafts": {key: value for key, value in state["drafts"].items()
+                       if key in bindings and isinstance(value, dict)
+                       and value.get("sha256") == bindings[key]},
+        }
+        if isinstance(state.get("comparison"), dict):
+            comparison = state["comparison"]
+            updated["comparison"] = {
+                **comparison,
+                "before": comparison.get("before") if isinstance(comparison.get("before"), str)
+                and comparison["before"] in bindings else "",
+                "after": comparison.get("after") if isinstance(comparison.get("after"), str)
+                and comparison["after"] in bindings else "",
+            }
+        return project if updated == state else replace(project, workspace_state=updated)
 
     def _replace_entry(self, entry: ProjectEntry) -> None:
         entries = [entry if item.id == entry.id else item for item in self.project.entries]
@@ -314,6 +403,7 @@ class Workspace:
             "normal_axis", "short_distance", "note", "value", "selected_id",
             "review_focus", "filter_mode", "progress_filter", "language",
             "selection", "index",
+            "source_sha256",
         })
         action_type = action["type"]
         if not isinstance(action_type, str):
@@ -359,7 +449,7 @@ class Workspace:
                 filename, data = _decode_file(value, f"File {index}")
                 new_entries.append(ProjectEntry(uuid4().hex, filename, data))
             if action["mode"] == "append":
-                self.project = add_entries(self.project, new_entries)
+                self.project = self._validated(add_entries(self.project, new_entries))
             else:
                 first = new_entries[0].id
                 self.project = self._validated(Project(
@@ -374,10 +464,33 @@ class Workspace:
                 {"filename": action["filename"], "data_base64": action["data_base64"]},
                 "Replacement file",
             )
-            self.project = replace_entry(self.project, action["id"], filename, data)
+            self.project = self._validated(replace_entry(self.project, action["id"], filename, data))
+        elif action_type == "prepare_p1":
+            exact({"id", "source_sha256"})
+            entry = self._entry(action["id"])
+            if (not isinstance(action["source_sha256"], str)
+                    or action["source_sha256"] != hashlib.sha256(entry.data).hexdigest()):
+                raise APIError(409, "source_conflict", "Preparation source has changed; preview it again.")
+            if entry.preparation is not None:
+                raise APIError(422, "already_prepared", "This entry already retains a P1 preparation record.")
+            try:
+                prepared = prepare_p1(entry.data, entry.normal_axis)
+            except PreparationError as exc:
+                raise APIError(422, "unsupported_preparation", str(exc)) from exc
+            record = {
+                **prepared.metadata(), "schema_version": 1, "normal_axis": entry.normal_axis,
+                "source": {
+                    "filename": entry.filename,
+                    "cif_base64": base64.b64encode(entry.data).decode("ascii"),
+                    "sha256": prepared.source_sha256,
+                },
+            }
+            self._replace_entry(replace(
+                entry, data=prepared.cif, reviewed=False, measurements=(), preparation=record,
+            ))
         elif action_type == "remove_entry":
             exact({"id"})
-            self.project = remove_entry(self.project, action["id"])
+            self.project = self._validated(remove_entry(self.project, action["id"]))
         elif action_type == "patch_entry":
             allowed = {"normal_axis", "short_distance", "note"}
             exact({"id"}, allowed)
@@ -448,7 +561,8 @@ class Workspace:
             _image_shift(item["second_shift"], "Second image shift"), item["mode"],
         )
 
-    def import_project(self, expected_revision: int, data: bytes) -> dict:
+    def import_project(self, expected_revision: int, data: bytes, *, preview: bool = False) -> dict:
+        expected_revision = _integer(expected_revision, "expected_revision", minimum=0)
         with self.lock:
             if expected_revision != self.revision:
                 raise APIError(409, "revision_conflict", "Workspace revision is stale.", self.revision)
@@ -458,9 +572,11 @@ class Workspace:
                 raise APIError(422, "invalid_project", str(exc)) from exc
             if project.selected_id is None:
                 project = replace(project, selected_id=project.entries[0].id)
+            if preview:
+                return self.snapshot(project, include_workspace=True)
             self.project = project
             self.revision += 1
-            return self.snapshot()
+            return self.snapshot(include_workspace=True)
 
     def export_project(self) -> bytes:
         with self.lock:
@@ -469,8 +585,42 @@ class Workspace:
                 review_focus=self.project.review_focus,
                 filter_mode=self.project.filter_mode,
                 progress_filter=self.project.progress_filter,
+                workspace_state=self.project.workspace_state,
             )
             return dumps_project(current)
+
+    def export_workspace(self, value: object) -> bytes:
+        body = _object(value, "Export", {"expected_revision", "workspace_state"})
+        expected = _integer(body["expected_revision"], "expected_revision", minimum=0)
+        with self.lock:
+            if expected != self.revision:
+                raise APIError(409, "revision_conflict", "Workspace revision is stale.", self.revision)
+            project = replace(
+                self.project, calclens_version=__version__, ase_version=ase.__version__,
+                analysis_revision=ANALYSIS_REVISION, workspace_state=body["workspace_state"],
+            )
+            try:
+                return dumps_project_archive(project)
+            except ProjectError as exc:
+                raise APIError(422, "invalid_project", str(exc)) from exc
+
+    def preview_p1(self, value: object) -> dict:
+        body = _object(value, "Preparation", {"expected_revision", "entry_id"})
+        expected = _integer(body["expected_revision"], "expected_revision", minimum=0)
+        with self.lock:
+            if expected != self.revision:
+                raise APIError(409, "revision_conflict", "Workspace revision is stale.", self.revision)
+            entry = self._entry(body["entry_id"])
+            if entry.preparation is not None:
+                raise APIError(422, "already_prepared", "This entry already retains a P1 preparation record.")
+            try:
+                prepared = prepare_p1(entry.data, entry.normal_axis)
+            except PreparationError as exc:
+                raise APIError(422, "unsupported_preparation", str(exc)) from exc
+            return {
+                **prepared.metadata(), "entry_id": entry.id, "revision": self.revision,
+                "prepared_cif": prepared.cif.decode("utf-8"),
+            }
 
     def measure(self, value: object) -> dict:
         body = _object(
@@ -611,7 +761,9 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._bytes(200, b"ok", "text/plain; charset=utf-8")
                 return
             if parsed.path in ("/api/v1/bootstrap", "/api/v1/workspace") and not parsed.query:
-                self._json_response(200, self.server.workspace.snapshot())
+                self._json_response(
+                    200, self.server.workspace.snapshot(include_workspace=parsed.path.endswith("/bootstrap"))
+                )
                 return
             if parsed.path == "/api/v1/project/export" and not parsed.query:
                 self._bytes(
@@ -697,14 +849,33 @@ class RequestHandler(BaseHTTPRequestHandler):
                     200, self.server.workspace.apply(body["expected_revision"], action)
                 )
                 return
-            if parsed.path == "/api/v1/project/import":
+            if parsed.path == "/api/v1/project/export":
                 self._require_json_content_type()
                 data = self._body(MAX_PROJECT_BYTES)
+                self._bytes(
+                    200, self.server.workspace.export_workspace(_json(data)), "application/zip",
+                    disposition='attachment; filename="calclens_work.calclens.zip"',
+                )
+                return
+            if parsed.path in ("/api/v1/project/import", "/api/v1/project/preview"):
+                content_type = self._single_header("Content-Type", required=False)
+                media_type = content_type.split(";", 1)[0].strip().lower() if content_type else ""
+                if media_type not in ("application/json", "application/zip", "application/octet-stream"):
+                    raise APIError(415, "unsupported_media_type", "Project content must be JSON or a CalcLens ZIP archive.")
+                data = self._body(max(MAX_PROJECT_BYTES, MAX_ARCHIVE_BYTES))
                 raw_revision = self._single_header("X-CalcLens-Revision", required=False)
                 if raw_revision is None or not raw_revision.isdigit():
                     raise APIError(400, "invalid_revision", "X-CalcLens-Revision must be an integer.")
                 self._json_response(
-                    200, self.server.workspace.import_project(int(raw_revision), data)
+                    200, self.server.workspace.import_project(
+                        int(raw_revision), data, preview=parsed.path.endswith("/preview"),
+                    )
+                )
+                return
+            if parsed.path == "/api/v1/prepare/p1":
+                self._require_json_content_type()
+                self._json_response(
+                    200, self.server.workspace.preview_p1(_json(self._body(NORMAL_BODY_LIMIT)))
                 )
                 return
             if parsed.path == "/api/v1/measure":

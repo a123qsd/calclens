@@ -18,16 +18,24 @@ revision returns HTTP 409 and the UI reloads the current snapshot before retry.
 {api_version:1, token, revision, language:'ko'|'en',
  examples:[{name,label_ko,label_en}], limits:{max_files,max_file_bytes,max_pair_selections},
  project:{selected_id,review_focus,filter_mode,progress_filter,
-          calclens_version,ase_version,analysis_revision},
+          calclens_version,ase_version,analysis_revision,workspace_state?},
  entries:[{id,filename,sha256,normal_axis,short_distance,note,reviewed,
-           review_current,review_stamp,measurements,
-           analysis:{report,error}}]}
+           review_current,review_stamp,measurements,preparation?,
+           analysis:{report,error,auxiliary_structure?}}]}
 ```
 
 The report is the existing canonical Python report with English messages. The
 snapshot may also include `analysis.issues_ko` (same codes, localized messages)
 and `analysis.error_ko`. No `cif_base64` appears in snapshots. Begin with the
 generated graphene example. `GET /_calclens/health` returns plain `ok`.
+
+`workspace_state` appears only in bootstrap and project preview/import responses;
+ordinary workspace reads and action responses omit it. If a source is valid
+explicit P1 but its applied analysis axis is unsupported, those restoration
+responses may include `auxiliary_structure: {atom_count,elements,positions}`.
+This minimal source-derived mapping lets the browser validate saved electronic
+files without changing analysis settings or presenting a successful report.
+Partially occupied, disordered or unprepared non-P1 inputs do not get this fallback.
 
 ## Actions
 
@@ -45,6 +53,7 @@ set_reviewed {id,value:boolean}
 patch_workspace {selected_id?,review_focus?,filter_mode?,progress_filter?,language?}
 save_measurement {id,selection:{i,j,first_shift:[int,int,int],second_shift:[int,int,int],mode}}
 remove_measurement {id,index}
+prepare_p1 {id,source_sha256}
 ```
 
 Bulk CIF imports are atomic and limited to 20 × 2 MiB. The normal JSON body cap
@@ -54,10 +63,25 @@ Empty workspaces are not allowed. Removing the selected entry chooses a survivin
 entry. A replacement keeps its ID/settings/note, invalidates completion and
 pair selections on byte changes, and retains historical review provenance.
 
-`POST /api/v1/project/import` accepts the raw canonical project JSON bytes;
+`POST /api/v1/project/import` accepts canonical project JSON or a bounded ZIP
+containing only `project.json`;
 `X-CalcLens-Revision` carries the expected revision. It uses `loads_project`, then
 returns a current snapshot. `GET /api/v1/project/export` downloads bytes from
 `dumps_project` with the current workspace metadata.
+
+`POST /api/v1/project/preview` uses the import body/headers but returns a detached
+snapshot without replacing the workspace. The browser validates raw electronic
+files against its reports before sending the import request.
+`POST /api/v1/project/export` accepts `{expected_revision,workspace_state}` with
+the normal token and Origin and returns a ZIP without changing the revision.
+The opaque workspace extension is bounded, finite JSON. Full data is returned
+only for bootstrap and project preview/import, not every edit snapshot.
+
+`POST /api/v1/prepare/p1` accepts `{expected_revision,entry_id}` with token/Origin
+and returns source/prepared hashes, CIF preview, site counts, cells, symmetry
+metadata, warnings and changes. Applying uses `prepare_p1` and rechecks the source
+hash. It retains the original bytes and reproducible transformation metadata.
+See [the workspace guide](../WORKSPACE_SAVE.md) for bounds and supported inputs.
 
 ## Measurement and reports
 
@@ -85,8 +109,9 @@ it must not overwrite newer work automatically.
 
 Vite builds `frontend/` into `src/slab_preflight/web_assets/`. The Python server
 serves only that fixed directory. Static assets are bundled into wheels, source
-ZIPs and Windows packages; no runtime Node or CDN is needed. Keep legacy
-Streamlit through an explicit `--legacy-ui` launch option.
+ZIPs and Windows packages; no runtime Node or CDN is needed. The legacy
+Streamlit launch option `--legacy-ui` requires the optional `legacy-ui` dependency
+extra or a Windows build made with `--include-legacy-ui`.
 
 Frontend shared types are in `frontend/src/types.ts`. The shell owns App.tsx,
 styles.css and API workflows. The molecular viewer owns MolecularViewer.tsx,

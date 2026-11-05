@@ -32,6 +32,9 @@
 .viewer-settings .viewer-checkbox input { flex: 0 0 auto; width: 16px; height: 16px; min-height: 16px; margin: 0; accent-color: #008f84; }
 .viewer-settings fieldset { min-width: 0; margin: 0 12px 12px; padding: 10px; border: 1px solid #dce4e9; border-radius: 7px; }
 .viewer-settings legend { padding: 0 5px; color: #263e54; font-size: 12px; font-weight: 700; }
+.viewer-electronic > label:not(.viewer-checkbox) { margin-bottom: 12px; }
+.auxiliary-datasets .auxiliary-dataset-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; justify-content: end; gap: 6px; }
+.auxiliary-dataset-actions button:first-child { width: auto; min-width: 72px; padding-inline: 8px; font-size: 11px; }
 .viewer-settings fieldset .viewer-settings-grid { padding: 6px 0; }
 .viewer-settings p { margin: 6px 0; color: #566377; font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
 .viewer-settings button:disabled, .viewer-settings input:disabled { cursor: not-allowed; opacity: .55; }

@@ -9,34 +9,42 @@ stage = Path(os.environ['CALCLENS_BUILD_STAGE'])
 notices = Path(os.environ['CALCLENS_BUILD_NOTICES'])
 mode = os.environ['CALCLENS_BUILD_MODE']
 name = os.environ['CALCLENS_BUILD_NAME']
+include_legacy_ui = os.environ.get('CALCLENS_BUILD_INCLUDE_LEGACY_UI') == '1'
 
 datas = [
-    (str(root / 'streamlit_app.py'), '.'),
     (str(root / 'examples'), 'examples'),
-    (str(root / '.streamlit' / 'config.toml'), '.streamlit'),
     (str(root / 'LICENSE'), '.'),
     (str(root / 'THIRD_PARTY_NOTICES.md'), '.'),
     (str(root / 'src' / 'slab_preflight' / 'web_assets'), 'slab_preflight/web_assets'),
     (str(stage / 'DEFAULT_LANGUAGE.txt'), '.'),
     (str(stage / 'WINDOWS_BUILD_INFO.json'), '.'),
 ]
+if include_legacy_ui:
+    datas += [(str(root / 'streamlit_app.py'), '.'),
+              (str(root / '.streamlit' / 'config.toml'), '.streamlit')]
 # Sources are supplied separately in the Windows support ZIP, not extracted on
 # every application launch. License texts are present inside each EXE as well.
 for entry in notices.iterdir():
     if entry.name != 'sources':
         datas.append((str(entry), 'third_party/' + entry.name if entry.is_dir() else 'third_party'))
-for package in ('streamlit', 'plotly', 'ase'):
+for package in ('ase', 'numpy') + (('streamlit', 'plotly') if include_legacy_ui else ()):
     datas += collect_data_files(package)
     datas += copy_metadata(package, recursive=True)
 
-hiddenimports = collect_submodules('slab_preflight')
+hiddenimports = collect_submodules('slab_preflight', filter=lambda name:
+                                 include_legacy_ui or name != 'slab_preflight.plotting')
 # Streamlit injects imports such as scriptrunner.magic_funcs into the app AST;
 # these do not appear as ordinary imports during PyInstaller analysis.
-hiddenimports += collect_submodules('streamlit')
+if include_legacy_ui:
+    hiddenimports += collect_submodules('streamlit')
 # Plotly's graph object classes are imported lazily; analysis of the app script
 # alone cannot discover them. The script itself is executed by Streamlit.
-hiddenimports += collect_submodules('plotly', filter=lambda name: '.tests' not in name)
-hiddenimports += collect_submodules('uvicorn')
+    hiddenimports += collect_submodules('plotly', filter=lambda name: '.tests' not in name)
+
+excluded = ['pytest', '_pytest', 'ruff', 'playwright', 'IPython', 'notebook',
+            'PyQt5', 'PyQt6', 'PySide2', 'PySide6']
+if not include_legacy_ui:
+    excluded += ['streamlit', 'plotly', 'slab_preflight.plotting']
 
 a = Analysis(
     [str(root / 'packaging' / 'windows' / 'launcher.py')],
@@ -44,8 +52,7 @@ a = Analysis(
     binaries=[], datas=datas, hiddenimports=hiddenimports,
     hookspath=[], runtime_hooks=[],
     hooksconfig={'matplotlib': {'backends': ['Agg']}},
-    excludes=['pytest', '_pytest', 'ruff', 'playwright', 'IPython', 'notebook',
-              'PyQt5', 'PyQt6', 'PySide2', 'PySide6'],
+    excludes=excluded,
     noarchive=False,
 )
 pyz = PYZ(a.pure)

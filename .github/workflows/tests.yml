@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-          cache-dependency-path: requirements.lock
+          cache-dependency-path: requirements-legacy.lock
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: '26.7.0'
@@ -29,7 +29,7 @@ jobs:
         run: npm ci --ignore-scripts && npm run build && npm test
       - name: Verify committed browser assets match their sources
         run: git diff --exit-code -- src/slab_preflight/web_assets frontend/public/THIRD_PARTY_LICENSES.txt
-      - run: python -m pip install --require-hashes -r requirements.lock
+      - run: python -m pip install --require-hashes -r requirements-legacy.lock
       - run: python -m pip install --no-deps --no-build-isolation .
       - name: CLI smoke (English JSON and Korean CSV)
         run: |
@@ -39,6 +39,7 @@ jobs:
       - run: python -m ruff check .
       - run: python scripts/generate_examples.py --check
       - run: python scripts/prepare_public_case.py --check
+      - run: python scripts/prepare_electronic_case.py --check
       - name: Install focused browser test tools
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         run: |
@@ -53,6 +54,9 @@ jobs:
       - name: Check viewer controls, scientific data imports and image export
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         run: python scripts/smoke_viewer_features.py --output build/viewer-features
+      - name: Check drafts, electronic projects and P1 preparation
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        run: python scripts/smoke_research_workspace.py --output build/research-workspace
       - name: Keep browser verification evidence
         if: always() && matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -62,5 +66,6 @@ jobs:
             build/workspace-regressions/
             build/viewer-updates/
             build/viewer-features/
+            build/research-workspace/
           retention-days: 14
           if-no-files-found: warn

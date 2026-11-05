@@ -1,0 +1,24 @@
+# Real PySCF molecular RHF/STO-3G output; this cell is for display only.
+# Isolated H2O; no periodic electronic calculation or geometry optimization.
+data_water_rhf_sto3g
+_cell_length_a 12
+_cell_length_b 12
+_cell_length_c 12
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+_space_group_IT_number 1
+_space_group_name_H-M_alt 'P 1'
+loop_
+_space_group_symop_operation_xyz
+'x,y,z'
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+O1 O 0.500000000000 0.500000000000 0.500000000000 1
+H2 H 0.500000000000 0.563083333333 0.548916666667 1
+H3 H 0.500000000000 0.436916666667 0.548916666667 1

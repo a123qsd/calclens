@@ -1,0 +1,40 @@
+PySCF 2.12.0; isolated H2O; RHF/STO-3G; charge 0; spin 0; fixed XYZ input
+Coordinates translated by (+6,+6,+6) angstrom for display only.
+
+
+******** <class 'pyscf.scf.hf.RHF'> ********
+method = RHF
+initial guess = minao
+damping factor = 0
+level_shift factor = 0
+DIIS = <class 'pyscf.scf.diis.CDIIS'>
+diis_start_cycle = 1
+diis_space = 8
+diis_damp = 0
+SCF conv_tol = 1e-12
+SCF conv_tol_grad = 1e-08
+SCF max_cycles = 100
+direct_scf = True
+direct_scf_tol = 1e-13
+max_memory 4000 MB (current use 0 MB)
+Initial guess from minao.
+init E= -74.8359517132183
+  HOMO = -0.393077639330978  LUMO = 0.426381156259211
+cycle= 1 E= -74.9128084552148  delta_E= -0.0769  |g|= 0.37  |ddm|= 1.69
+  HOMO = -0.267670989493475  LUMO = 0.644071284713991
+cycle= 2 E= -74.9625317578335  delta_E= -0.0497  |g|= 0.0426  |ddm|= 0.56
+  HOMO = -0.390862681726548  LUMO = 0.604902276755963
+cycle= 3 E= -74.9630368748838  delta_E= -0.000505  |g|= 0.00833  |ddm|= 0.0433
+  HOMO = -0.391279396632117  LUMO = 0.605213259070023
+cycle= 4 E= -74.9630631281866  delta_E= -2.63e-05  |g|= 6.02e-05  |ddm|= 0.015
+  HOMO = -0.391271197865628  LUMO = 0.605127115112
+cycle= 5 E= -74.9630631295989  delta_E= -1.41e-09  |g|= 1.28e-05  |ddm|= 9.13e-05
+  HOMO = -0.391272843590828  LUMO = 0.605133835258868
+cycle= 6 E= -74.9630631297206  delta_E= -1.22e-10  |g|= 3.33e-06  |ddm|= 3.64e-05
+  HOMO = -0.39127421800237  LUMO = 0.605135963276794
+cycle= 7 E= -74.9630631297292  delta_E= -8.61e-12  |g|= 9.15e-10  |ddm|= 1.24e-05
+  HOMO = -0.391274218613579  LUMO = 0.605135961708056
+cycle= 8 E= -74.9630631297292  delta_E= -1.42e-14  |g|= 2.97e-10  |ddm|= 1.39e-09
+  HOMO = -0.391274218954771  LUMO = 0.605135960956709
+Extra cycle  E= -74.9630631297292  delta_E= -1.42e-14  |g|= 7.69e-11  |ddm|= 4.56e-10
+converged SCF energy = -74.9630631297292

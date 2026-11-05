@@ -1,5 +1,11 @@
 # Downloads and installation / 다운로드·설치
 
+This page describes the published **v0.6.0 downloads**. The **v0.7.0 source** adds
+draft/viewer persistence, electronic ZIP projects and P1 preparation; see the
+[current workspace guide](WORKSPACE_SAVE.md).
+이 문서의 다운로드는 공개된 **v0.6.0**입니다. **v0.7.0 소스**의 개선 사항은
+[새 작업 안내](WORKSPACE_SAVE.md)를 참고하세요.
+
 [Project home](../README.md) · [Full English guide](../README.en.md) · [한국어 전체 안내](../README.ko.md)
 
 ## Windows EXE — Python included / Python 포함

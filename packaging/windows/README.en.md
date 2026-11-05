@@ -1,5 +1,8 @@
 # CalcLens for Windows
 
+This checkout contains the 0.7.0 source changes. The download links below still
+point to the published 0.6.0 builds, which do not include those changes.
+
 CalcLens 0.6.0 for Windows 10/11 x64 includes Python, its required packages and
 the browser workspace. You do not need to install Python or Node.js.
 
@@ -95,7 +98,20 @@ instead of `--mode onefile` to build an executable with an accompanying folder.
 ## Current and legacy interfaces
 
 The default React/TypeScript workspace and 3Dmol.js viewer are bundled locally.
-Running the executable needs neither Node.js nor a CDN connection. Pass
-`--legacy-ui` to use the previous Streamlit interface. If editing the frontend
+Running the executable needs neither Node.js nor a CDN connection. Published
+0.6.0 builds include Streamlit and accept `--legacy-ui`.
+
+Starting with the 0.7.0 source, a default Windows build excludes Streamlit and
+Plotly. To include the old interface, install `requirements-legacy.lock` instead
+of `requirements.lock`, then add `--include-legacy-ui` to `build_windows.py`.
+These builds have `-legacy` in their filenames and accept `--legacy-ui` when
+launched. Their metadata records `includes_legacy_ui: true`; the default build
+reports that the optional interface is unavailable if that option is requested.
+The two variants have separate support ZIPs and notice inventories. A legacy support ZIP names its source
+archive `CalcLens-windows-source-legacy.zip`; use that filename in the
+`Expand-Archive` command above. Actual file
+size and startup differences require a native Windows build and measurement.
+
+If editing the frontend
 before rebuilding, use Node 26.7.0 to run `npm ci --ignore-scripts` and
 `npm run build` in `frontend/`, then reinstall the package and build the EXE.
