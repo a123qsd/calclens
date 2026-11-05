@@ -583,6 +583,9 @@ def run(base_url, output, example_output=None):
         try:
             page.goto(base_url, wait_until="domcontentloaded", timeout=60_000)
             idle(page)
+            if page.locator("html").get_attribute("lang") == "ko":
+                page.get_by_test_id("language-toggle").click()
+                idle(page)
             expect(page.locator("html")).to_have_attribute("lang", "en")
             drafts = record("file-keyed drafts and persistent overview camera",
                             lambda: check_drafts_and_navigation(page, expect))

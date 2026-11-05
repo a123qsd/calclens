@@ -1,7 +1,6 @@
 # Continue a research workspace / 연구 작업 이어가기
 
-These features are in the 0.7.0 source tree. The existing 0.6.0 release downloads
-do not contain them. This guide describes the default browser workspace.
+This guide describes the default browser workspace in CalcLens 0.7.0.
 
 ## Drafts and saved work
 

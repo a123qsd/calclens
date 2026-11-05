@@ -40,14 +40,13 @@ coordinate matching and units.
 
 ## Run locally
 
-The currently published Windows binaries are v0.6.0 and do not include the
-0.7.0 source changes. On Windows x64, download the
-[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-en.exe)
+On Windows x64, download the
+[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en.exe)
 and double-click it. Python and the app's dependencies are included. A launch
 manager opens the browser workspace and provides **Open CalcLens**, **Diagnostics**
 and **Quit**. Closing the manager stops the server; closing only the browser tab
 leaves it running. For faster repeat launches, extract the complete
-[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-en-folder.zip)
+[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en-folder.zip)
 and run the EXE inside it. These executables are unsigned. See the
 [Windows guide](packaging/windows/README.en.md) for startup, closing the app,
 checksums, and license/source files.
@@ -55,7 +54,7 @@ checksums, and license/source files.
 For an English-default source ZIP, choose the English ZIP asset on the
 [latest release](https://github.com/a123qsd/calclens/releases/latest) and follow
 the [download instructions](docs/DOWNLOADS.md#english). A standalone
-[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-Guide.en.md)
+[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.en.md)
 is also available. Python 3.12 or 3.13 and dependency
 installation are required for that source ZIP. The browser workspace is already
 included; you do not need Node.js to run it.

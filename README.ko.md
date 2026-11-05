@@ -35,18 +35,18 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 ## 빠르게 실행하기
 
 Windows x64에서는
-[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-ko.exe)를
+[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko.exe)를
 받아 더블클릭하세요. Python과 필요한 라이브러리가 포함되어 있습니다.
 실행 관리 창에서 브라우저 화면을 열고 **CalcLens 열기**, **진단 기록**, **종료**를
 사용할 수 있습니다. 관리 창을 닫으면 서버도 종료되며, 브라우저 탭만 닫으면
 계속 실행됩니다. 반복 실행 시간을 줄이려면
-[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-ko-folder.zip)을
+[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko-folder.zip)을
 모두 풀고 안에 있는 EXE를 실행하세요. 실행 파일에는 코드 서명이 없습니다.
 종료 방법과 파일 확인, 라이선스·소스 자료는 [Windows 안내](packaging/windows/README.ko.md)에 있습니다.
 
 [배포 파일](https://github.com/a123qsd/calclens/releases/latest)에서 한국어 기본 소스 ZIP을 받으려면
 [다운로드·설치 안내](docs/DOWNLOADS.md#한국어)를 따르세요.
-[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-Guide.ko.md)만
+[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.ko.md)만
 따로 받을 수도 있습니다. 이 소스 ZIP에는 Python 3.12 또는 3.13과 의존성 설치가 필요합니다.
 화면 파일은 포함되어 있어 실행에 Node.js는 필요하지 않습니다.
 
@@ -73,8 +73,6 @@ PowerShell에서 `.venv\Scripts\Activate.ps1`로 활성화합니다.
 어떻게 표시하는지 비교할 수 있습니다. 화면에서 한국어와 영어를 전환할 수 있습니다.
 ZIP의 기본 언어로 실행하려면 `python run_app.py`를 사용하세요. 소스에서 실행한
 서버는 작업을 저장한 뒤 실행 터미널에서 `Ctrl+C`로 종료합니다.
-
-현재 공개된 Windows 다운로드는 v0.6.0이며, 0.7.0 소스의 개선 사항은 포함하지 않습니다.
 
 ## 입체 구조 작업공간
 

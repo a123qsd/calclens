@@ -188,7 +188,9 @@ folder forms. It verifies the extracted folder ZIP before collecting release
 assets. The harness checks the launch manager, readiness, diagnostics and shutdown,
 then exercises bilingual upload, project round-trip, saved measurements, reports
 and unsupported inputs through `scripts/smoke_workspace.py` against the packaged
-executable. See [VALIDATION.md](VALIDATION.md) for observed results; the presence
+executable. It then runs the real-data research-workspace suite against the same
+frozen server, including electronic ZIP restoration and P1 preparation, before
+verifying manager shutdown. See [VALIDATION.md](VALIDATION.md) for observed results; the presence
 of workflow steps does not establish that their remote jobs have passed.
 
 ## Source release packages
@@ -208,9 +210,9 @@ The committed browser assets are included, so using a source package does not
 require Node.js or a frontend build.
 See [DOWNLOADS.md](DOWNLOADS.md) for setup instructions.
 
-Windows release assets are `CalcLens-0.6.0-windows-x64-ko.exe`,
-`CalcLens-0.6.0-windows-x64-en.exe`, matching `-folder.zip` archives,
-`CalcLens-0.6.0-windows-support.zip` and `WINDOWS-SHA256SUMS.txt`. The support
+Windows release assets are `CalcLens-0.7.0-windows-x64-ko.exe`,
+`CalcLens-0.7.0-windows-x64-en.exe`, matching `-folder.zip` archives,
+`CalcLens-0.7.0-windows-support.zip` and `WINDOWS-SHA256SUMS.txt`. The support
 archive records the dependency versions and source commit and includes the
 CalcLens source and required third-party notices and source materials.
 Executable build metadata and support manifests identify their own build commit;

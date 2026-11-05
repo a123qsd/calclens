@@ -24,14 +24,12 @@ CalcLens가 이 값을 계산하지는 않습니다. 보조 자료, 파일별 �
 
 [0.7.0 workspace guide / 새 작업 안내](docs/WORKSPACE_SAVE.md) · [Real electronic-data case / 실제 계산 사례](docs/ELECTRONIC_CASE.md)
 
-**Published Windows v0.6.0 / 현재 공개된 Windows v0.6.0**
+**Published Windows v0.7.0 / 현재 공개된 Windows v0.7.0**
 
-The downloads below predate the 0.7.0 source changes. 아래 배포 파일에는 0.7.0 개선 사항이 포함되지 않습니다.
-
-[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-ko.exe) ·
-[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-en.exe) ·
-[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-ko-folder.zip) ·
-[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-en-folder.zip) ·
+[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko.exe) ·
+[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en.exe) ·
+[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko-folder.zip) ·
+[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en-folder.zip) ·
 [실행 안내](packaging/windows/README.ko.md) · [Windows guide](packaging/windows/README.en.md)
 
 Double-click the EXE to open the launch manager and browser workspace. Use the
@@ -66,13 +64,13 @@ JSON/CSV exports and comparisons of up to 20 CIF files with settings for each fi
 
 [Latest release / 최신 배포](https://github.com/a123qsd/calclens/releases/latest)
 
-| Language | Source ZIP for v0.6.0 | Read guide | Download guide |
+| Language | Source ZIP for v0.7.0 | Read guide | Download guide |
 | --- | --- | --- | --- |
-| English | [calclens-0.6.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.6.0/calclens-0.6.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-Guide.en.md) |
-| 한국어 | [calclens-0.6.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.6.0/calclens-0.6.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-Guide.ko.md) |
+| English | [calclens-0.7.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.en.md) |
+| 한국어 | [calclens-0.7.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.ko.md) |
 
-[Windows checksums / Windows 체크섬](https://github.com/a123qsd/calclens/releases/download/v0.6.0/WINDOWS-SHA256SUMS.txt) ·
-[Windows licenses and build source / Windows 라이선스·빌드 소스](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-support.zip)
+[Windows checksums / Windows 체크섬](https://github.com/a123qsd/calclens/releases/download/v0.7.0/WINDOWS-SHA256SUMS.txt) ·
+[Windows licenses and build source / Windows 라이선스·빌드 소스](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-support.zip)
 
 Both ZIPs contain the same analysis engine and both interface languages. Each
 opens in its selected language by default. **Python 3.12 or 3.13 and dependency

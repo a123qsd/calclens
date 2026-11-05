@@ -677,6 +677,10 @@ def main():
                         default_url, args.language, version, output / "workspace",
                         originals, workspace_events,
                     )
+                    from smoke_research_workspace import run as research_browser_flow
+                    result["research_browser"] = research_browser_flow(
+                        default_url, output / "research"
+                    )
                     close_windows_manager(default_process, manager_handle)
                     wait_port_closed(default_url)
                     wait_for_no_pyinstaller_extractions(pyinstaller_temp)
