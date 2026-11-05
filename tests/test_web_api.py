@@ -490,3 +490,225 @@ def test_cli_prints_ready_url_even_without_browser(monkeypatch, capsys):
 
     assert web_api.main(["--root", str(ROOT), "--port", "0", "--no-browser"]) == 0
     assert capsys.readouterr().out == "http://127.0.0.1:43124/\n"
+
+
+def test_full_workspace_zip_export_is_revision_checked_authorized_and_nonmutating(api_server):
+    state = {
+        "schema_version": 1,
+        "auxiliary": {"raw": {"filename": "density.cube", "raw": "0.001 0.002\n" * 20_000}},
+        "viewers": {"camera": {"position": [1, 2, 3]}},
+        "drafts": {},
+    }
+    before = api_server.workspace.project
+    body = {"expected_revision": 0, "workspace_state": state}
+    denied = request(api_server, "POST", "/api/v1/project/export", {
+        "expected_revision": 0, "workspace_state": {},
+    })
+    assert denied[0] == 403
+    response = request(api_server, "POST", "/api/v1/project/export", body, authorized=True)
+    assert response[0] == 200
+    assert response[1]["Content-Type"] == "application/zip"
+    assert ".calclens.zip" in response[1]["Content-Disposition"]
+    reopened = loads_project(response[2])
+    assert reopened.workspace_state == state
+    assert reopened.entries == before.entries
+    assert api_server.workspace.project is before
+    assert api_server.workspace.revision == 0
+    stale = request(api_server, "POST", "/api/v1/project/export", {
+        "expected_revision": 9, "workspace_state": {},
+    }, authorized=True)
+    assert stale[0] == 409
+    assert decoded(stale)["revision"] == 0
+    assert api_server.workspace.project is before
+
+
+def test_project_preview_analyzes_detached_state_then_zip_import_commits_atomically(api_server):
+    from dataclasses import replace
+    from slab_preflight.project import dumps_project_archive
+    original = api_server.workspace.project
+    candidate = replace(original, entries=[replace(original.entries[0], note="loaded note")],
+                        workspace_state={"raw": "client will revalidate before committing"})
+    data = dumps_project_archive(candidate)
+    request(api_server, "GET", "/api/v1/bootstrap")
+    original_cache = dict(api_server.workspace.cache)
+    headers = {"Content-Type": "application/zip", "X-CalcLens-Revision": "0"}
+    response = request(api_server, "POST", "/api/v1/project/preview", data,
+                       authorized=True, headers=headers)
+    assert response[0] == 200
+    preview = decoded(response)
+    assert preview["entries"][0]["note"] == "loaded note"
+    assert preview["entries"][0]["analysis"]["report"]["atom_count"] == 2
+    assert preview["project"]["workspace_state"] == candidate.workspace_state
+    assert api_server.workspace.project is original
+    assert api_server.workspace.cache == original_cache
+    assert api_server.workspace.revision == 0
+    rejected = request(api_server, "POST", "/api/v1/project/import", b"PKcorrupt",
+                       authorized=True, headers=headers)
+    assert rejected[0] == 422
+    assert api_server.workspace.project is original
+    assert api_server.workspace.revision == 0
+    imported = request(api_server, "POST", "/api/v1/project/import", data,
+                       authorized=True, headers=headers)
+    assert imported[0] == 200
+    assert decoded(imported)["revision"] == 1
+    assert decoded(imported)["project"]["workspace_state"] == candidate.workspace_state
+    assert api_server.workspace.project == candidate
+    stale = request(api_server, "POST", "/api/v1/project/preview", data,
+                    authorized=True, headers=headers)
+    assert stale[0] == 409
+    assert api_server.workspace.project == candidate
+
+
+def test_p1_preview_and_explicit_apply_preserve_original_and_clear_completion(api_server):
+    source = (ROOT / "examples/public_case/source/9011577-rev291877.cif").read_bytes()
+    loaded = decoded(action(api_server, 0, {
+        "type": "import_cifs", "mode": "replace", "files": [{
+            "filename": "graphite.cif", "data_base64": base64.b64encode(source).decode(),
+        }],
+    }))
+    entry_id = loaded["entries"][0]["id"]
+    assert loaded["entries"][0]["analysis"]["report"] is None
+    completed = action(api_server, 1, {"type": "set_reviewed", "id": entry_id, "value": True})
+    assert completed[0] == 200
+    before = api_server.workspace.project
+    body = {"expected_revision": 2, "entry_id": entry_id}
+    denied = request(api_server, "POST", "/api/v1/prepare/p1", body)
+    assert denied[0] == 403
+    response = request(api_server, "POST", "/api/v1/prepare/p1", body, authorized=True)
+    assert response[0] == 200
+    preview = decoded(response)
+    assert preview["source_site_count"] == 2
+    assert preview["prepared_site_count"] == 4
+    assert preview["source_cell"] == preview["prepared_cell"]
+    assert api_server.workspace.project is before
+    assert api_server.workspace.revision == 2
+    wrong = action(api_server, 2, {"type": "prepare_p1", "id": entry_id, "source_sha256": "0" * 64})
+    assert wrong[0] == 409
+    assert decoded(wrong)["error"]["code"] == "source_conflict"
+    assert api_server.workspace.project is before
+    applied = action(api_server, 2, {"type": "prepare_p1", "id": entry_id,
+                                    "source_sha256": preview["source_sha256"]})
+    assert applied[0] == 200
+    snapshot = decoded(applied)
+    entry = snapshot["entries"][0]
+    assert snapshot["revision"] == 3
+    assert entry["analysis"]["report"]["atom_count"] == 4
+    assert entry["reviewed"] is False
+    assert entry["review_stamp"] == decoded(completed)["entries"][0]["review_stamp"]
+    assert entry["preparation"]["source_filename"] == "graphite.cif"
+    assert b"cif_base64" not in applied[2]
+    saved = loads_project(request(api_server, "GET", "/api/v1/project/export")[2])
+    assert saved.entries[0].data == preview["prepared_cif"].encode()
+    assert base64.b64decode(saved.entries[0].preparation["source"]["cif_base64"]) == source
+    again = request(api_server, "POST", "/api/v1/prepare/p1", {
+        "expected_revision": 3, "entry_id": entry_id,
+    }, authorized=True)
+    assert again[0] == 422
+    assert decoded(again)["error"]["code"] == "already_prepared"
+
+
+def test_p1_rejects_partial_occupancy_without_mutation(api_server):
+    loaded = decoded(action(api_server, 0, {"type": "load_example", "name": "partial_occupancy.cif"}))
+    entry = loaded["entries"][0]
+    before = api_server.workspace.project
+    response = request(api_server, "POST", "/api/v1/prepare/p1", {
+        "expected_revision": 1, "entry_id": entry["id"],
+    }, authorized=True)
+    assert response[0] == 422
+    assert decoded(response)["error"]["code"] == "unsupported_preparation"
+    applied = action(api_server, 1, {"type": "prepare_p1", "id": entry["id"], "source_sha256": entry["sha256"]})
+    assert applied[0] == 422
+    assert api_server.workspace.project is before
+    assert api_server.workspace.revision == 1
+
+
+def test_imported_source_bindings_are_pruned_and_large_state_omitted_from_minor_snapshots(api_server):
+    from dataclasses import replace
+    from slab_preflight.project import ProjectEntry, dumps_project
+    import hashlib
+    original = api_server.workspace.project
+    first = original.entries[0]
+    second = ProjectEntry("second", "hbn.cif", (ROOT / "examples/hbn.cif").read_bytes())
+    first_sha = hashlib.sha256(first.data).hexdigest()
+    second_sha = hashlib.sha256(second.data).hexdigest()
+    state = {"schema_version": 1, "auxiliary": {first_sha: {"raw": "keep"}, second_sha: {"raw": "remove"}},
+             "viewers": {f"overview:{first.id}:{first_sha}": {}, f"right:second:{second_sha}": {}},
+             "drafts": {"second": {"sha256": second_sha}, first.id: {"sha256": first_sha}},
+             "comparison": {"before": first.id, "after": "second"}, "view": "compare"}
+    candidate = replace(original, entries=[first, second], workspace_state=state)
+    imported = request(api_server, "POST", "/api/v1/project/import", dumps_project(candidate),
+                       authorized=True, headers={"X-CalcLens-Revision": "0"})
+    assert imported[0] == 200
+    assert decoded(imported)["project"]["workspace_state"] == state
+    removed = action(api_server, 1, {"type": "remove_entry", "id": "second"})
+    assert removed[0] == 200
+    assert "workspace_state" not in decoded(removed)["project"]
+    assert "workspace_state" not in decoded(request(api_server, "GET", "/api/v1/workspace"))["project"]
+    restored = decoded(request(api_server, "GET", "/api/v1/bootstrap"))["project"]["workspace_state"]
+    assert set(restored["auxiliary"]) == {first_sha}
+    assert set(restored["viewers"]) == {f"overview:{first.id}:{first_sha}"}
+    assert set(restored["drafts"]) == {first.id}
+    assert restored["comparison"] == {"before": first.id, "after": ""}
+    replaced = action(api_server, 2, {"type": "replace_source", "id": first.id,
+        "filename": "mos2.cif", "data_base64": file_payload("mos2.cif")["data_base64"]})
+    assert replaced[0] == 200
+    restored = decoded(request(api_server, "GET", "/api/v1/bootstrap"))["project"]["workspace_state"]
+    assert restored["auxiliary"] == {}
+    assert restored["viewers"] == {}
+    assert restored["drafts"] == {}
+
+
+def test_minor_actions_reuse_already_validated_opaque_workspace_bytes(monkeypatch):
+    from dataclasses import replace
+    from slab_preflight.project import dumps_project
+    workspace = web_api.Workspace(ROOT)
+    candidate = replace(workspace.project, workspace_state={"raw": "large\n" * 1000})
+    workspace.import_project(0, dumps_project(candidate))
+    entry_id = workspace.project.entries[0].id
+    workspace.apply(1, {"type": "patch_entry", "id": entry_id, "note": "first"})
+    monkeypatch.setattr(web_api, "validate_workspace_state", lambda value: pytest.fail("revalidated opaque data"))
+    updated = workspace.apply(2, {"type": "patch_entry", "id": entry_id, "note": "second"})
+    assert updated["entries"][0]["note"] == "second"
+    assert "workspace_state" not in updated["project"]
+
+
+def test_unsupported_normal_preserves_raw_data_with_actual_source_structure_on_refresh(api_server):
+    from dataclasses import replace
+    import hashlib
+    from slab_preflight.project import dumps_project
+    original = api_server.workspace.project
+    entry = original.entries[0]
+    digest = hashlib.sha256(entry.data).hexdigest()
+    state = {"schema_version": 1, "auxiliary": {digest: {"raw": "electronic original retained"}},
+             "viewers": {}, "drafts": {}, "comparison": {"before": entry.id, "after": entry.id}}
+    data = dumps_project(replace(original, workspace_state=state))
+    imported = request(api_server, "POST", "/api/v1/project/import", data, authorized=True,
+                       headers={"X-CalcLens-Revision": "0"})
+    assert imported[0] == 200
+    original_structure = decoded(imported)["entries"][0]["analysis"]["report"]
+    changed = action(api_server, 1, {"type": "patch_entry", "id": entry.id, "normal_axis": "a"})
+    assert changed[0] == 200
+    assert decoded(changed)["entries"][0]["analysis"]["report"] is None
+    assert "auxiliary_structure" not in decoded(changed)["entries"][0]["analysis"]
+    refreshed = decoded(request(api_server, "GET", "/api/v1/bootstrap"))
+    loaded = refreshed["entries"][0]
+    assert loaded["normal_axis"] == "a"
+    assert loaded["analysis"]["report"] is None
+    assert loaded["analysis"]["auxiliary_structure"] == {
+        key: original_structure[key] for key in ("atom_count", "elements", "positions")
+    }
+    assert refreshed["project"]["workspace_state"] == state
+    exported = request(api_server, "GET", "/api/v1/project/export")
+    preview = request(api_server, "POST", "/api/v1/project/preview", exported[2], authorized=True,
+                      headers={"X-CalcLens-Revision": "2"})
+    assert preview[0] == 200
+    assert decoded(preview)["entries"][0]["analysis"]["auxiliary_structure"] == loaded["analysis"]["auxiliary_structure"]
+    assert api_server.workspace.project.entries[0].normal_axis == "a"
+
+
+@pytest.mark.parametrize("name", ["partial_occupancy.cif", "symmetry_unsupported.cif"])
+def test_auxiliary_structure_fallback_never_relaxes_core_source_guards(api_server, name):
+    action(api_server, 0, {"type": "load_example", "name": name})
+    entry = decoded(request(api_server, "GET", "/api/v1/bootstrap"))["entries"][0]
+    assert entry["analysis"]["report"] is None
+    assert "auxiliary_structure" not in entry["analysis"]

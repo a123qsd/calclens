@@ -3,6 +3,12 @@
 # Prepared artifacts have reproducible LF bytes and hashes on every platform.
 /examples/public_case/*.cif text eol=lf
 /examples/public_case/*.json text eol=lf
+/examples/electronic_case/** text eol=lf
+/examples/electronic_case/*.png binary
+/examples/electronic_case/independent_viewer/*.png binary
+/examples/electronic_case/*.zip binary
+/scripts/prepare_electronic_case.py text eol=lf
+/scripts/compare_electronic_viewers.py text eol=lf
 # Browser build inputs and generated resources must agree across build hosts.
 /frontend/** text eol=lf
 /src/slab_preflight/web_assets/** text eol=lf

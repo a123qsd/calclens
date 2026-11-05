@@ -1,5 +1,11 @@
 # Downloads and installation / 다운로드·설치
 
+**v0.7.0** preserves drafts and viewer settings, includes electronic files in
+project ZIPs, and adds validated P1 preparation. See the
+[workspace guide](WORKSPACE_SAVE.md).
+**v0.7.0**은 초안·뷰어 설정과 전자 자료를 함께 저장하고 P1 준비 기능을 제공합니다.
+자세한 사용법은 [작업 안내](WORKSPACE_SAVE.md)를 참고하세요.
+
 [Project home](../README.md) · [Full English guide](../README.en.md) · [한국어 전체 안내](../README.ko.md)
 
 ## Windows EXE — Python included / Python 포함
@@ -16,8 +22,21 @@ Windows 10/11 x64에서는 EXE를 받은 뒤 더블클릭하세요. Python을 �
 
 | Language / 언어 | Standalone EXE / 단일 EXE | Folder ZIP / 폴더 ZIP | Guide / 안내 |
 | --- | --- | --- | --- |
-| 한국어 | [한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-ko.exe) | [한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-ko-folder.zip) | [한국어 Windows 안내](../packaging/windows/README.ko.md) |
-| English | [English EXE](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-en.exe) | [English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-en-folder.zip) | [English Windows guide](../packaging/windows/README.en.md) |
+| 한국어 | [한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko.exe) | [한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko-folder.zip) | [한국어 Windows 안내](../packaging/windows/README.ko.md) |
+| English | [English EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en.exe) | [English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en-folder.zip) | [English Windows guide](../packaging/windows/README.en.md) |
+
+These are the default workspace builds. If you need the previous Streamlit
+interface, choose the separate [Korean legacy EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko-legacy.exe)
+or [English legacy EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en-legacy.exe)
+and pass `--legacy-ui`. Matching `-legacy-folder.zip` archives are on the same
+release page. Keep the [legacy support ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-support-legacy.zip)
+with those builds when redistributing them. Their notices and dependency
+inventory differ from the default distribution.
+
+위 표는 새 작업공간을 제공하는 기본 배포판입니다. 이전 Streamlit 화면이 필요하면
+별도의 한국어·영어 `-legacy.exe` 또는 `-legacy-folder.zip`을 받아
+`--legacy-ui`로 실행하세요. 재배포할 때는 같은 배포판의
+`windows-support-legacy.zip`도 함께 보관·전달하세요.
 
 The standalone EXE unpacks its files at startup, which can take several seconds.
 For faster repeat launches, extract the entire folder ZIP and run the EXE inside
@@ -31,8 +50,8 @@ closing only the browser tab leaves it running. Save your project before quittin
 **진단 기록**, **종료**를 사용하세요. 관리 창을 닫으면 서버도 종료되며,
 브라우저 탭만 닫으면 계속 실행됩니다. 종료하기 전에 작업을 저장하세요.
 
-[Windows checksums](https://github.com/a123qsd/calclens/releases/download/v0.6.0/WINDOWS-SHA256SUMS.txt) ·
-[Windows licenses and build source](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-support.zip)
+[Windows checksums](https://github.com/a123qsd/calclens/releases/download/v0.7.0/WINDOWS-SHA256SUMS.txt) ·
+[Windows licenses and build source](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-support.zip)
 
 The EXEs are unsigned. Windows may show an unknown-publisher or SmartScreen
 warning. Check the release owner, source and checksum before deciding whether to
@@ -45,13 +64,13 @@ EXE에는 코드 서명이 없어 Windows에서 게시자를 알 수 없다는 �
 
 ## Source packages / 소스 패키지
 
-**CalcLens v0.6.0** includes the molecular workspace, project editing, review
+**CalcLens v0.7.0** includes the molecular workspace, project editing, review
 history, pair measurements and side-by-side structure comparison. The viewer
 adds representation and graphics controls, linked comparison cameras, PNG export
 and imported charge/density/orbital displays. Choose a language-specific source
 ZIP and install it with the commands below.
 
-**CalcLens v0.6.0**에는 입체 구조 작업공간, 프로젝트 편집, 검토 이력, 원자쌍 측정과
+**CalcLens v0.7.0**에는 입체 구조 작업공간, 프로젝트 편집, 검토 이력, 원자쌍 측정과
 두 구조의 나란히 비교가 포함됩니다. 뷰어에 표현·그래픽 설정, 비교 시점 동기화,
 PNG 저장과 외부 전하·전자밀도·오비탈 자료 표시가 추가되었습니다.
 원하는 언어의 소스 ZIP을 받은 뒤 아래 명령으로 설치하세요.
@@ -65,16 +84,16 @@ See [Imported viewer data / 보조 자료 안내](VIEWER_DATA.md).
 ## English
 
 Download a language-specific source package from
-[CalcLens v0.6.0](https://github.com/a123qsd/calclens/releases/tag/v0.6.0):
+[CalcLens v0.7.0](https://github.com/a123qsd/calclens/releases/tag/v0.7.0):
 
 | Asset | Initial interface and main guide |
 | --- | --- |
-| [calclens-0.6.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.6.0/calclens-0.6.0-en.zip) | English |
-| [calclens-0.6.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.6.0/calclens-0.6.0-ko.zip) | Korean |
+| [calclens-0.7.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-en.zip) | English |
+| [calclens-0.7.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-ko.zip) | Korean |
 
 You can also download the guides separately as Markdown files:
-[English guide](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-Guide.en.md) ·
-[Korean guide](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-Guide.ko.md).
+[English guide](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.en.md) ·
+[Korean guide](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.ko.md).
 These text files explain the app; they do not contain the program.
 
 Both packages contain the same geometry engine, examples, and English/Korean
@@ -89,7 +108,7 @@ The installation command examples below use Python 3.12.
 
 ### Install on macOS or Linux
 
-Extract the ZIP and open a terminal in `calclens-0.6.0-en` (or `calclens-0.6.0-ko`
+Extract the ZIP and open a terminal in `calclens-0.7.0-en` (or `calclens-0.7.0-ko`
 for the Korean package), the folder containing `run_app.py` and `requirements.lock`. Run:
 
 ```bash
@@ -101,7 +120,7 @@ python3.12 -m venv .venv
 
 ### Install on Windows
 
-Extract the ZIP and open PowerShell in `calclens-0.6.0-en` (or `calclens-0.6.0-ko`
+Extract the ZIP and open PowerShell in `calclens-0.7.0-en` (or `calclens-0.7.0-ko`
 for the Korean package), the folder containing `run_app.py` and `requirements.lock`. Run:
 
 ```powershell
@@ -181,17 +200,17 @@ See the [project guide](../README.en.md#pair-measurements-and-saved-work) for de
 
 ## 한국어
 
-[CalcLens v0.6.0 배포 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.6.0)에서
+[CalcLens v0.7.0 배포 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.7.0)에서
 원하는 언어의 소스 ZIP을 받으세요.
 
 | 파일 | 처음 열리는 화면과 기본 안내 |
 | --- | --- |
-| [calclens-0.6.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.6.0/calclens-0.6.0-ko.zip) | 한국어 |
-| [calclens-0.6.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.6.0/calclens-0.6.0-en.zip) | 영어 |
+| [calclens-0.7.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-ko.zip) | 한국어 |
+| [calclens-0.7.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-en.zip) | 영어 |
 
 안내 문서만 필요하면 Markdown 파일로 따로 받을 수 있습니다.
-[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-Guide.ko.md) ·
-[영어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-Guide.en.md).
+[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.ko.md) ·
+[영어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.en.md).
 안내 파일에는 프로그램이 들어 있지 않습니다.
 
 두 파일의 검사 엔진과 예제는 같습니다. 둘 다 한국어·영어 화면을 제공하며, ZIP 안의
@@ -206,8 +225,8 @@ Node.js는 필요하지 않습니다. 처음 설치할 때는 인터넷 연결�
 
 ### macOS·Linux에서 설치
 
-ZIP을 푼 뒤 `run_app.py`와 `requirements.lock`이 있는 `calclens-0.6.0-ko` 폴더에서
-터미널을 열고 실행하세요. 영어 패키지를 받았다면 폴더 이름은 `calclens-0.6.0-en`입니다.
+ZIP을 푼 뒤 `run_app.py`와 `requirements.lock`이 있는 `calclens-0.7.0-ko` 폴더에서
+터미널을 열고 실행하세요. 영어 패키지를 받았다면 폴더 이름은 `calclens-0.7.0-en`입니다.
 
 ```bash
 python3.12 -m venv .venv
@@ -218,8 +237,8 @@ python3.12 -m venv .venv
 
 ### Windows에서 설치
 
-ZIP을 푼 뒤 `run_app.py`와 `requirements.lock`이 있는 `calclens-0.6.0-ko` 폴더에서
-PowerShell을 열고 실행하세요. 영어 패키지를 받았다면 폴더 이름은 `calclens-0.6.0-en`입니다.
+ZIP을 푼 뒤 `run_app.py`와 `requirements.lock`이 있는 `calclens-0.7.0-ko` 폴더에서
+PowerShell을 열고 실행하세요. 영어 패키지를 받았다면 폴더 이름은 `calclens-0.7.0-en`입니다.
 
 ```powershell
 py -3.12 -m venv .venv

@@ -10,8 +10,8 @@ It does not change any dependency's license or permission to sell that dependenc
 | --- | --- | --- |
 | ASE | CIF token parsing, cells, periodic geometry | [LGPL-2.1-or-later](https://gitlab.com/ase/ase/-/blob/master/LICENSE), [source](https://gitlab.com/ase/ase) |
 | NumPy | Array operations and linear algebra | [BSD-3-Clause](https://numpy.org/doc/stable/license.html), [source](https://github.com/numpy/numpy) |
-| Streamlit | Local web interface | [Apache-2.0](https://github.com/streamlit/streamlit/blob/develop/LICENSE), [source](https://github.com/streamlit/streamlit) |
-| Plotly.py | Interactive structure plot | [MIT](https://github.com/plotly/plotly.py/blob/main/LICENSE.txt), [source](https://github.com/plotly/plotly.py) |
+| Streamlit | Optional legacy web interface | [Apache-2.0](https://github.com/streamlit/streamlit/blob/develop/LICENSE), [source](https://github.com/streamlit/streamlit) |
+| Plotly.py | Optional legacy structure plot | [MIT](https://github.com/plotly/plotly.py/blob/main/LICENSE.txt), [source](https://github.com/plotly/plotly.py) |
 | React / ReactDOM | Workspace interface | [MIT](https://github.com/facebook/react/blob/main/LICENSE), [source](https://github.com/facebook/react) |
 | 3Dmol.js | Shaded molecular viewer | [BSD-3-Clause and incorporated notices](https://github.com/3Dmol/3Dmol.js/blob/master/LICENSE), [source](https://github.com/3Dmol/3Dmol.js) |
 | pytest | Test runner; development only | [MIT](https://github.com/pytest-dev/pytest/blob/main/LICENSE), [source](https://github.com/pytest-dev/pytest) |
@@ -19,7 +19,8 @@ It does not change any dependency's license or permission to sell that dependenc
 The initial verification environment uses ASE 3.29.0, NumPy 2.5.4,
 Streamlit 1.66.1, Plotly 6.9.0, and pytest 9.2.0 on Python 3.12.16.
 The exact installed versions and transitive dependencies are recorded in
-`requirements.lock`. Their own distributions contain their license notices.
+`requirements.lock` for the default environment and `requirements-legacy.lock`
+for the optional previous interface. Their own distributions contain their license notices.
 This table describes direct dependencies, not every transitive package or
 license included in a Python wheel. If you redistribute an installed environment,
 a container, a bundled executable, or dependency source, retain all applicable
@@ -41,6 +42,8 @@ the same notices, a dependency/version manifest, the exact unmodified ASE source
 archive with its upstream SHA-256, and the CalcLens source used for the Windows
 build. Build-tool notices are identified separately from runtime dependencies.
 NumPy/SciPy wheel notices also cover native libraries shipped in those wheels.
+From the 0.7.0 source, default builds exclude Streamlit and Plotly. The optional
+`-legacy` executable and support ZIP carry their own dependency inventory.
 
 The support archive's source includes locked build requirements, the PyInstaller
 specification, and English/Korean rebuild instructions. Those instructions allow
@@ -86,3 +89,17 @@ That data retains its CC0 status; the CalcLens application license does not
 restrict it. The source hash, preparation, occupancy assumption, and independent
 comparison are recorded in [the case study](docs/CASE_STUDY.md). The constructed
 isolated sheet is a geometric derivative, not an experimentally measured or relaxed slab.
+
+`examples/electronic_case/` contains an original isolated-water calculation made
+for this project with the optional PySCF tool. The input, numerical outputs,
+reproduction requirements and checks are documented in
+[the electronic case](docs/ELECTRONIC_CASE.md). PySCF is not bundled with CalcLens
+and is not an application runtime dependency.
+
+## Crystallographic reference data
+
+The Hall-symbol lookup in `src/slab_preflight/preparation.py` was derived from
+the [spglib space-group table](https://github.com/spglib/spglib/blob/2d0b73cc3b556282e35f9ae51de01268f5d88e5a/database/spg.csv).
+The module records the source hash, retrieval date and matching method.
+No spglib implementation or runtime dependency is included. Upstream spglib
+provides its [BSD-3-Clause notice](https://github.com/spglib/spglib/blob/2d0b73cc3b556282e35f9ae51de01268f5d88e5a/COPYING).

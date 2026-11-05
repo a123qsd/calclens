@@ -1,12 +1,24 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assertSurfaceBudget, chargeColor, exportDimensions, labelAtoms, repeatDimensions } from './viewerPresentation.ts';
+import { assertSurfaceBudget, chargeColor, chargeDisplayRange, exportDimensions, labelAtoms, repeatDimensions } from './viewerPresentation.ts';
 import type { DisplayAtom } from './viewerGeometry.ts';
 
 test('missing charge has a different color from neutral and signed values', () => {
   assert.notEqual(chargeColor(null, 1), chargeColor(0, 1));
   assert.notEqual(chargeColor(-1, 1), chargeColor(1, 1));
   assert.equal(chargeColor(-10, 1), chargeColor(-1, 1));
+});
+
+test('common and manual charge ranges map the same value to the same color and clip endpoints', () => {
+  const range: [number, number] = [-2, 4];
+  assert.deepEqual(chargeDisplayRange([-1, null, 1], range), range);
+  assert.deepEqual(chargeDisplayRange([-100, null, 100], range), range);
+  assert.equal(chargeColor(-5, range), chargeColor(-2, range));
+  assert.equal(chargeColor(8, range), chargeColor(4, range));
+  assert.notEqual(chargeColor(null, range), chargeColor(0, range));
+  assert.notEqual(chargeColor(1, range), chargeColor(1, [-1, 1]));
+  assert.deepEqual(chargeDisplayRange([null, -0.5, 1], [2, -2]), [-1, 1]);
+  assert.deepEqual(chargeDisplayRange([null, 0]), [0, 0]);
 });
 
 test('repeat dimensions follow the chosen normal axis', () => {

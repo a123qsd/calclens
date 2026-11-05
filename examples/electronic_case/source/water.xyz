@@ -1,0 +1,5 @@
+3
+Fixed illustrative H2O geometry in angstrom; O,H,H order; no geometry optimization.
+O  0.000000000  0.000000000  0.000000000
+H  0.000000000  0.757000000  0.587000000
+H  0.000000000 -0.757000000  0.587000000

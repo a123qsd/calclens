@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "structure_sha256": "f145b937192b9f08b9e8761b20623301062d0ca10355d5e230ce061836b6d11c",
+  "kind": "partial_charge",
+  "method": "Lowdin symmetric orthogonalization; RHF/STO-3G",
+  "source": "PySCF 2.12.0; actual molecular H2O calculation; calculation.json",
+  "atoms": [
+    {
+      "index": 1,
+      "element": "O",
+      "value": -0.25286888407635555
+    },
+    {
+      "index": 2,
+      "element": "H",
+      "value": 0.12643444203817877
+    },
+    {
+      "index": 3,
+      "element": "H",
+      "value": 0.12643444203817644
+    }
+  ]
+}

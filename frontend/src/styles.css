@@ -204,3 +204,13 @@ footer { padding: 15px 3px 0; color: #425063; font-size: 12px; }
   .auxiliary-fields { grid-template-columns: 1fr; }
   .viewer-heading-actions { margin-left: 0; justify-content: flex-start; }
 }
+/* Shared numeric scales and conversion previews remain usable on narrow screens. */
+.compare-range { padding: 18px 22px; margin-bottom: 20px; display: flex; gap: 14px; align-items: end; flex-wrap: wrap; }
+.compare-range label { display: grid; gap: 7px; font-size: 13px; }
+.compare-range select, .compare-range input { max-width: 100%; min-height: 36px; }
+.compare-range small { flex-basis: 100%; color: var(--muted, #64748b); }
+.range-fields { display: flex; gap: 12px; flex-wrap: wrap; }
+.range-fields input { width: 140px; }
+.preparation-panel { margin-bottom: 20px; }
+.preparation-panel dd { overflow-wrap: anywhere; margin-left: 0; margin-bottom: 10px; }
+.preparation-panel dt { font-weight: 600; }

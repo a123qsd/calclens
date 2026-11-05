@@ -1,32 +1,35 @@
 # CalcLens
 
-**CalcLens v0.6.0** includes project file editing, review provenance,
-chosen-pair measurement, side-by-side comparison, a Windows launch manager,
-and an offline 3D workspace. The viewer adds ball-and-stick, stick and
-space-filling views, graphics controls, linked comparison cameras and
-1600/3200-pixel PNG export.
+**CalcLens v0.7.0 source** preserves drafts and viewer settings, saves original
+electronic files in portable projects, and compares multiple datasets with a
+common charge-color range. It adds validated P1 preparation and an actual
+electronic-calculation example. The existing offline 3D workspace, review
+history, pair measurements, linked cameras and PNG export remain available.
 
-**CalcLens v0.6.0**에는 프로젝트 파일 편집, 검토 이력, 원자쌍 측정,
-두 구조 비교, Windows 실행 관리 창과 오프라인 3D 작업공간이 포함됩니다.
-뷰어에서 구·막대/막대/공간 채움, 그래픽 설정, 비교 시점 동기화와
-1600/3200픽셀 PNG 저장을 사용할 수 있습니다.
+**CalcLens v0.7.0 소스**는 작성 중인 초안과 뷰어 설정을 유지하고, 전자 자료
+원본까지 작업 파일에 저장합니다. 여러 계산 결과를 공통 전하 범위로 비교할 수
+있으며, 검증된 P1 준비 기능과 실제 전자구조 계산 사례를 추가했습니다. 기존의
+오프라인 3D 작업공간, 검토 이력, 원자쌍 측정, 시점 동기화와 PNG 출력도 제공합니다.
 
 Externally supplied charge JSON and density/orbital Cube files can be displayed
 for a matching CIF. CalcLens does not calculate those quantities. Imported viewer
-data lasts only for the current browser session and is not saved in projects.
+data, per-file drafts and viewer settings are included in portable ZIP projects.
+Multiple datasets and shared charge scales support comparisons on the same CIF.
 See [Imported viewer data](docs/VIEWER_DATA.md) for formats and limits.
 
 CIF와 일치하는 전하 JSON 및 전자밀도·오비탈 Cube 자료를 불러와 표시할 수 있습니다.
-CalcLens가 이 값을 계산하지는 않습니다. 보조 자료는 현재 브라우저 세션에만
-보관하며 작업 저장 파일에 포함하지 않습니다. 형식과 제한은
+CalcLens가 이 값을 계산하지는 않습니다. 보조 자료, 파일별 초안과 뷰어 설정은 작업 ZIP에 함께 저장합니다.
+같은 CIF에 여러 자료를 연결하고 공통 전하 색상 범위로 비교할 수 있습니다. 형식과 제한은
 [보조 자료 안내](docs/VIEWER_DATA.md)를 참고하세요.
 
-**Windows x64: no Python installation needed / Python 설치 없이 실행**
+[0.7.0 workspace guide / 새 작업 안내](docs/WORKSPACE_SAVE.md) · [Real electronic-data case / 실제 계산 사례](docs/ELECTRONIC_CASE.md)
 
-[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-ko.exe) ·
-[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-en.exe) ·
-[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-ko-folder.zip) ·
-[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-en-folder.zip) ·
+**Published Windows v0.7.0 / 현재 공개된 Windows v0.7.0**
+
+[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko.exe) ·
+[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en.exe) ·
+[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko-folder.zip) ·
+[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en-folder.zip) ·
 [실행 안내](packaging/windows/README.ko.md) · [Windows guide](packaging/windows/README.en.md)
 
 Double-click the EXE to open the launch manager and browser workspace. Use the
@@ -61,13 +64,13 @@ JSON/CSV exports and comparisons of up to 20 CIF files with settings for each fi
 
 [Latest release / 최신 배포](https://github.com/a123qsd/calclens/releases/latest)
 
-| Language | Source ZIP for v0.6.0 | Read guide | Download guide |
+| Language | Source ZIP for v0.7.0 | Read guide | Download guide |
 | --- | --- | --- | --- |
-| English | [calclens-0.6.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.6.0/calclens-0.6.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-Guide.en.md) |
-| 한국어 | [calclens-0.6.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.6.0/calclens-0.6.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-Guide.ko.md) |
+| English | [calclens-0.7.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.en.md) |
+| 한국어 | [calclens-0.7.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0/calclens-0.7.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.ko.md) |
 
-[Windows checksums / Windows 체크섬](https://github.com/a123qsd/calclens/releases/download/v0.6.0/WINDOWS-SHA256SUMS.txt) ·
-[Windows licenses and build source / Windows 라이선스·빌드 소스](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-support.zip)
+[Windows checksums / Windows 체크섬](https://github.com/a123qsd/calclens/releases/download/v0.7.0/WINDOWS-SHA256SUMS.txt) ·
+[Windows licenses and build source / Windows 라이선스·빌드 소스](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-support.zip)
 
 Both ZIPs contain the same analysis engine and both interface languages. Each
 opens in its selected language by default. **Python 3.12 or 3.13 and dependency
@@ -89,14 +92,16 @@ Python 3.12를 사용합니다. 보고서 언어는 기본적으로 화면 언�
 
 ## Save and continue work / 작업 저장하고 이어가기
 
-Use **Save project** to download a `.calclens.json` containing the original CIFs,
-per-file settings, notes, review history and saved pair selections. Use
+Use **Save project** to download a `.calclens.zip` containing the original CIFs,
+per-file settings, notes, review history, pair selections, drafts, electronic files
+and viewer state. Older `.calclens.json` projects remain readable. Use
 **Open project** to continue later; measurements are recalculated from the originals.
 Save before stopping the server, because unsaved work stays in memory.
 See the [English guide](README.en.md#pair-measurements-and-saved-work) for details.
 
 **작업 저장**으로 원본 CIF, 파일별 조건, 메모, 검토 이력과 원자쌍 선택을
-`.calclens.json`에 저장하고, **작업 열기**로 이어서 검토할 수 있습니다.
+전자 자료·초안·뷰어 설정과 함께 `.calclens.zip`에 저장합니다.
+**작업 열기**에서는 이전 `.calclens.json`도 읽을 수 있습니다.
 측정값은 원본에서 다시 계산합니다. 저장하지 않은 작업은 메모리에만 있으므로
 서버를 종료하기 전에 저장하세요.
 자세한 내용은 [한국어 안내](README.ko.md#원자-거리와-작업-저장)를 확인하세요.
@@ -114,15 +119,19 @@ See the [English guide](README.en.md#pair-measurements-and-saved-work) for detai
 두께·간격 측정을 지원합니다. 경고가 없어도 가장 가까운 원자쌍을 열어 볼 수 있습니다.
 비교 표의 행을 선택하면 해당 파일의 상세 결과를 확인하고 JSON·CSV로 내보낼 수 있습니다.
 
-Each file must contain one explicit, fully occupied P1 CIF structure, up to 400 sites
+Direct analysis requires one explicit, fully occupied P1 CIF structure, up to 400 sites
 and 2 MiB. Comparing files does not combine their structures. The chosen normal
 axis must be perpendicular to the other two cell vectors. Gaussian/ORCA logs
 and calculation execution are outside this release.
+The separate [P1 preparation step](docs/WORKSPACE_SAVE.md#p1-preparation) can expand
+supported fully occupied, ordered non-P1 sources after a preview.
 
-파일마다 원자 위치가 명시된 완전 점유 P1 CIF 구조 1개를 받으며, 파일당 최대 400개
+직접 분석에는 원자 위치가 명시된 완전 점유 P1 CIF 구조 1개가 필요하며, 파일당 최대 400개
 원자·2 MiB까지 지원합니다. 비교할 파일들은 각각 검사합니다.
 선택한 수직 방향은 나머지 두 셀 벡터에 수직이어야 합니다.
 Gaussian·ORCA 로그 분석과 계산 실행은 지원하지 않습니다.
+지원 가능한 완전 점유·무질서 없는 비P1 원본은 별도의 **P1 구조 준비**에서
+대칭 전개 결과를 확인한 뒤 적용할 수 있습니다.
 
 > Geometry checks do not establish material stability or calculation accuracy.
 > The reported gap uses nuclear positions; vacuum sufficiency requires separate

@@ -1,5 +1,6 @@
 """Source provenance must survive Git's Windows-style checkout conversion."""
 from hashlib import sha256
+import json
 from pathlib import Path
 import subprocess
 
@@ -26,6 +27,13 @@ def test_public_case_bytes_survive_autocrlf_checkout(tmp_path):
         "examples/public_case/graphene_from_graphite_p1.cif",
         "examples/public_case/case_results.json",
     ]
+    electronic = json.loads((ROOT / "examples/electronic_case/manifest.json").read_bytes())
+    paths.extend(f"examples/electronic_case/{name}" for name in electronic["sha256"])
+    paths.extend(["examples/electronic_case/manifest.json", electronic["preparation_script"]])
+    reference_root = "examples/electronic_case/independent_viewer"
+    reference = json.loads((ROOT / reference_root / "manifest.json").read_bytes())
+    paths.extend(f"{reference_root}/{name}" for name in reference["sha256"])
+    paths.extend([f"{reference_root}/manifest.json", reference["script"]])
     for name in paths:
         target = repo / name
         target.parent.mkdir(parents=True, exist_ok=True)

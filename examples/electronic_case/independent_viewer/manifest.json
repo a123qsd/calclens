@@ -1,0 +1,14 @@
+{
+  "script": "scripts/compare_electronic_viewers.py",
+  "script_sha256": "06eb0b43f0f9887e4c5e23cd008e8cbfb9fbd89670ccd4a81948d1db8904c978",
+  "sha256": {
+    "ngl-reference.png": "8ff228391b945c1b3afcf9f460769efad0d45ca5856a970171d04fc9cdb2b270",
+    "ngl-density.png": "49a27a30a56558198a07c9aeda4db01c9fa8c44ebc1d4ee301838f8e3babc9c8",
+    "ngl-homo.png": "7e11cc2833ee865bd650c07b19c403a02d81a3ff831dc2a0ad70ee2d5f0000c6",
+    "calclens-density.png": "3476369e0015cb8f4dd283394d4c689a1632fe3fd63a6aa66957057b170b0e3c",
+    "calclens-homo.png": "5acb8ed4e27f319d231bc6e9dcbc01d82a5aa7428c1b4fbf1e9a8a88e07a99bb",
+    "comparison.png": "a52750ced75adf2b3e7afa1896b11b20b4a05fc97a94e8afe159b067becb13bd",
+    "comparison.json": "6e8aa9bd4f7d02b13036c4cd3a75b8eba56dc74006f6db16aedb2a313a94a4fc",
+    "water-display.pdb": "33b0783e47e9d0cc0a325e22aeb09e7ac4c684cc7c7ab2a52be6b8b8dcb1c74a"
+  }
+}

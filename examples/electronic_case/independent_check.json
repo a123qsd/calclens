@@ -1,0 +1,104 @@
+{
+  "method": "NumPy HF reconstruction + ASE Cube parser + separate atom-centered quadrature",
+  "scope": "Export, order, units, matrix consistency; not independent integral-engine validation",
+  "matrix_check": {
+    "electron_count_trace_ps": 10.0,
+    "energy_reconstructed_hartree": -74.96306312972919,
+    "energy_error_hartree": 1.4210854715202004e-14,
+    "mo_orthonormality_max_error": 6.661338147750939e-16,
+    "density_from_occupied_mos_max_error": 6.938893903907228e-17,
+    "roothaan_max_residual": 1.2433076790330233e-10,
+    "mulliken_charges_e": [
+      -0.36550976944309754,
+      0.18275488472154977,
+      0.18275488472154733
+    ],
+    "lowdin_charges_e": [
+      -0.252868884076354,
+      0.12643444203817944,
+      0.12643444203817744
+    ],
+    "mulliken_net_charge_e": -4.440892098500626e-16,
+    "lowdin_net_charge_e": 2.886579864025407e-15
+  },
+  "ase_cube_check": {
+    "density.cube": {
+      "shape": [
+        30,
+        30,
+        30
+      ],
+      "point_count": 27000,
+      "minimum": 1.25578e-11,
+      "maximum": 7.13531,
+      "voxel_volume_bohr3": 0.0324527606170147,
+      "trapezoidal_integral": 9.178029606226968,
+      "trapezoidal_squared_integral": 10.5131370610738,
+      "origin_angstrom": [
+        3.883291287381638,
+        3.12629111659422,
+        3.883291287381638
+      ],
+      "spacing_angstrom": [
+        [
+          0.14597988366056233,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.19818691972315922,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.16622144114183982
+        ]
+      ],
+      "max_export_absolute_error": 4.767052132592653e-06
+    },
+    "homo.cube": {
+      "shape": [
+        30,
+        30,
+        30
+      ],
+      "point_count": 27000,
+      "minimum": -0.64041,
+      "maximum": 0.64041,
+      "voxel_volume_bohr3": 0.0324527606170147,
+      "trapezoidal_integral": 0.0,
+      "trapezoidal_squared_integral": 0.9999523188221179,
+      "origin_angstrom": [
+        3.883291287381638,
+        3.12629111659422,
+        3.883291287381638
+      ],
+      "spacing_angstrom": [
+        [
+          0.14597988366056233,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.19818691972315922,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.16622144114183982
+        ]
+      ],
+      "max_export_absolute_error": 4.994552085801907e-07
+    }
+  },
+  "atom_centered_quadrature": {
+    "program": "PySCF dft.gen_grid level 5; RHF density",
+    "point_count": 90064,
+    "electron_count": 9.999999989498715,
+    "absolute_error": 1.0501285174768782e-08
+  }
+}

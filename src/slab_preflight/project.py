@@ -7,24 +7,32 @@ from __future__ import annotations
 
 import base64
 import binascii
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field as dataclass_field, replace
 import hashlib
 import json
 import math
 import re
+from io import BytesIO
+import stat
+import struct
 from typing import Iterable
+import zipfile
+import zlib
 
 import ase
 
 from . import __version__
 
 PROJECT_FORMAT = "calclens.project"
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 ANALYSIS_REVISION = "geometry-v1"
 MAX_PROJECT_FILES = 20
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_ENCODED_FILE_BYTES = 4 * ((MAX_FILE_BYTES + 2) // 3)
-MAX_PROJECT_BYTES = MAX_PROJECT_FILES * MAX_ENCODED_FILE_BYTES + 1024 * 1024
+MAX_PROJECT_BYTES = 128 * 1024 * 1024
+MAX_ARCHIVE_BYTES = MAX_PROJECT_BYTES
+MAX_WORKSPACE_BYTES = 96 * 1024 * 1024
+MAX_WORKSPACE_NODES = 250_000
 MAX_NOTE_LENGTH = 10_000
 MAX_JSON_DEPTH = 16
 MAX_PAIR_SELECTIONS = 50
@@ -74,6 +82,7 @@ class ProjectEntry:
     reviewed: bool = False
     review_stamp: ReviewStamp | None = None
     measurements: tuple[PairSelection, ...] = ()
+    preparation: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -86,6 +95,7 @@ class Project:
     ase_version: str = ase.__version__
     progress_filter: str = "all"
     analysis_revision: str | None = ANALYSIS_REVISION
+    workspace_state: dict = dataclass_field(default_factory=dict)
 
 
 def _sha256(data: bytes) -> str:
@@ -193,6 +203,116 @@ def _validate_pair(selection: object, label: str) -> None:
     _choice(selection.mode, f"{label} mode", PAIR_MODES)
 
 
+def validate_workspace_state(value: object) -> int:
+    """Bound portable client state; clients still revalidate scientific data.
+
+    The extension is JSON only. It cannot name files for the backend to open or
+    contain executable objects. Raw auxiliary text is retained without parsing
+    it as a trusted calculation, measurement, or electronic structure.
+    """
+    if not isinstance(value, dict):
+        raise ProjectError("Workspace state must be a JSON object.")
+    pending = [(value, 2)]  # Include the enclosing project object in the depth.
+    visited = 0
+    while pending:
+        item, depth = pending.pop()
+        visited += 1
+        if visited + len(pending) > MAX_WORKSPACE_NODES:
+            raise ProjectError("Workspace state contains too many JSON values.")
+        if depth > MAX_JSON_DEPTH:
+            raise ProjectError("Workspace state nesting is too deep.")
+        if isinstance(item, dict):
+            if visited + len(pending) + len(item) * 2 > MAX_WORKSPACE_NODES:
+                raise ProjectError("Workspace state contains too many JSON values.")
+            for key, child in item.items():
+                _text(key, "Workspace field name", 1024, empty=True)
+                pending.append((child, depth + 1))
+                visited += 1
+        elif isinstance(item, list):
+            if visited + len(pending) + len(item) > MAX_WORKSPACE_NODES:
+                raise ProjectError("Workspace state contains too many JSON values.")
+            pending.extend((child, depth + 1) for child in item)
+        elif isinstance(item, str):
+            try:
+                if len(item.encode("utf-8")) > MAX_WORKSPACE_BYTES:
+                    raise ProjectError("Workspace text exceeds the portable state size limit.")
+            except UnicodeEncodeError as exc:
+                raise ProjectError("Workspace state must contain valid Unicode text.") from exc
+        elif item is None or type(item) is bool:
+            pass
+        elif type(item) is int:
+            if abs(item) > 2**53 - 1:
+                raise ProjectError("Workspace integers must be exactly representable JSON numbers.")
+        elif type(item) is float:
+            if not math.isfinite(item):
+                raise ProjectError("Workspace numbers must be finite.")
+        else:
+            raise ProjectError("Workspace state must contain JSON data only.")
+    encoded = json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode()
+    if len(encoded) > MAX_WORKSPACE_BYTES:
+        raise ProjectError(f"Workspace state exceeds the {MAX_WORKSPACE_BYTES}-byte limit.")
+    return len(encoded)
+
+
+def _validate_preparation(value: object, data: bytes, label: str) -> None:
+    record = _mapping(value, f"{label} preparation", {
+        "schema_version", "method", "source", "source_sha256", "prepared_sha256",
+        "source_site_count", "prepared_site_count", "source_spacegroup", "source_cell",
+        "prepared_cell", "occupancy_policy", "symmetry_operation_count",
+        "symmetry_tolerance_fractional", "symmetry_tolerance_angstrom", "ase_version",
+        "normal_axis", "warnings", "changes",
+    })
+    if type(record["schema_version"]) is not int or record["schema_version"] != 1:
+        raise ProjectError(f"{label} preparation schema is unsupported.")
+    if record["method"] != "symmetry_expansion_to_p1":
+        raise ProjectError(f"{label} preparation method is unsupported.")
+    source = _mapping(record["source"], f"{label} original preparation source", {
+        "filename", "cif_base64", "sha256",
+    })
+    _text(source["filename"], f"{label} preparation source filename", 255)
+    if source["filename"] in (".", "..") or any(char in source["filename"] for char in "/\\"):
+        raise ProjectError(f"{label} preparation source must be a filename without a directory path.")
+    _, digest = _load_payload(source, f"{label} preparation source")
+    if record["source_sha256"] != digest or record["prepared_sha256"] != _sha256(data):
+        raise ProjectError(f"{label} preparation hashes do not match original and prepared CIF content.")
+    for key in ("source_site_count", "prepared_site_count", "symmetry_operation_count"):
+        maximum = 192 if key == "symmetry_operation_count" else MAX_SITE_INDEX + 1
+        if type(record[key]) is not int or not 1 <= record[key] <= maximum:
+            raise ProjectError(f"{label} preparation {key} is outside the supported limit.")
+    for key in ("source_cell", "prepared_cell"):
+        cell = record[key]
+        if not isinstance(cell, list) or len(cell) != 6:
+            raise ProjectError(f"{label} preparation cells must contain six parameters.")
+        if any(type(item) not in (int, float) or not math.isfinite(item) for item in cell):
+            raise ProjectError(f"{label} preparation cell parameters must be finite numbers.")
+        if any(not 0.001 <= item <= 10000 for item in cell[:3]) or any(
+                not 0 < item < 180 for item in cell[3:]):
+            raise ProjectError(f"{label} preparation cell parameters are unsupported.")
+    if record["source_cell"] != record["prepared_cell"]:
+        raise ProjectError(f"{label} P1 preparation must retain its original cell.")
+    group = _mapping(record["source_spacegroup"], f"{label} original space group", {
+        "number", "symbol",
+    })
+    if type(group["number"]) is not int or not 1 <= group["number"] <= 230:
+        raise ProjectError(f"{label} original space-group number is invalid.")
+    _text(group["symbol"], f"{label} original space-group symbol", 80)
+    _choice(record["normal_axis"], f"{label} preparation normal axis", ("a", "b", "c"))
+    _text(record["ase_version"], f"{label} preparation ASE version", 80)
+    _choice(record["occupancy_policy"], f"{label} preparation occupancy policy", (
+        "explicit source occupancy 1.0 retained",
+        "omitted in source; coreCIF default 1.0 made explicit",
+    ))
+    for key in ("symmetry_tolerance_fractional", "symmetry_tolerance_angstrom"):
+        number = record[key]
+        if type(number) not in (int, float) or not math.isfinite(number) or not 0 < number <= 0.001:
+            raise ProjectError(f"{label} preparation symmetry tolerance is unsupported.")
+    for key in ("warnings", "changes"):
+        if not isinstance(record[key], list) or len(record[key]) > 20:
+            raise ProjectError(f"{label} preparation {key} must be a bounded list.")
+        for text in record[key]:
+            _text(text, f"{label} preparation {key}", 1000)
+
+
 def _validate_entry(entry: object, index: int) -> None:
     label = f"Entry {index}"
     if not isinstance(entry, ProjectEntry):
@@ -216,6 +336,8 @@ def _validate_entry(entry: object, index: int) -> None:
         raise ProjectError(f"{label} must contain at most {MAX_PAIR_SELECTIONS} pair selections.")
     for pair_index, pair in enumerate(entry.measurements, 1):
         _validate_pair(pair, f"{label} pair selection {pair_index}")
+    if entry.preparation is not None:
+        _validate_preparation(entry.preparation, entry.data, label)
 
 
 def _validate_project(project: Project) -> None:
@@ -240,6 +362,7 @@ def _validate_project(project: Project) -> None:
     _text(project.ase_version, "ASE version", 80)
     if project.analysis_revision is not None:
         _text(project.analysis_revision, "Analysis revision", 80)
+    validate_workspace_state(project.workspace_state)
 
 
 def _stamp_document(stamp: ReviewStamp | None) -> dict | None:
@@ -261,7 +384,7 @@ def _pair_document(pair: PairSelection) -> dict:
 
 
 def dumps_project(project: Project) -> bytes:
-    """Validate and serialize a self-contained schema-2 project as UTF-8 JSON."""
+    """Validate and serialize a self-contained schema-3 project as UTF-8 JSON."""
     _validate_project(project)
     document = {
         "format": PROJECT_FORMAT,
@@ -275,6 +398,7 @@ def dumps_project(project: Project) -> bytes:
             "selected_id": project.selected_id, "review_focus": project.review_focus,
             "filter_mode": project.filter_mode, "progress_filter": project.progress_filter,
         },
+        "workspace_state": project.workspace_state,
         "entries": [{
             "id": entry.id, "filename": entry.filename,
             "cif_base64": base64.b64encode(entry.data).decode("ascii"),
@@ -282,6 +406,7 @@ def dumps_project(project: Project) -> bytes:
             "short_distance": float(entry.short_distance), "note": entry.note,
             "reviewed": entry.reviewed, "review_stamp": _stamp_document(entry.review_stamp),
             "measurements": [_pair_document(pair) for pair in entry.measurements],
+            "preparation": entry.preparation,
         } for entry in project.entries],
     }
     data = json.dumps(document, ensure_ascii=False, allow_nan=False,
@@ -406,12 +531,15 @@ def _load_entry_v1(value: object, index: int, tools: dict) -> ProjectEntry:
     )
 
 
-def _load_entry_v2(value: object, index: int) -> ProjectEntry:
+def _load_entry_v2(value: object, index: int, *, version: int = 2) -> ProjectEntry:
     label = f"Entry {index}"
-    entry = _mapping(value, label, {
+    fields = {
         "id", "filename", "cif_base64", "sha256", "normal_axis", "short_distance", "note",
         "reviewed", "review_stamp", "measurements",
-    })
+    }
+    if version == 3:
+        fields.add("preparation")
+    entry = _mapping(value, label, fields)
     original, _ = _load_payload(entry, label)
     measurements = entry["measurements"]
     if not isinstance(measurements, list) or len(measurements) > MAX_PAIR_SELECTIONS:
@@ -422,16 +550,47 @@ def _load_entry_v2(value: object, index: int) -> ProjectEntry:
         _load_stamp(entry["review_stamp"], label),
         tuple(_load_pair(item, f"{label} pair selection {pair_index}")
               for pair_index, item in enumerate(measurements, 1)),
+        entry["preparation"] if version == 3 else None,
     )
     if type(candidate.reviewed) is not bool:
         raise ProjectError(f"{label} reviewed status must be true or false.")
     return refresh_review(candidate)
 
 
+def _replay_preparation(entry: ProjectEntry) -> None:
+    """Verify saved transformation evidence from originals, never trust a claim."""
+    if entry.preparation is None:
+        return
+    from .preparation import PreparationError, prepare_p1
+
+    record = entry.preparation
+    source, _ = _load_payload(record["source"], "Original preparation source")
+    try:
+        prepared = prepare_p1(source, record["normal_axis"])
+    except PreparationError as exc:
+        raise ProjectError("Saved preparation original cannot be safely reproduced.") from exc
+    if prepared.cif != entry.data:
+        raise ProjectError("Saved prepared CIF does not reproduce from its embedded original source.")
+    for key, expected in prepared.metadata().items():
+        # Historical tool identity remains evidence, while scientific content
+        # and method-v1 output are checked by the current preparation engine.
+        if key == "ase_version":
+            continue
+        actual = record[key]
+        if type(expected) is float:
+            agrees = math.isclose(actual, expected, rel_tol=1e-10, abs_tol=1e-15)
+        else:
+            agrees = actual == expected
+        if not agrees:
+            raise ProjectError(f"Saved preparation {key} disagrees with its embedded original source.")
+
+
 def loads_project(data: bytes) -> Project:
-    """Reopen bounded schema-1/2 originals without trusting analysis output."""
+    """Reopen bounded schema-1/2/3 JSON or a sole-project.json ZIP archive."""
     if not isinstance(data, bytes):
-        raise ProjectError("Project input must be UTF-8 JSON bytes.")
+        raise ProjectError("Project input must be UTF-8 JSON bytes or a CalcLens ZIP archive.")
+    if data.startswith(b"PK"):
+        return loads_project_archive(data)
     if len(data) > MAX_PROJECT_BYTES:
         raise ProjectError(f"Project JSON exceeds the {MAX_PROJECT_BYTES}-byte limit.")
     _check_json_depth(data)
@@ -444,12 +603,21 @@ def loads_project(data: bytes) -> Project:
         if isinstance(exc, ProjectError):
             raise
         raise ProjectError("Project must contain valid UTF-8 JSON.") from exc
-    document = _mapping(document, "Project", {"format", "schema_version", "tools", "state", "entries"})
+    if not isinstance(document, dict):
+        raise ProjectError("Project must be a JSON object.")
+    if "schema_version" in document and (
+        type(document["schema_version"]) is not int or document["schema_version"] not in (1, 2, 3)
+    ):
+        raise ProjectError("Unsupported project schema version; this CalcLens supports versions 1, 2 and 3.")
+    fields = {"format", "schema_version", "tools", "state", "entries"}
+    if document.get("schema_version") == 3:
+        fields.add("workspace_state")
+    document = _mapping(document, "Project", fields)
     if document["format"] != PROJECT_FORMAT:
         raise ProjectError("This is not a CalcLens project file.")
     version = document["schema_version"]
-    if type(version) is not int or version not in (1, SCHEMA_VERSION):
-        raise ProjectError("Unsupported project schema version; this CalcLens supports versions 1 and 2.")
+    if type(version) is not int or version not in (1, 2, SCHEMA_VERSION):
+        raise ProjectError("Unsupported project schema version; this CalcLens supports versions 1, 2 and 3.")
     values = document["entries"]
     if not isinstance(values, list) or not 1 <= len(values) <= MAX_PROJECT_FILES:
         raise ProjectError(f"A project must contain between 1 and {MAX_PROJECT_FILES} CIF files.")
@@ -469,13 +637,86 @@ def loads_project(data: bytes) -> Project:
             "selected_id", "review_focus", "filter_mode", "progress_filter",
         })
         project = Project(
-            [_load_entry_v2(value, index) for index, value in enumerate(values, 1)],
+            [_load_entry_v2(value, index, version=version) for index, value in enumerate(values, 1)],
             state["selected_id"], state["review_focus"], state["filter_mode"],
             tools["calclens_version"], tools["ase_version"], state["progress_filter"],
             tools["analysis_revision"],
+            document["workspace_state"] if version == 3 else {},
         )
     _validate_project(project)
+    for entry in project.entries:
+        _replay_preparation(entry)
     return project
+
+
+def dumps_project_archive(project: Project) -> bytes:
+    """Return a bounded ZIP with one self-contained project.json member."""
+    payload = dumps_project(project)
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED,
+                         compresslevel=6, allowZip64=False) as archive:
+        member = zipfile.ZipInfo("project.json", date_time=(1980, 1, 1, 0, 0, 0))
+        member.compress_type = zipfile.ZIP_DEFLATED
+        member.external_attr = (stat.S_IFREG | 0o600) << 16
+        archive.writestr(member, payload, compresslevel=6)
+    data = buffer.getvalue()
+    if len(data) > MAX_ARCHIVE_BYTES:
+        raise ProjectError(f"Project ZIP exceeds the {MAX_ARCHIVE_BYTES}-byte limit.")
+    return data
+
+
+def _archive_directory(data: bytes) -> None:
+    """Reject multi-entry/ZIP64 archives before ZipFile allocates their directory."""
+    # CalcLens archives need no comments, spanning, prefix, or ZIP64 extensions.
+    if len(data) < 22 or data[:4] != b"PK\x03\x04" or data[-22:-18] != b"PK\x05\x06":
+        raise ProjectError("Project ZIP must be an ordinary, complete single-file archive.")
+    _, disk, start_disk, on_disk, total, size, offset, comment = struct.unpack("<4s4H2LH", data[-22:])
+    if (disk or start_disk or on_disk != 1 or total != 1 or comment
+            or size > 128 * 1024 or offset + size != len(data) - 22):
+        raise ProjectError("Project ZIP must contain exactly one project.json entry without ZIP64 or comments.")
+
+
+def loads_project_archive(data: bytes) -> Project:
+    """Read in memory with byte caps; no member is ever extracted to disk."""
+    if not isinstance(data, bytes):
+        raise ProjectError("Project ZIP input must be bytes.")
+    if len(data) > MAX_ARCHIVE_BYTES:
+        raise ProjectError(f"Project ZIP exceeds the {MAX_ARCHIVE_BYTES}-byte limit.")
+    _archive_directory(data)
+    try:
+        with zipfile.ZipFile(BytesIO(data), "r", allowZip64=False) as archive:
+            members = archive.infolist()
+            if len(members) != 1:
+                raise ProjectError("Project ZIP must contain exactly one project.json entry.")
+            member = members[0]
+            if (member.filename != "project.json" or member.orig_filename != "project.json"
+                    or member.is_dir()
+                    or stat.S_IFMT(member.external_attr >> 16) not in (0, stat.S_IFREG)
+                    or member.flag_bits & (1 | 0x40)
+                    or member.extract_version > 20
+                    or member.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)):
+                raise ProjectError("Project ZIP permits only an unencrypted regular project.json entry.")
+            if not 1 <= member.file_size <= MAX_PROJECT_BYTES:
+                raise ProjectError(f"Expanded project JSON exceeds the {MAX_PROJECT_BYTES}-byte limit.")
+            if member.compress_size > MAX_ARCHIVE_BYTES:
+                raise ProjectError("Compressed project member exceeds the archive size limit.")
+            payload = bytearray()
+            with archive.open(member) as source:
+                while chunk := source.read(min(1024 * 1024, MAX_PROJECT_BYTES + 1 - len(payload))):
+                    payload.extend(chunk)
+                    if len(payload) > MAX_PROJECT_BYTES:
+                        raise ProjectError("Expanded project JSON exceeds its size limit.")
+            if len(payload) != member.file_size:
+                raise ProjectError("Expanded project JSON length does not match its archive metadata.")
+    except ProjectError:
+        raise
+    except (zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError, NotImplementedError,
+            OSError, EOFError, zlib.error, ValueError) as exc:
+        raise ProjectError("Project ZIP is corrupt or unsupported.") from exc
+    # Do not recursively accept nested project archives.
+    if payload.startswith(b"PK"):
+        raise ProjectError("Nested project ZIP archives are unsupported.")
+    return loads_project(bytes(payload))
 
 
 def add_entries(project: Project, new_entries: Iterable[ProjectEntry]) -> Project:
@@ -497,6 +738,7 @@ def replace_entry(project: Project, entry_id: str, filename: str, data: bytes) -
         current, filename=filename, data=data,
         reviewed=False if changed else current.reviewed,
         measurements=() if changed else current.measurements,
+        preparation=None if changed else current.preparation,
     )
     entries = list(project.entries)
     entries[index] = replacement

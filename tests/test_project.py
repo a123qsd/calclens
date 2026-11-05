@@ -66,7 +66,7 @@ def test_roundtrip_preserves_binary_originals_duplicate_names_identity_and_revie
     assert reopened.entries[0].data != reopened.entries[1].data
     saved_document = json.loads(saved)
     assert saved_document["format"] == "calclens.project"
-    assert saved_document["schema_version"] == 2
+    assert saved_document["schema_version"] == 3
     for entry, embedded in zip(original.entries, saved_document["entries"]):
         assert base64.b64decode(embedded["cif_base64"]) == entry.data
         assert embedded["sha256"] == hashlib.sha256(entry.data).hexdigest()
@@ -168,7 +168,7 @@ def test_json_size_is_checked_before_parsing(monkeypatch):
         dumps_project(sample_project())
 
 
-@pytest.mark.parametrize("version", [3, 0, True, 1.0, "1", None])
+@pytest.mark.parametrize("version", [4, 0, True, 1.0, "1", None])
 def test_unknown_or_wrongly_typed_schema_is_rejected(version):
     value = document()
     value["schema_version"] = version
@@ -330,11 +330,13 @@ def test_reviewed_without_current_stamp_is_rejected_on_save_and_cleared_on_load(
 def test_schema_one_review_migrates_to_unreviewed_legacy_evidence_without_washout():
     value = document()
     value["schema_version"] = 1
+    del value["workspace_state"]
     del value["tools"]["analysis_revision"]
     del value["state"]["progress_filter"]
     for entry in value["entries"]:
         del entry["review_stamp"]
         del entry["measurements"]
+        del entry["preparation"]
     assert value["entries"][0]["reviewed"] is True
 
     migrated = loads_project(encode(value))

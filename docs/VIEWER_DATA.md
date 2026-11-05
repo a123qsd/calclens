@@ -1,12 +1,12 @@
 # Imported viewer data
 
-CalcLens can display externally supplied atomic charge assignments and a single
-electron-density or orbital Cube grid. These files do not change the CIF,
+CalcLens can display externally supplied atomic charge assignments and multiple
+electron-density or orbital Cube grids, with one selected volume per viewer. These files do not change the CIF,
 geometric measurements, review results or scientific input limits. CalcLens does
 not calculate electronic structure from nuclear positions.
 
-보조 자료는 현재 브라우저 세션의 표시용 자료입니다. CIF 프로젝트 저장 파일에는
-포함되지 않습니다. 원본 자료를 따로 보관하세요. 원본 CIF가 교체되면 이전 자료를
+전하 JSON·Cube 원본과 선택한 자료·표시 설정은 `.calclens.zip`에 함께 저장합니다.
+[작업 저장 안내](WORKSPACE_SAVE.md)를 참고하세요. 원본 CIF가 교체되면 이전 자료를
 새 구조에 자동으로 연결하지 않습니다.
 
 ## Charge and oxidation-state JSON
@@ -146,3 +146,13 @@ for example, Na in NaCl does not make NaCl a metallic material.
 atom mapping, spatial conversion, skew grids, scalar units, dataset counts,
 malformed inputs and size limits. Test fixtures are synthetic format examples,
 not computed density or orbital results and not evidence of chemical accuracy.
+
+## Multiple datasets and portable projects
+
+Each import adds a named dataset with a distinct ID. Up to 16 datasets and
+64 MiB of original text may be attached to one CIF. Saved files are reparsed
+and matched to the recalculated structure before the workspace is replaced.
+Compare supports individual, shared and manual negative/positive charge ranges
+when both sides display the same quantity. Method and source remain visible.
+The [H2O example](ELECTRONIC_CASE.md) contains actual calculated electronic files;
+the format unit tests described above remain synthetic.

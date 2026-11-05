@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "preparation_script": "scripts/prepare_electronic_case.py",
+  "preparation_script_sha256": "8cadd8d3a260a8afa7e4ce2b5e62761c358c4ed5e9ab413e2376221159370f42",
+  "sha256": {
+    "source/water.xyz": "42d409b913b446d994864ff35c1767954fde8be3e22ea7c75851f9aaa97a6092",
+    "water.cif": "f145b937192b9f08b9e8761b20623301062d0ca10355d5e230ce061836b6d11c",
+    "charges_mulliken.json": "523c7a6d6893db783580eb04be920f77ac5ad30f52be83ec99a018792bccd511",
+    "charges_lowdin.json": "5e14a46773a1c6085071bf1108365d15f0ae1850b27a1e459707a172fc075787",
+    "charges_mulliken.csv": "b8bd36d82508706cff1294ea756ff488aecc613953c6e8a2f8dcbe7b64a3217c",
+    "charges_lowdin.csv": "40bc7e3aca5a64ac2422cb7a30f0afab2d2f8cfe62f182548072edbeafbce8c0",
+    "density.cube": "1a7a1b3ffff50ba1d5cfb73ac010638a8c367766b96c33374c7e811e7aab0c0a",
+    "homo.cube": "f9b45cc4d53f28a7ae6ee4d64e3e9822c580cd324bef447d2aacdac6fe2acec0",
+    "wavefunction.json": "fbab61eace74136756c29db904c49e04aab612c2c2720fe2af15a86f62263e81",
+    "scf.log": "ed5aa7e7b83d7fbe240216bdceee3866babc3fb5705227834fa39832b0a5ee68",
+    "calculation.json": "52ab283d70a30a8f550de783e62689422ed4539840bac1a13ce4d7c7a7d25b2d",
+    "independent_check.json": "92082e72f562a1c675bb3b6c74807e64e00e40d81f0c7326338e86b90ec4fb99",
+    "reference_sections.png": "2560360654f1fcdcac7d66fc90edab2b7d4edffb277c5de2e33ba82caa839c31"
+  }
+}

@@ -1,5 +1,69 @@
 # Validation record
 
+## v0.7.0 local research-workspace verification — 2026-11-05
+
+The updated source passed **647 Python tests** and **56 frontend tests** on
+macOS arm64/Python 3.12. TypeScript checking, the production build, Ruff,
+dependency consistency, locked-resolution checking and generated/public/real
+calculation artifact checks passed. The existing 11 ASE/NumPy deprecation
+warnings remain. The frontend build retains upstream 3Dmol `eval` and bundle-size
+advisories. No application runtime dependency was added.
+
+Real Chromium/WebGL checks cover the existing eight workspace-regression groups,
+nine incremental-viewer groups, nine viewer-feature groups, and eight new
+research-workspace groups. The new research suite checks:
+
+- File-specific unapplied notes and conditions survive file and screen changes;
+  applied analysis values remain unchanged until explicit application.
+- Two charge methods and two real Cube files coexist on one CIF. Comparison
+  retains independent dataset selections and cameras, and shared/manual ranges
+  map the same charge value to the same color.
+- ZIP reopen restores drafts, raw electronic files, view choices and surfaces.
+  Reopening a project with the same entry IDs and source hashes restores its
+  saved camera. Invalid electronic bindings are rejected before replacing work.
+- Edits made while an export response is pending remain unsaved after the older
+  snapshot downloads. Cancelling replacement preserves the newer camera and
+  current workspace.
+- The original public graphite CIF previews two asymmetric sites to four P1
+  atoms without changing the workspace. Applying, saving and reopening preserve
+  the original source bytes and transformation history.
+
+The incremental-viewer suite exposed a delayed camera-state echo that replayed
+an earlier animation frame. Camera restoration now runs only for incoming
+external state; delayed echoes of the viewer's own published state are ignored.
+A Chromium check with 8× CPU slowdown detected nine stale camera overrides on
+the previous build and zero after the correction. The first Reset now matches
+the initial camera, and a second Reset leaves it unchanged. The test waits for
+actual animation completion without increasing its numeric tolerance.
+The unchanged regression tolerance passes: toggling the gap
+indicator off gives a camera delta of zero without rebuilding the atom model.
+The research and viewer-feature runs report zero page/console errors; the
+existing workspace suite retains its two intentional HTTP 409 conflict checks.
+All browser tests use local assets and local input data.
+
+Python regressions additionally cover schema-1/2 migration, bounded schema-3
+archives, detached previews, stale revisions, safe parsing, preparation
+provenance replay and supported-source restoration when an applied axis is
+unsupported. A clean environment without Streamlit or Plotly installed the
+0.7.0 wheel and passed the source-launcher self-test, dependency check, real
+local-server startup, bootstrap geometry and bundled-asset delivery.
+
+The [electronic case](ELECTRONIC_CASE.md) contains an actual isolated-water
+RHF/STO-3G calculation, independent matrix/Cube checks, a reopenable project and
+native PNG exports. Its display grid and minimal basis are explicitly limited;
+these checks do not establish chemical accuracy or slab-vacuum convergence.
+The same original Cube data was also rendered locally in NGL 2.5.0 at the same
+absolute isovalues. Scalar hashes, atomic mapping and grid transforms match.
+The recorded surface-boundary differences reach about 0.17 Å on the coarse
+display grid; the case guide explains the meshing differences and includes both
+viewers' images and a reproducible numerical comparison.
+
+**Native Windows building, new EXE sizes/startup timings, remote CI and public
+release publication were not performed in this local verification.** Default
+and optional legacy Windows variants have automated packaging/launcher checks
+and corresponding workflow paths. Earlier published Windows results below
+apply only to their named versions and commits.
+
 ## v0.6.0 local viewer verification — 2026-11-05
 
 The expanded viewer retains the tungsten and model-reuse corrections below.

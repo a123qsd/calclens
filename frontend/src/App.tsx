@@ -2,11 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import MolecularViewer from './MolecularViewer.tsx';
 import AuxiliaryDataPanel from './AuxiliaryDataPanel.tsx';
+import PreparationPanel from './PreparationPanel.tsx';
+import { defaultViewerState } from './viewerState.ts';
+import type { ViewerState } from './viewerState.ts';
+import {
+  comparisonRange, defaultComparison, entryDraft, hasDraftChanges, reconcileDraft,
+  restoreClientWorkspace, selectedCharge, serializeClientWorkspace, viewerKey,
+} from './workspaceState.ts';
+import type { ClientWorkspace, ComparisonSettings, EntryDraft, View } from './workspaceState.ts';
 import { linkCameraViews } from './viewerCameraLink';
 import type { GLViewer } from '3dmol';
 import type { ViewerAuxiliaryData } from './viewerData';
 import {
-  ApiError, bootstrap, dispatchAction, fileToBase64, importProject, measure,
+  ApiError, bootstrap, dispatchAction, exportProject, fileToBase64, importProject, measure,
   reloadWorkspace, reportUrl,
 } from './api.ts';
 import { copy } from './i18n.ts';
@@ -18,7 +26,6 @@ import type {
   AtomPick, Contact, Entry, Issue, Language, Measurement, PairSelection, Vec3, Workspace,
 } from './types.ts';
 
-type View = 'overview' | 'compare' | 'review' | 'methods';
 type Notice = { tone: 'error' | 'info'; message: string };
 const ZERO: Vec3 = [0, 0, 0];
 
@@ -66,6 +73,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState<View>('overview');
+  const [viewerEpoch, setViewerEpoch] = useState(0);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [inspectedIssue, setInspectedIssue] = useState<Issue | null>(null);
   const [reportLanguage, setReportLanguage] = useState<Language | 'interface'>('interface');
@@ -83,6 +91,14 @@ export default function App() {
   const [sampleName, setSampleName] = useState('');
   const [reviewPanelOpen, setReviewPanelOpen] = useState(true);
   const [auxiliaryBySource, setAuxiliaryBySource] = useState<Record<string, ViewerAuxiliaryData>>({});
+  const [drafts, setDrafts] = useState<Record<string, EntryDraft>>(Object.create(null));
+  const [viewerStates, setViewerStates] = useState<Record<string, ViewerState>>({});
+  const [comparison, setComparison] = useState<ComparisonSettings>(defaultComparison);
+  const [unsaved, setUnsaved] = useState(false);
+  const editGeneration = useRef(0);
+  const markUnsaved = useCallback(() => { editGeneration.current += 1; setUnsaved(true); }, []);
+  const viewerStatesRef = useRef(viewerStates);
+  viewerStatesRef.current = viewerStates;
   const cifInput = useRef<HTMLInputElement>(null);
   const addInput = useRef<HTMLInputElement>(null);
   const projectInput = useRef<HTMLInputElement>(null);
@@ -93,9 +109,32 @@ export default function App() {
   const exportLanguage = reportLanguage === 'interface' ? language : reportLanguage;
   useEffect(() => { document.documentElement.lang = language; }, [language]);
 
+  function restoreClient(state: ClientWorkspace) {
+    editGeneration.current += 1; setViewerEpoch((epoch) => epoch + 1);
+    setAuxiliaryBySource(state.auxiliary); setDrafts(state.drafts); setViewerStates(state.viewers);
+    setComparison(state.comparison); setCompareBefore(state.before); setCompareAfter(state.after);
+    setView(state.view); setConflictedEdit(null); setUnsaved(false);
+  }
+
+  function confirmReplace() {
+    return !unsaved || window.confirm(language === 'ko'
+      ? '저장하지 않은 작업을 바꾸시겠습니까? 현재 작업을 이어가려면 먼저 작업 저장을 해 주세요.'
+      : 'Replace the unsaved workspace? Save the project first to keep this work.');
+  }
+
+  useEffect(() => {
+    if (!unsaved) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [unsaved]);
+
   const load = useCallback(async () => {
     setLoading(true);
-    try { setWorkspace(await bootstrap()); setNotice(null); }
+    try {
+      const next = await bootstrap();
+      restoreClient(restoreClientWorkspace(next)); setWorkspace(next); setNotice(null);
+    }
     catch (error) { setNotice({ tone: 'error', message: error instanceof Error ? error.message : String(error) }); }
     finally { setLoading(false); }
   }, []);
@@ -104,11 +143,18 @@ export default function App() {
 
   const act = useCallback(async (action: Record<string, unknown>) => {
     if (!workspace || busy) return null;
+    if (action.type === 'load_example' && !confirmReplace()) return null;
     setBusy(true); setNotice(null);
     try {
       const next = await dispatchAction(workspace, action);
       setWorkspace(next);
-      if (action.type === 'patch_entry') setConflictedEdit(null);
+      if (action.type === 'load_example') restoreClient(restoreClientWorkspace(next));
+      else markUnsaved();
+      if (action.type === 'patch_entry') {
+        setConflictedEdit(null);
+        const updated = next.entries.find((entry) => entry.id === action.id);
+        if (updated) setDrafts((current) => ({ ...current, [updated.id]: entryDraft(updated) }));
+      }
       return next;
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
@@ -120,7 +166,7 @@ export default function App() {
       }
       return null;
     } finally { setBusy(false); }
-  }, [workspace, busy, c.conflict]);
+  }, [workspace, busy, c.conflict, unsaved, language]);
 
   const selected = useMemo(() => workspace?.entries.find((entry) => entry.id === workspace.project.selected_id) ?? workspace?.entries[0] ?? null, [workspace]);
   const report = selected?.analysis.report ?? null;
@@ -131,6 +177,19 @@ export default function App() {
     setAuxiliaryBySource((previous) => Object.keys(previous).every((key) => sources.has(key))
       ? previous : Object.fromEntries(Object.entries(previous).filter(([key]) => sources.has(key))));
   }, [workspace?.entries]);
+  useEffect(() => {
+    setDrafts((previous) => Object.fromEntries((workspace?.entries ?? []).map((entry) =>
+      [entry.id, reconcileDraft(Object.hasOwn(previous, entry.id) ? previous[entry.id] : undefined, entry)])));
+  }, [workspace?.entries]);
+
+  const changeViewer = useCallback((key: string, state: ViewerState) => {
+    const previous = viewerStatesRef.current[key];
+    if (previous && JSON.stringify(previous) !== JSON.stringify(state)) markUnsaved();
+    setViewerStates((previous) => {
+      if (JSON.stringify(previous[key]) === JSON.stringify(state)) return previous;
+      return { ...previous, [key]: state };
+    });
+  }, []);
   const selectedState = selected ? entryState(selected) : 'unsupported';
   const minimumIssues = report?.issues.filter((issue) => ['OVERLAPPING_SITES', 'SHORT_DISTANCE', 'SELF_IMAGE_CONTACT'].includes(issue.code)) ?? [];
   const minimumState = !report || minimumIssues.some((issue) => issue.severity === 'error') ? 'unsupported'
@@ -186,7 +245,8 @@ export default function App() {
   const highlightedAtomIndices = activeIssue?.atom_indices;
 
   async function importCifs(files: FileList | null, mode: 'replace' | 'append') {
-    if (!workspace || !files?.length) return;
+    if (!workspace || busy || !files?.length) return;
+    if (mode === 'replace' && !confirmReplace()) return;
     const all = Array.from(files);
     if (all.length + (mode === 'append' ? workspace.entries.length : 0) > workspace.limits.max_files) {
       setNotice({ tone: 'error', message: `${workspace.limits.max_files} files maximum.` }); return;
@@ -197,7 +257,8 @@ export default function App() {
     try {
       const encoded = await Promise.all(all.map(async (file) => ({ filename: file.name, data_base64: await fileToBase64(file) })));
       const next = await dispatchAction(workspace, { type: 'import_cifs', files: encoded, mode });
-      setWorkspace(next); setNotice(null);
+      if (mode === 'replace') restoreClient(restoreClientWorkspace(next));
+      setWorkspace(next); setNotice(null); markUnsaved();
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         setWorkspace(await reloadWorkspace()); setNotice({ tone: 'info', message: c.conflict });
@@ -206,17 +267,46 @@ export default function App() {
   }
 
   async function openProject(file: File | undefined) {
-    if (!workspace || !file) return;
+    if (!workspace || busy || !file) return;
+    if (!confirmReplace()) return;
+    if (file.size > 128 * 1024 * 1024) {
+      setNotice({ tone: 'error', message: language === 'ko' ? '작업 파일은 128 MiB 이하여야 합니다.' : 'Project files must be at most 128 MiB.' }); return;
+    }
     setBusy(true);
-    try { setWorkspace(await importProject(workspace, await file.arrayBuffer())); setNotice(null); }
+    try {
+      const bytes = await file.arrayBuffer();
+      const preview = await importProject(workspace, bytes, true);
+      const restored = restoreClientWorkspace(preview);
+      const next = await importProject(workspace, bytes);
+      restoreClient(restored); setWorkspace(next); setNotice(null);
+    }
     catch (error) {
       if (error instanceof ApiError && error.status === 409) { setWorkspace(await reloadWorkspace()); setNotice({ tone: 'info', message: c.conflict }); }
       else setNotice({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
     } finally { setBusy(false); }
   }
 
+  async function saveProject() {
+    if (!workspace || busy) return;
+    const savedGeneration = editGeneration.current;
+    setBusy(true); setNotice(null);
+    try {
+      const state = serializeClientWorkspace({ auxiliary: auxiliaryBySource, viewers: viewerStates,
+        drafts, comparison, before: compareBefore, after: compareAfter, view }, workspace.entries);
+      const blob = await exportProject(workspace, state);
+      const url = URL.createObjectURL(blob); const link = document.createElement('a');
+      link.href = url; link.download = 'calclens-project.calclens.zip'; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1_000);
+      if (editGeneration.current === savedGeneration) setUnsaved(false);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        setWorkspace(await reloadWorkspace()); setNotice({ tone: 'info', message: c.conflict });
+      } else setNotice({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
+    } finally { setBusy(false); }
+  }
+
   async function replaceSource(file: File | undefined) {
-    if (!workspace || !selected || !file) return;
+    if (!workspace || !selected || busy || !file) return;
     if (file.size > workspace.limits.max_file_bytes) { setNotice({ tone: 'error', message: `${file.name}: file is too large.` }); return; }
     await act({ type: 'replace_source', id: selected.id, filename: file.name, data_base64: await fileToBase64(file) });
   }
@@ -264,7 +354,7 @@ export default function App() {
     await act({ type: 'save_measurement', id: selected.id, selection: measuredSelection });
   }
 
-  function navigate(next: View) { setView(next); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function navigate(next: View) { if (view !== next) markUnsaved(); setView(next); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
   async function inspectFocus(focus: string, issue: Issue | null = null) {
     const result = await act({ type: 'patch_workspace', review_focus: focus });
@@ -302,6 +392,8 @@ export default function App() {
       <header className="topbar">
         <div><p className="breadcrumb">{c.workspace} / {selected?.filename}</p><h1>{view === 'overview' ? c.title : view === 'compare' ? c.compare : view === 'review' ? c.review : c.methods}</h1><p>{c.subtitle}</p></div>
         <div className="header-actions">
+          <button className="button secondary" disabled={busy} onClick={() => projectInput.current?.click()}>{c.openProject}</button>
+          <button data-testid="project-export-global" className="button secondary" disabled={busy} onClick={() => void saveProject()}><Download />{c.saveProject}</button>
           <button className="button secondary" onClick={() => cifInput.current?.click()} disabled={busy}><Upload />{c.open}</button>
           <div className="sample-control"><select aria-label={c.sample} value={sampleName} onChange={(event) => setSampleName(event.target.value)}>{workspace.examples.map((example) => <option value={example.name} key={example.name}>{language === 'ko' ? example.label_ko : example.label_en}</option>)}</select><button className="button primary" onClick={() => void act({ type: 'load_example', name: sampleName })} disabled={busy || !sampleName}><Play />{c.sample}</button></div>
           <button data-testid="language-toggle" disabled={busy} className="language" onClick={() => void act({ type: 'patch_workspace', language: language === 'ko' ? 'en' : 'ko' })} aria-label="Switch language"><b>{language === 'en' ? 'EN' : 'KR'}</b><span>/</span>{language === 'en' ? 'KR' : 'EN'}</button>
@@ -310,10 +402,11 @@ export default function App() {
 
       <input data-testid="cif-replace-upload" hidden ref={cifInput} type="file" accept=".cif" multiple onChange={(event) => { void importCifs(event.target.files, 'replace'); event.target.value = ''; }} />
       <input hidden ref={addInput} type="file" accept=".cif" multiple onChange={(event) => { void importCifs(event.target.files, 'append'); event.target.value = ''; }} />
-      <input data-testid="project-import" hidden ref={projectInput} type="file" accept=".json,.calclens.json,application/json" onChange={(event) => { void openProject(event.target.files?.[0]); event.target.value = ''; }} />
+      <input data-testid="project-import" hidden ref={projectInput} type="file" accept=".json,.zip,.calclens.json,.calclens.zip,application/json,application/zip" onChange={(event) => { void openProject(event.target.files?.[0]); event.target.value = ''; }} />
       <input hidden ref={replacementInput} type="file" accept=".cif" onChange={(event) => { void replaceSource(event.target.files?.[0]); event.target.value = ''; }} />
 
       {notice && <div role="alert" className={`notice ${notice.tone}`}><Info /><span>{notice.message}</span><button onClick={() => setNotice(null)} aria-label={c.close}>×</button></div>}
+      {workspace.entries.some((entry) => drafts[entry.id] && hasDraftChanges(drafts[entry.id], entry)) && <div className="notice info" role="status" data-testid="draft-status"><Info /><span>{language === 'ko' ? '적용 전 초안이 있습니다. 화면·파일을 바꾸어도 유지되며, 작업 저장에는 초안으로 포함됩니다. 분석 결과는 적용한 조건을 따릅니다.' : 'Unapplied drafts are preserved across screens and files and included in saved projects. Analysis uses the applied settings.'}</span></div>}
       {conflictedEdit && <section className="notice info conflict-recovery"><div><b>{language === 'ko' ? '충돌한 수정 내용을 보관했습니다' : 'Your conflicting edit is preserved'}</b><p>{String(conflictedEdit.normal_axis ?? '')} · {String(conflictedEdit.short_distance ?? '')} Å</p><textarea aria-label={language === 'ko' ? '보관한 메모' : 'Preserved note'} readOnly value={String(conflictedEdit.note ?? '')} /><button disabled={busy || !workspace.entries.some((entry) => entry.id === conflictedEdit.id)} onClick={() => void act(conflictedEdit)}>{language === 'ko' ? '확인한 내용 다시 적용' : 'Reapply after review'}</button><button onClick={() => setConflictedEdit(null)}>{c.close}</button></div></section>}
       {workspace.runtime && (workspace.project.analysis_revision !== workspace.runtime.analysis_revision || workspace.project.ase_version !== workspace.runtime.ase_version || workspace.project.calclens_version !== workspace.runtime.calclens_version) && <div className="notice info" role="status"><Info /><span>{language === 'ko' ? '저장 당시와 현재 버전이 다릅니다. 보고서를 다시 계산했으며, 원본·조건·계산 방식이 같은 검토 기록은 유지합니다.' : 'This project was saved with a different version. Reports were recalculated; reviews with matching inputs, settings and analysis remain current.'}</span></div>}
       {busy && <div className="progress" aria-label="Working"><span /></div>}
@@ -329,7 +422,7 @@ export default function App() {
         <section className={`overview-grid ${reviewPanelOpen ? '' : 'overview-grid--wide'}`}>
           <article className="card viewer-card">
             <div className="card-heading"><div><h2>{c.structure}</h2><span>{c.actual}</span></div><div className="viewer-heading-actions"><StatusPill entry={selected!} language={language} /><button type="button" data-testid="review-panel-toggle" aria-expanded={reviewPanelOpen} aria-controls="overview-review-panel" onClick={() => setReviewPanelOpen((value) => !value)}>{reviewPanelOpen ? (language === 'ko' ? '검토 패널 접기' : 'Hide review panel') : (language === 'ko' ? '검토 패널 보기' : 'Show review panel')}</button></div></div>
-            {report ? <MolecularViewer key={`${selected?.id}:${selected?.sha256}:${selected?.normal_axis}:${selected?.short_distance}`} report={report} language={language} highlight={focusContact} highlightGap={highlightGap} highlightedAtomIndices={highlightedAtomIndices} onAtomPick={onAtomPick} auxiliary={auxiliaryBySource[selected!.sha256]} /> : <div data-testid="unsupported-empty" className="empty-view"><Info /><strong>{(language === 'ko' ? selected?.analysis.error_ko : selected?.analysis.error) ?? selected?.analysis.error ?? c.unsupported}</strong></div>}
+            {report ? <MolecularViewer key={`${viewerEpoch}:${viewerKey(selected!)}`} report={report} language={language} highlight={focusContact} highlightGap={highlightGap} highlightedAtomIndices={highlightedAtomIndices} onAtomPick={onAtomPick} auxiliary={auxiliaryBySource[selected!.sha256]} state={viewerStates[viewerKey(selected!)]} onStateChange={(state) => changeViewer(viewerKey(selected!), state)} /> : <div data-testid="unsupported-empty" className="empty-view"><Info /><strong>{(language === 'ko' ? selected?.analysis.error_ko : selected?.analysis.error) ?? selected?.analysis.error ?? c.unsupported}</strong></div>}
             <div className="viewer-filename" title={selected?.filename}>{selected?.filename}</div>
           </article>
 
@@ -353,16 +446,21 @@ export default function App() {
           firstIndex={firstIndex} setFirstIndex={(value) => { setFirstIndex(value); setMeasurement(null); setMeasuredSelection(null); }} secondIndex={secondIndex} setSecondIndex={(value) => { setSecondIndex(value); setMeasurement(null); setMeasuredSelection(null); }}
           firstShift={firstShift} setFirstShift={(value) => { setFirstShift(value); setMeasurement(null); setMeasuredSelection(null); }} secondShift={secondShift} setSecondShift={(value) => { setSecondShift(value); setMeasurement(null); setMeasuredSelection(null); }}
           saveCurrentPair={saveCurrentPair} measuredSelection={measuredSelection}
+          draft={drafts[selected!.id] ?? entryDraft(selected!)}
+          onDraftChange={(draft) => { setDrafts((previous) => ({ ...previous, [selected!.id]: draft })); markUnsaved(); }}
+          saveProject={saveProject}
         />
 
-        {report && selected && <AuxiliaryDataPanel key={`${selected.id}:${selected.sha256}`} report={report} sourceSha256={selected.sha256} language={language} data={auxiliaryBySource[selected.sha256]} onChange={(data) => {
+        <PreparationPanel key={`prepare:${viewerEpoch}:${selected!.id}:${selected!.sha256}`} workspace={workspace} entry={selected!} language={language} busy={busy} act={act} />
+
+        {report && selected && <AuxiliaryDataPanel key={`auxiliary:${viewerEpoch}:${selected.id}:${selected.sha256}`} report={report} sourceSha256={selected.sha256} language={language} data={auxiliaryBySource[selected.sha256]} onChange={(data) => {
           const sha = selected.sha256;
-          if (activeSources.current.has(sha)) setAuxiliaryBySource((previous) => ({ ...previous, [sha]: data }));
+          if (activeSources.current.has(sha)) { setAuxiliaryBySource((previous) => ({ ...previous, [sha]: data })); markUnsaved(); }
         }} />}
 
       </>}
 
-      {view === 'compare' && <ComparisonView workspace={workspace} language={language} before={before} after={after} beforeId={compareBefore} afterId={compareAfter} setBefore={setCompareBefore} setAfter={setCompareAfter} auxiliaryBySource={auxiliaryBySource} />}
+      {view === 'compare' && <ComparisonView workspace={workspace} language={language} before={before} after={after} beforeId={compareBefore} afterId={compareAfter} setBefore={(id) => { setCompareBefore(id); markUnsaved(); }} setAfter={(id) => { setCompareAfter(id); markUnsaved(); }} auxiliaryBySource={auxiliaryBySource} viewerStates={viewerStates} viewerEpoch={viewerEpoch} onViewerState={changeViewer} settings={comparison} onSettings={(settings) => { setComparison(settings); markUnsaved(); }} />}
       {view === 'review' && <ReviewView workspace={workspace} selected={selected!} issues={localizedIssues} language={language} act={act} onInspect={(issue) => void inspectFocus(focusForIssue(issue), issue)} />}
       {view === 'methods' && <MethodView selected={selected!} language={language} reportLanguage={reportLanguage} setReportLanguage={setReportLanguage} />}
       <footer>CalcLens · Local workflow · Inspectable results</footer>
@@ -381,25 +479,20 @@ interface ToolsProps {
   secondShift: [string, string, string]; setSecondShift: (value: [string, string, string]) => void;
   saveCurrentPair: () => Promise<void>;
   measuredSelection: PairSelection | null;
+  draft: EntryDraft;
+  onDraftChange: (draft: EntryDraft) => void;
+  saveProject: () => Promise<void>;
 }
 
 function WorkspaceTools(props: ToolsProps) {
   const { workspace, selected, language, busy, act } = props;
   const c = copy(language);
   const report = selected.analysis.report;
-  const [draftAxis, setDraftAxis] = useState(selected.normal_axis);
-  const [draftCutoff, setDraftCutoff] = useState(String(selected.short_distance));
-  const [draftNote, setDraftNote] = useState(selected.note);
-  const baseline = useRef({ id: selected.id, axis: selected.normal_axis, cutoff: String(selected.short_distance), note: selected.note });
-  useEffect(() => {
-    const previous = baseline.current;
-    const sameEntry = previous.id === selected.id;
-    setDraftAxis((value) => sameEntry && value !== previous.axis ? value : selected.normal_axis);
-    setDraftCutoff((value) => sameEntry && value !== previous.cutoff ? value : String(selected.short_distance));
-    setDraftNote((value) => sameEntry && value !== previous.note ? value : selected.note);
-    baseline.current = { id: selected.id, axis: selected.normal_axis, cutoff: String(selected.short_distance), note: selected.note };
-  }, [selected.id, selected.normal_axis, selected.short_distance, selected.note]);
-  const settingsChanged = draftAxis !== selected.normal_axis || Number(draftCutoff) !== selected.short_distance || draftNote !== selected.note;
+  const { axis: draftAxis, cutoff: draftCutoff, note: draftNote } = props.draft;
+  const setDraftAxis = (axis: string) => props.onDraftChange({ ...props.draft, axis });
+  const setDraftCutoff = (cutoff: string) => props.onDraftChange({ ...props.draft, cutoff });
+  const setDraftNote = (note: string) => props.onDraftChange({ ...props.draft, note });
+  const settingsChanged = hasDraftChanges(props.draft, selected);
   const shiftFields = (values: [string, string, string], setter: (value: [string, string, string]) => void, label: string) => <fieldset className="shift-fields"><legend>{label}</legend>{values.map((value, index) => <label key={index}>{['a', 'b', 'c'][index]}<input disabled={busy} type="number" min="-9" max="9" value={value} onChange={(event) => { const next = [...values] as [string, string, string]; next[index] = event.target.value; setter(next); }} /></label>)}</fieldset>;
   return <section className="tool-grid">
     <details className="tool-card"><summary><Sliders /><span><b>{c.settings}</b><small>{selected.normal_axis} · {selected.short_distance} Å</small></span></summary>
@@ -407,7 +500,7 @@ function WorkspaceTools(props: ToolsProps) {
         <label>{c.normal}<select data-testid="selected-axis" disabled={busy} value={draftAxis} onChange={(event) => setDraftAxis(event.target.value)}><option>a</option><option>b</option><option>c</option></select></label>
         <label>{c.cutoff}<input data-testid="selected-cutoff" disabled={busy} type="number" min="0.1" max="3" step="0.05" value={draftCutoff} onChange={(event) => setDraftCutoff(event.target.value)} /></label>
         <label className="wide">{c.notes}<textarea data-testid="review-note" disabled={busy} maxLength={10000} value={draftNote} onChange={(event) => setDraftNote(event.target.value)} /></label>
-        <div className="wide tool-actions">{settingsChanged && <small role="status">{language === 'ko' ? '아직 적용하지 않은 변경이 있습니다.' : 'There are unapplied changes.'}</small>}<button className="primary-action" disabled={!settingsChanged || busy || Number(draftCutoff) < 0.1 || Number(draftCutoff) > 3} onClick={() => void act({ type: 'patch_entry', id: selected.id, normal_axis: draftAxis, short_distance: Number(draftCutoff), note: draftNote })}>{language === 'ko' ? '변경 적용' : 'Apply changes'}</button><button onClick={() => props.addInput.current?.click()}><Upload />{c.add}</button><button onClick={() => props.replacementInput.current?.click()}><Upload />{c.replace}</button><button onClick={() => props.projectInput.current?.click()}>{c.openProject}</button><a data-testid="project-export" aria-disabled={settingsChanged || busy} onClick={(event) => { if (settingsChanged || busy) event.preventDefault(); }} className="button-link" href="/api/v1/project/export" download><Download />{c.saveProject}</a><button className="danger" disabled={workspace.entries.length <= 1 || busy} onClick={() => { if (window.confirm(`${c.remove}: ${selected.filename}?`)) void act({ type: 'remove_entry', id: selected.id }); }}><Trash />{c.remove}</button></div>
+        <div className="wide tool-actions">{settingsChanged && <small role="status">{language === 'ko' ? '아직 적용하지 않은 변경이 있습니다.' : 'There are unapplied changes.'}</small>}<button className="primary-action" disabled={!settingsChanged || busy || !draftCutoff.trim() || !Number.isFinite(Number(draftCutoff)) || Number(draftCutoff) < 0.1 || Number(draftCutoff) > 3} onClick={() => void act({ type: 'patch_entry', id: selected.id, normal_axis: draftAxis, short_distance: Number(draftCutoff), note: draftNote })}>{language === 'ko' ? '변경 적용' : 'Apply changes'}</button><button onClick={() => props.addInput.current?.click()}><Upload />{c.add}</button><button onClick={() => props.replacementInput.current?.click()}><Upload />{c.replace}</button><button onClick={() => props.projectInput.current?.click()}>{c.openProject}</button><button data-testid="project-export" disabled={busy} onClick={() => void props.saveProject()}><Download />{c.saveProject}</button><button className="danger" disabled={workspace.entries.length <= 1 || busy} onClick={() => { if (window.confirm(`${c.remove}: ${selected.filename}?`)) void act({ type: 'remove_entry', id: selected.id }); }}><Trash />{c.remove}</button></div>
       </div>
     </details>
 
@@ -432,18 +525,34 @@ function Records({ workspace, entries, selected, language, act }: { workspace: W
   </section>;
 }
 
-function ComparisonView({ workspace, language, before, after, beforeId, afterId, setBefore, setAfter, auxiliaryBySource }: { workspace: Workspace; language: Language; before: Entry | null; after: Entry | null; beforeId: string; afterId: string; setBefore: (id: string) => void; setAfter: (id: string) => void; auxiliaryBySource: Record<string, ViewerAuxiliaryData> }) {
+function ComparisonView({ workspace, language, before, after, beforeId, afterId, setBefore, setAfter, auxiliaryBySource, viewerStates, viewerEpoch, onViewerState, settings, onSettings }: { workspace: Workspace; language: Language; before: Entry | null; after: Entry | null; beforeId: string; afterId: string; setBefore: (id: string) => void; setAfter: (id: string) => void; auxiliaryBySource: Record<string, ViewerAuxiliaryData>; viewerStates: Record<string, ViewerState>; viewerEpoch: number; onViewerState: (key: string, state: ViewerState) => void; settings: ComparisonSettings; onSettings: (settings: ComparisonSettings) => void }) {
   const c = copy(language);
-  const [synchronized, setSynchronized] = useState(false);
+  const synchronized = settings.sync;
+  const setSynchronized = (sync: boolean) => onSettings({ ...settings, sync });
   const [leftViewer, setLeftViewer] = useState<GLViewer | null>(null);
   const [rightViewer, setRightViewer] = useState<GLViewer | null>(null);
   useEffect(() => {
     if (synchronized && leftViewer && rightViewer) return linkCameraViews(leftViewer, rightViewer);
   }, [synchronized, leftViewer, rightViewer]);
+  const leftState = before ? viewerStates[viewerKey(before, 'left')] ?? defaultViewerState(true) : defaultViewerState(true);
+  const rightState = after ? viewerStates[viewerKey(after, 'right')] ?? defaultViewerState(true) : defaultViewerState(true);
+  const leftCharge = selectedCharge(before ? auxiliaryBySource[before.sha256] : undefined, leftState);
+  const rightCharge = selectedCharge(after ? auxiliaryBySource[after.sha256] : undefined, rightState);
+  const comparable = Boolean(leftCharge && rightCharge && leftCharge.kind === rightCharge.kind);
+  const chargeRange = comparisonRange(settings, leftCharge, rightCharge);
   const selectors = (value: string, setter: (id: string) => void, label: string, testId: string) => <label>{label}<select data-testid={testId} value={value} onChange={(event) => setter(event.target.value)}>{workspace.entries.map((entry) => <option value={entry.id} key={entry.id}>{entry.filename}</option>)}</select></label>;
   return <>
     <section className="compare-controls card"><div>{selectors(beforeId, setBefore, c.before, 'compare-before')}{selectors(afterId, setAfter, c.after, 'compare-after')}</div><label className="compare-sync"><span><input data-testid="compare-sync" type="checkbox" checked={synchronized} onChange={(event) => setSynchronized(event.target.checked)} />{language === 'ko' ? '회전·확대 동기화' : 'Sync rotation & zoom'}</span><small>{language === 'ko' ? '각 구조의 중심 유지 · 자동 구조 정렬 아님' : 'Keeps each center · no automatic structure alignment'}</small></label><a className="button-link" href={`/api/v1/comparison.csv?lang=${language}`} download><Download />{c.exportCsv}</a></section>
-    <section className="comparison-grid">{[before, after].map((entry, index) => <article data-testid={`compare-card-${index}`} className="card compare-card" key={`${entry?.id}-${index}`}><div className="card-heading"><div><h2>{index ? c.after : c.before}</h2><span title={entry?.filename}>{entry?.filename}</span></div>{entry && <StatusPill entry={entry} language={language} />}</div>{entry?.analysis.report ? <MolecularViewer key={`${entry.id}:${entry.sha256}:${entry.normal_axis}:${entry.short_distance}`} report={entry.analysis.report} language={language} compact auxiliary={auxiliaryBySource[entry.sha256]} onViewerReady={index === 0 ? setLeftViewer : setRightViewer} /> : <div className="empty-view">{entry?.analysis.error ?? c.unsupported}</div>}<MetricRows entry={entry} language={language} /></article>)}</section>
+    <section className="card compare-range" data-testid="compare-range-panel">
+      <label>{language === 'ko' ? '전하 색상 범위' : 'Charge color range'}<select data-testid="compare-range-mode" value={settings.rangeMode} onChange={(event) => onSettings({ ...settings, rangeMode: event.target.value as ComparisonSettings['rangeMode'] })}>
+        <option value="auto">{language === 'ko' ? '각 자료에 맞춰 자동 설정' : 'Automatic for each dataset'}</option><option value="shared">{language === 'ko' ? '두 화면에 공통 범위 적용' : 'Shared across both views'}</option><option value="manual">{language === 'ko' ? '최솟값·최댓값 지정' : 'Manual minimum / maximum'}</option>
+      </select></label>
+      {settings.rangeMode === 'manual' && <div className="range-fields"><label>{language === 'ko' ? '최솟값 (0 미만)' : 'Minimum (below zero)'}<input data-testid="compare-range-min" type="number" step="any" value={settings.manualMin} onChange={(event) => onSettings({ ...settings, manualMin: event.target.value })} /></label><label>{language === 'ko' ? '최댓값 (0 초과)' : 'Maximum (above zero)'}<input data-testid="compare-range-max" type="number" step="any" value={settings.manualMax} onChange={(event) => onSettings({ ...settings, manualMax: event.target.value })} /></label></div>}
+      {settings.rangeMode !== 'auto' && !comparable && <small>{language === 'ko' ? '양쪽에서 같은 종류의 전하 자료를 선택하면 공통 범위가 적용됩니다.' : 'Select the same charge quantity in both views to use a common range.'}</small>}
+      {comparable && settings.rangeMode === 'manual' && !chargeRange && <p role="alert">{language === 'ko' ? '0보다 작은 최솟값과 0보다 큰 최댓값을 입력하세요. 현재는 각 자료의 자동 범위를 사용합니다.' : 'Enter a negative minimum and positive maximum. Each dataset uses its automatic range until these are valid.'}</p>}
+      {chargeRange && <small data-testid="shared-range">{chargeRange[0]} … {chargeRange[1]} {leftCharge?.kind === 'oxidation_state' ? '' : 'e'} · {language === 'ko' ? '양쪽 동일 기준 · 계산 방법은 자료별로 확인하세요' : 'Same scale in both views · check each dataset’s method'}</small>}
+    </section>
+    <section className="comparison-grid">{[before, after].map((entry, index) => <article data-testid={`compare-card-${index}`} className="card compare-card" key={`${entry?.id}-${index}`}><div className="card-heading"><div><h2>{index ? c.after : c.before}</h2><span title={entry?.filename}>{entry?.filename}</span></div>{entry && <StatusPill entry={entry} language={language} />}</div>{entry?.analysis.report ? <MolecularViewer key={`${viewerEpoch}:${viewerKey(entry, index ? 'right' : 'left')}`} report={entry.analysis.report} language={language} compact auxiliary={auxiliaryBySource[entry.sha256]} state={viewerStates[viewerKey(entry, index ? 'right' : 'left')]} onStateChange={(state) => onViewerState(viewerKey(entry, index ? 'right' : 'left'), state)} chargeRange={chargeRange} onViewerReady={index === 0 ? setLeftViewer : setRightViewer} /> : <div className="empty-view">{entry?.analysis.error ?? c.unsupported}</div>}<MetricRows entry={entry} language={language} /></article>)}</section>
     <ComparisonDetails before={before} after={after} language={language} />
   </>;
 }

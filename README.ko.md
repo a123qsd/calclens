@@ -8,7 +8,7 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 
 [Project home](https://github.com/a123qsd/calclens) · [English guide](README.en.md) · [한국어 ZIP 받기·설치](docs/DOWNLOADS.md#한국어) · [계산 방법과 한계](docs/METHODS.md) · [예제 출처](docs/PROVENANCE.md) · [개발 안내](docs/DEVELOPMENT.md) · [검증 기록](docs/VALIDATION.md)
 
-**CalcLens v0.6.0**에는 프로젝트 편집, 검토 이력, 선택 거리 측정, 두 구조 비교,
+**CalcLens v0.7.0 소스**에는 프로젝트 편집, 검토 이력, 선택 거리 측정, 두 구조 비교,
 입체 구조 작업공간과 Windows 실행 관리 창이 포함됩니다.
 
 0.6.0의 뷰어에는 구·막대/막대/공간 채움, 원소 범례와 금속 원소 강조,
@@ -18,7 +18,9 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 **전하·전자 표면 자료**에서 현재 CIF에 맞는 JSON 서식을 저장하거나 Cube 파일을
 불러올 수 있습니다. 부분전하·형식전하·이온 순전하·산화수는 구분되며, 값이 없으면
 정보 없음으로 표시합니다. 전자밀도·오비탈은 가져온 격자만 표시하며 계산하지 않습니다.
-보조 자료는 **현재 브라우저 세션에만 보관**하고 작업 저장 파일에 포함하지 않습니다.
+전자 자료·초안·뷰어 설정은 작업 ZIP에 함께 저장합니다. 같은 CIF의 여러 계산 결과를
+각 뷰어에서 고르고, 공통 전하 색상 범위로 비교할 수 있습니다.
+[새 작업 안내](docs/WORKSPACE_SAVE.md)와 [실제 H2O 계산 사례](docs/ELECTRONIC_CASE.md)를 참고하세요.
 파일 형식·좌표 및 단위 조건은 [보조 자료 안내](docs/VIEWER_DATA.md)를 참고하세요.
 
 ![CalcLens 입체 구조 작업공간](docs/assets/calclens-viewer-0.6.0.png)
@@ -33,18 +35,18 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 ## 빠르게 실행하기
 
 Windows x64에서는
-[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-ko.exe)를
+[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko.exe)를
 받아 더블클릭하세요. Python과 필요한 라이브러리가 포함되어 있습니다.
 실행 관리 창에서 브라우저 화면을 열고 **CalcLens 열기**, **진단 기록**, **종료**를
 사용할 수 있습니다. 관리 창을 닫으면 서버도 종료되며, 브라우저 탭만 닫으면
 계속 실행됩니다. 반복 실행 시간을 줄이려면
-[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-0.6.0-windows-x64-ko-folder.zip)을
+[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko-folder.zip)을
 모두 풀고 안에 있는 EXE를 실행하세요. 실행 파일에는 코드 서명이 없습니다.
 종료 방법과 파일 확인, 라이선스·소스 자료는 [Windows 안내](packaging/windows/README.ko.md)에 있습니다.
 
 [배포 파일](https://github.com/a123qsd/calclens/releases/latest)에서 한국어 기본 소스 ZIP을 받으려면
 [다운로드·설치 안내](docs/DOWNLOADS.md#한국어)를 따르세요.
-[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.6.0/CalcLens-Guide.ko.md)만
+[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-Guide.ko.md)만
 따로 받을 수도 있습니다. 이 소스 ZIP에는 Python 3.12 또는 3.13과 의존성 설치가 필요합니다.
 화면 파일은 포함되어 있어 실행에 Node.js는 필요하지 않습니다.
 
@@ -77,7 +79,8 @@ ZIP의 기본 언어로 실행하려면 `python run_app.py`를 사용하세요. 
 기본 화면은 React·TypeScript와 함께 포함된 3Dmol.js 뷰어를 사용합니다.
 CIF 해석, 기하 계산과 프로젝트 저장은 기존 Python이 담당합니다. 상단 카드 세 개는
 최소 주기 거리, 핵 중심 두께, 후보 핵 간격을 보여 줍니다. SCF·최적화·진동수 분석
-결과가 아닙니다. 이전 Streamlit 화면은 `python run_app.py --legacy-ui`로 열 수 있습니다.
+결과가 아닙니다. 선택 의존성 `legacy-ui`를 설치하면 이전 Streamlit 화면도
+`python run_app.py --legacy-ui`로 열 수 있습니다.
 
 구조를 드래그하면 회전하고, 스크롤하면 확대·축소합니다. **원자 맞춤**은 원자 구조를,
 **셀 맞춤**은 전체 단위 셀을 화면에 맞춥니다. **반복**에서 층 안쪽 두 방향을
@@ -121,7 +124,7 @@ CIF 해석, 기하 계산과 프로젝트 저장은 기존 Python이 담당합�
 원시 JSON의 원자 인덱스는 0부터 시작합니다.
 
 **작업 저장**으로 원본 CIF 바이트, ID, 조건, 메모, 검토 이력, 원자쌍 선택과 필터를
-`.calclens.json`에 담습니다. **작업 열기**에서 복원하면 현재 엔진으로 보고서를 다시 계산합니다.
+초안·전자 자료·뷰어 설정과 함께 `.calclens.zip`에 담습니다. 이전 `.calclens.json`도 읽습니다. **작업 열기**에서 복원하면 현재 엔진으로 보고서를 다시 계산합니다.
 원본이 없거나 손상되었거나 해시가 맞지 않으면 불러오기를 거부합니다.
 결과 기록용 JSON·CSV 보고서는 작업 파일로 불러올 수 없습니다.
 
@@ -227,13 +230,15 @@ python -m pytest
 
 테스트는 해석적으로 구할 수 있는 거리와 간격, 별도로 열거한 주기 이미지,
 전체 구조의 평행 이동, 셀 경계의 중복 원자, 단위와 미지원 입력을 확인합니다.
-검증 범위는 기하 계산과 프로그램 동작이며, 에너지·힘·전자 구조 계산은 포함하지 않습니다.
+CalcLens 자체는 에너지·힘·전자 구조 계산을 실행하지 않습니다.
+별도의 [물 분자 사례](docs/ELECTRONIC_CASE.md)에는 실제 PySCF 계산 결과와
+그 자료를 불러오는 과정의 검증이 포함됩니다.
 
 ## 사용하는 도구
 
 [ASE](https://docs.ase-lib.org/)의 CIF 파서와 주기 기하 계산을 사용하고,
 React·TypeScript로 화면을 구성하고 3Dmol.js로 입체 원자를 그립니다.
-이전 Streamlit·Plotly 화면은 `--legacy-ui`로 사용할 수 있습니다.
+Streamlit·Plotly는 선택 의존성이며, 설치한 뒤 `--legacy-ui`로 이전 화면을 사용할 수 있습니다.
 [pymatgen](https://pymatgen.org/)도 CIF와 재료 구조 분석을 지원하는 도구입니다.
 CalcLens는 이들 도구의 기존 기능 위에 좁은 입력 범위, 설명과 검토 항목을 둡니다.
 범용 구조 분석이나 전문 시뮬레이션 도구를 대체하지 않습니다.
@@ -258,3 +263,6 @@ CalcLens는 이들 도구의 기존 기능 위에 좁은 입력 범위, 설명�
 OSI 기준의 오픈소스로 표기하지 않습니다. 정확한 조건은 영문 [LICENSE](LICENSE)를 따릅니다.
 ASE 등 외부 라이브러리의 이용 조건은 각각의 라이선스가 정하며,
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에 출처를 정리했습니다.
+
+이전 Streamlit 화면은 `.[legacy-ui]` 또는 `requirements-legacy.lock`을 설치한 뒤
+`--legacy-ui`로 실행합니다. 기본 설치에는 Streamlit과 Plotly가 포함되지 않습니다.

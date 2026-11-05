@@ -35,7 +35,9 @@ export interface Entry {
   id: string; filename: string; sha256: string; normal_axis: string;
   short_distance: number; note: string; reviewed: boolean; review_current: boolean;
   review_stamp: Record<string, unknown> | null; measurements: PairSelection[];
+  preparation?: Record<string, unknown> | null;
   analysis: { report: GeometryReport | null; error: string | null;
+    auxiliary_structure?: Pick<GeometryReport, 'atom_count' | 'elements' | 'positions'> | null;
     issues_ko?: Issue[]; error_ko?: string | null;
     assumptions_ko?: string[]; limitations_ko?: string[] };
 }
@@ -46,7 +48,7 @@ export interface Workspace {
   limits: { max_files: number; max_file_bytes: number; max_pair_selections: number };
   project: { selected_id: string; review_focus: string; filter_mode: string;
     progress_filter: string; calclens_version: string; ase_version: string;
-    analysis_revision: string };
+    analysis_revision: string; workspace_state?: unknown };
   entries: Entry[];
 }
 export interface Measurement { i: number; j: number; displayed: Contact; minimum_image: Contact }
@@ -58,7 +60,11 @@ export interface MolecularViewerProps {
   onAtomPick?: (atom: AtomPick) => void;
   compact?: boolean;
   auxiliary?: ViewerAuxiliaryData;
+  state?: ViewerState;
+  onStateChange?: (state: ViewerState) => void;
+  chargeRange?: [number, number];
   onViewerReady?: (viewer: GLViewer | null) => void;
 }
 import type { GLViewer } from '3dmol';
 import type { ViewerAuxiliaryData } from './viewerData';
+import type { ViewerState } from './viewerState';

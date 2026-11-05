@@ -1,0 +1,172 @@
+{
+  "status": "passed",
+  "ngl_package_version": "2.5.0",
+  "playwright_version": "1.64.1",
+  "chromium_version": "156.0.8078.4",
+  "ngl_bundle_sha256": "ceab08a04b246cd4ba799749fce0a822c370e34b7366a3c090530ea5e8d48507",
+  "scalar_isovalue_type": "absolute value; not sigma",
+  "opacity": 0.35,
+  "smoothing_iterations": 1,
+  "atom_colors": "element",
+  "projection": "perspective",
+  "fields": {
+    "density": {
+      "original_cube_sha256": "1a7a1b3ffff50ba1d5cfb73ac010638a8c367766b96c33374c7e811e7aab0c0a",
+      "units": "e/bohr^3",
+      "float32_scalar_sha256": "4f745bc1089895b09c1a3503accd6720c58ecc5cdb5a56fb632c581283ec9ffe",
+      "point_count": 27000,
+      "ngl_runtime_version": "2.5.0",
+      "meshes": [
+        {
+          "isovalue": 0.05,
+          "ngl": {
+            "vertices": 684,
+            "minimum_angstrom": [
+              5.053494930267334,
+              4.740079879760742,
+              5.0593109130859375
+            ],
+            "maximum_angstrom": [
+              6.946487903594971,
+              7.259924411773682,
+              7.0881028175354
+            ],
+            "vertex_mean_angstrom": [
+              6.000006700119777,
+              6.000197196564479,
+              6.149888895408452
+            ]
+          },
+          "calclens_3dmol": {
+            "vertices": 344,
+            "minimum_angstrom": [
+              5.197110176086426,
+              4.909973621368408,
+              5.213062763214111
+            ],
+            "maximum_angstrom": [
+              6.802888870239258,
+              7.090029716491699,
+              6.979165554046631
+            ],
+            "vertex_mean_angstrom": [
+              6.000155344951985,
+              6.00001174488733,
+              6.169713339140249
+            ]
+          },
+          "comparison": {
+            "ngl_to_calclens_max_nearest_vertex_angstrom": 0.1852074226814466,
+            "calclens_to_ngl_max_nearest_vertex_angstrom": 0.1699186697655907,
+            "bounds_max_difference_angstrom": 0.16989469528198242
+          }
+        }
+      ]
+    },
+    "homo": {
+      "original_cube_sha256": "f9b45cc4d53f28a7ae6ee4d64e3e9822c580cd324bef447d2aacdac6fe2acec0",
+      "units": "bohr^-3/2",
+      "float32_scalar_sha256": "20944c3dfaafa6e2bddde944815dd958da8ffb117c00d915f5cf3a8f552778b9",
+      "point_count": 27000,
+      "ngl_runtime_version": "2.5.0",
+      "meshes": [
+        {
+          "isovalue": 0.05,
+          "ngl": {
+            "vertices": 428,
+            "minimum_angstrom": [
+              5.992454528808594,
+              5.074712753295898,
+              5.095195293426514
+            ],
+            "maximum_angstrom": [
+              7.269014358520508,
+              6.925288677215576,
+              6.909438133239746
+            ],
+            "vertex_mean_angstrom": [
+              6.5824557910455725,
+              5.999706995821445,
+              6.001516686421689
+            ]
+          },
+          "calclens_3dmol": {
+            "vertices": 216,
+            "minimum_angstrom": [
+              6.072989463806152,
+              5.2402849197387695,
+              5.213062763214111
+            ],
+            "maximum_angstrom": [
+              7.186086177825928,
+              6.75971794128418,
+              6.7802934646606445
+            ],
+            "vertex_mean_angstrom": [
+              6.556828150042781,
+              5.999985059102376,
+              5.998158355553945
+            ]
+          },
+          "comparison": {
+            "ngl_to_calclens_max_nearest_vertex_angstrom": 0.19643431595228245,
+            "calclens_to_ngl_max_nearest_vertex_angstrom": 0.19410572140170204,
+            "bounds_max_difference_angstrom": 0.1655721664428711
+          }
+        },
+        {
+          "isovalue": -0.05,
+          "ngl": {
+            "vertices": 428,
+            "minimum_angstrom": [
+              4.730976104736328,
+              5.074714183807373,
+              5.095195293426514
+            ],
+            "maximum_angstrom": [
+              6.00754451751709,
+              6.925290107727051,
+              6.909438133239746
+            ],
+            "vertex_mean_angstrom": [
+              5.417687092986062,
+              6.0001847175794225,
+              6.001485367801702
+            ]
+          },
+          "calclens_3dmol": {
+            "vertices": 216,
+            "minimum_angstrom": [
+              4.813912868499756,
+              5.2402849197387695,
+              5.213062763214111
+            ],
+            "maximum_angstrom": [
+              5.927009582519531,
+              6.75971794128418,
+              6.7802934646606445
+            ],
+            "vertex_mean_angstrom": [
+              5.4431401756074695,
+              6.000039681240365,
+              5.998083542894434
+            ]
+          },
+          "comparison": {
+            "ngl_to_calclens_max_nearest_vertex_angstrom": 0.19822649962275593,
+            "calclens_to_ngl_max_nearest_vertex_angstrom": 0.19294988630984994,
+            "bounds_max_difference_angstrom": 0.1655721664428711
+          }
+        }
+      ]
+    }
+  },
+  "ngl_bohr_to_angstrom": 0.529177210859,
+  "calclens_bohr_to_angstrom": 0.529177210903,
+  "external_file_transmission": false,
+  "references": [
+    "https://github.com/nglviewer/ngl/blob/v2.5.0/src/parser/cube-parser.ts",
+    "https://github.com/nglviewer/ngl/blob/v2.5.0/src/representation/surface-representation.ts",
+    "https://github.com/3dmol/3Dmol.js/blob/2.5.5/src/GLShape.ts"
+  ]
+}

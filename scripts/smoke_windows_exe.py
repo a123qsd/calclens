@@ -41,13 +41,28 @@ LABELS = {
 }
 SELF_TEST_CHECKS = {
     "graphene_geometry", "mos2_axes", "invalid_cell_isolation", "project_roundtrip",
-    "plotly_charts", "streamlit_static", "plotly_validators", "metadata", "workspace_assets",
+    "metadata", "workspace_assets",
 }
+LEGACY_SELF_TEST_CHECKS = {"plotly_charts", "streamlit_static", "plotly_validators"}
 
 
 def require(condition, message):
     if not condition:
         raise AssertionError(message)
+
+
+def verify_self_test_checks(diagnostic):
+    includes_legacy = diagnostic.get("includes_legacy_ui")
+    require(type(includes_legacy) is bool, "Self-test omitted the UI variant identity.")
+    required = SELF_TEST_CHECKS | (LEGACY_SELF_TEST_CHECKS if includes_legacy else set())
+    checks = diagnostic.get("checks", {})
+    require(isinstance(checks, dict) and required <= checks.keys(),
+            "Self-test omitted required frozen resource/geometry checks.")
+    require(all(checks[key] is True or checks[key] in ("ok", "passed") for key in required),
+            "A frozen self-test check did not pass.")
+    if not includes_legacy:
+        require(not {"streamlit", "plotly"} & set(diagnostic.get("module_origins", {})),
+                "Workspace-only self-test imported legacy UI modules.")
 
 
 def child_environment():
@@ -619,13 +634,11 @@ def main():
             require(os.path.normcase(os.path.realpath(diagnostic["executable"]))
                     == os.path.normcase(os.path.realpath(executable)), "Self-test ran a different executable.")
             require(diagnostic.get("meipass"), "Frozen resource extraction path is missing.")
-            checks = diagnostic.get("checks", {})
-            require(isinstance(checks, dict) and SELF_TEST_CHECKS <= checks.keys(),
-                    "Self-test omitted required frozen resource/geometry checks.")
-            require(all(checks[key] is True or checks[key] in ("ok", "passed")
-                        for key in SELF_TEST_CHECKS), "A frozen self-test check did not pass.")
+            verify_self_test_checks(diagnostic)
             info = executable_json(executable, "--build-info", cwd, environment, output)
             require(info == diagnostic.get("build_info"), "Build-info CLI differs from frozen self-test metadata.")
+            require(info.get("includes_legacy_ui") is diagnostic["includes_legacy_ui"],
+                    "Build-info and self-test UI variants differ.")
             result["build_info"] = info
             capture = isolated / "captured-browser-url.txt"
             manager_environment = dict(environment)
@@ -664,6 +677,10 @@ def main():
                         default_url, args.language, version, output / "workspace",
                         originals, workspace_events,
                     )
+                    from smoke_research_workspace import run as research_browser_flow
+                    result["research_browser"] = research_browser_flow(
+                        default_url, output / "research"
+                    )
                     close_windows_manager(default_process, manager_handle)
                     wait_port_closed(default_url)
                     wait_for_no_pyinstaller_extractions(pyinstaller_temp)
@@ -689,29 +706,39 @@ def main():
                         stop_process_tree(
                             default_process, output, label="default-manager-emergency"
                         )
-            port = free_port()
-            base_url = f"http://127.0.0.1:{port}"
-            with (output / "legacy-server.log").open("wb") as server_log:
-                options = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt"
-                           else {"start_new_session": True})
-                process = subprocess.Popen(
-                    [str(executable), "--port", str(port), "--no-browser", "--legacy-ui"],
-                    cwd=cwd, env=environment, stdout=server_log,
-                    stderr=subprocess.STDOUT, **options,
+            if diagnostic["includes_legacy_ui"]:
+                port = free_port()
+                base_url = f"http://127.0.0.1:{port}"
+                with (output / "legacy-server.log").open("wb") as server_log:
+                    options = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+                               if os.name == "nt" else {"start_new_session": True})
+                    process = subprocess.Popen(
+                        [str(executable), "--port", str(port), "--no-browser", "--legacy-ui"],
+                        cwd=cwd, env=environment, stdout=server_log,
+                        stderr=subprocess.STDOUT, **options,
+                    )
+                    try:
+                        wait_health(process, base_url, legacy_ui=True)
+                        result["legacy_browser"] = browser_flow(
+                            base_url, args.language, version, output, originals, events,
+                        )
+                        require(process.poll() is None,
+                                "Frozen legacy server exited during the browser smoke.")
+                    finally:
+                        stop_process_tree(
+                            process, output, label="legacy-no-browser", require_graceful=True
+                        )
+                        wait_port_closed(base_url)
+                        process = None
+            else:
+                rejected = subprocess.run(
+                    [str(executable), "--legacy-ui", "--no-browser"], cwd=cwd, env=environment,
+                    capture_output=True, timeout=180, check=False,
                 )
-                try:
-                    wait_health(process, base_url, legacy_ui=True)
-                    result["legacy_browser"] = browser_flow(
-                        base_url, args.language, version, output, originals, events,
-                    )
-                    require(process.poll() is None,
-                            "Frozen legacy server exited during the browser smoke.")
-                finally:
-                    stop_process_tree(
-                        process, output, label="legacy-no-browser", require_graceful=True
-                    )
-                    wait_port_closed(base_url)
-                    process = None
+                (output / "legacy-unavailable.log").write_bytes(rejected.stdout + rejected.stderr)
+                require(rejected.returncode != 0 and b"-legacy" in rejected.stderr,
+                        "Workspace bundle must explain that --legacy-ui needs a legacy bundle.")
+                result["legacy_ui"] = "excluded; optional-bundle guidance verified"
             wait_for_no_pyinstaller_extractions(pyinstaller_temp)
         result["status"] = "passed"
     except Exception as error:

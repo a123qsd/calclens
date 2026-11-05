@@ -44,8 +44,8 @@ export async function dispatchAction(
   }));
 }
 
-export async function importProject(workspace: Workspace, bytes: ArrayBuffer): Promise<Workspace> {
-  return parseResponse(await fetch('/api/v1/project/import', {
+export async function importProject(workspace: Workspace, bytes: ArrayBuffer, preview = false): Promise<Workspace> {
+  return parseResponse(await fetch(`/api/v1/project/${preview ? 'preview' : 'import'}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -53,6 +53,32 @@ export async function importProject(workspace: Workspace, bytes: ArrayBuffer): P
       'X-CalcLens-Revision': String(workspace.revision),
     },
     body: bytes,
+  }));
+}
+
+export async function exportProject(workspace: Workspace, state: unknown): Promise<Blob> {
+  const response = await fetch('/api/v1/project/export', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CalcLens-Token': workspace.token },
+    body: JSON.stringify({ expected_revision: workspace.revision, workspace_state: state }),
+  });
+  if (!response.ok) await parseResponse(response);
+  return response.blob();
+}
+
+export interface PreparationPreview {
+  entry_id: string; revision: number; source_sha256: string; prepared_sha256: string;
+  prepared_cif: string; source_site_count: number; prepared_site_count: number;
+  source_spacegroup: { number: number | null; symbol: string | null };
+  source_cell: number[]; prepared_cell: number[];
+  occupancy_policy: string; warnings: string[]; changes: string[];
+}
+
+export async function previewPreparation(workspace: Workspace, entryId: string): Promise<PreparationPreview> {
+  return parseResponse(await fetch('/api/v1/prepare/p1', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CalcLens-Token': workspace.token },
+    body: JSON.stringify({ expected_revision: workspace.revision, entry_id: entryId }),
   }));
 }
 

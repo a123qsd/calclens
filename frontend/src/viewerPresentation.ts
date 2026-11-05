@@ -26,14 +26,26 @@ export function elementColor(element: string): string {
   return palette[[...element].reduce((sum, char) => sum + char.charCodeAt(0), 0) % palette.length];
 }
 
-export function chargeColor(value: number | null | undefined, extent: number): string {
+export function chargeColor(value: number | null | undefined, extent: number | [number, number]): string {
   if (value == null || !Number.isFinite(value)) return UNKNOWN_COLOR;
-  const amount = Math.min(1, Math.abs(value) / (extent > 0 ? extent : 1));
-  const endpoint = value < 0 ? [198, 67, 79] : [51, 104, 192];
+  const range: [number, number] = typeof extent === 'number' ? [-extent, extent] : extent;
+  const clipped = Math.min(range[1], Math.max(range[0], value));
+  const positiveBase = Math.max(0, range[0]);
+  const negativeBase = Math.min(0, range[1]);
+  const amount = clipped < 0
+    ? Math.min(1, Math.max(0, (negativeBase - clipped) / (negativeBase - range[0] || 1)))
+    : Math.min(1, Math.max(0, (clipped - positiveBase) / (range[1] - positiveBase || 1)));
+  const endpoint = clipped < 0 ? [198, 67, 79] : [51, 104, 192];
   const neutral = [232, 235, 240];
   return `#${neutral.map((component, index) => Math.round(
     component + amount * (endpoint[index] - component),
   ).toString(16).padStart(2, '0')).join('')}`;
+}
+
+export function chargeDisplayRange(values: (number | null)[], requested?: [number, number]): [number, number] {
+  if (requested && requested.length === 2 && requested.every(Number.isFinite) && requested[0] < requested[1]) return requested;
+  const extent = values.reduce<number>((maximum, value) => value === null ? maximum : Math.max(maximum, Math.abs(value)), 0);
+  return [-extent || 0, extent];
 }
 
 export function repeatDimensions(normalAxis: number, repeat: number): number[] {

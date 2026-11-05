@@ -1,7 +1,15 @@
 import type { GeometryReport, Vec3 } from './types.ts';
 
+export type AtomicStructure = Pick<GeometryReport, 'atom_count' | 'elements' | 'positions'>;
+
 export type ChargeKind = 'partial_charge' | 'formal_charge' | 'ionic_charge' | 'oxidation_state';
-export interface ChargeDataset {
+export interface DatasetIdentity {
+  id: string;
+  name: string;
+  /** Exact original file contents, including whitespace and line endings. */
+  rawText: string;
+}
+export interface ChargeDataset extends DatasetIdentity {
   kind: ChargeKind;
   method: string;
   source: string;
@@ -9,7 +17,7 @@ export interface ChargeDataset {
   structureSha256: string;
   values: (number | null)[];
 }
-export interface VolumeDataset {
+export interface VolumeDataset extends DatasetIdentity {
   kind: 'density' | 'orbital';
   source: string;
   filename: string;
@@ -21,9 +29,15 @@ export interface VolumeDataset {
   pointCount: number;
 }
 export interface ViewerAuxiliaryData {
-  charges: Partial<Record<ChargeKind, ChargeDataset>>;
-  volume?: VolumeDataset;
+  charges: ChargeDataset[];
+  volumes: VolumeDataset[];
 }
+export interface SerializedAuxiliaryData {
+  schemaVersion: 1;
+  charges: Pick<ChargeDataset, 'id' | 'name' | 'filename' | 'rawText'>[];
+  volumes: Pick<VolumeDataset, 'id' | 'name' | 'filename' | 'rawText' | 'kind' | 'source' | 'units'>[];
+}
+export interface ImportIdentity { id?: string; name?: string }
 export interface CubeOptions {
   kind: 'density' | 'orbital';
   source: string;
@@ -33,6 +47,8 @@ export interface CubeOptions {
 export const MAX_CHARGE_BYTES = 1024 * 1024;
 export const MAX_CUBE_BYTES = 32 * 1024 * 1024;
 export const MAX_VOLUME_POINTS = 1_000_000;
+export const MAX_AUXILIARY_DATASETS = 16;
+export const MAX_AUXILIARY_BYTES = 64 * 1024 * 1024;
 export const CUBE_POSITION_TOLERANCE_ANGSTROM = 0.01;
 // CODATA 2018 Bohr radius; canonical Cube coordinates are passed to 3Dmol in Å.
 const BOHR_ANGSTROM = 0.529177210903;
@@ -76,13 +92,32 @@ function metadata(value: unknown, label: string): string {
   return value.trim();
 }
 
+function datasetId(value: unknown): string {
+  requireValue(typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value),
+    'Dataset ID must contain 1–128 letters, digits, dots, underscores, colons or hyphens.');
+  return value;
+}
+
+/** A stable local identifier, not a cryptographic content fingerprint. */
+function importIdentity(kind: string, text: string, filename: string, identity?: ImportIdentity): DatasetIdentity {
+  let a = 0x811c9dc5; let b = 0x9e3779b9;
+  for (let i = 0; i < text.length; i += 1) {
+    a = Math.imul(a ^ text.charCodeAt(i), 0x01000193);
+    b = Math.imul(b ^ text.charCodeAt(i), 0x85ebca6b);
+  }
+  return {
+    id: datasetId(identity?.id ?? `${kind}-${(a >>> 0).toString(16).padStart(8, '0')}${(b >>> 0).toString(16).padStart(8, '0')}`),
+    name: metadata(identity?.name ?? filename, 'Dataset name'), rawText: text,
+  };
+}
+
 function object(value: unknown, label: string): Record<string, unknown> {
   requireValue(value !== null && typeof value === 'object' && !Array.isArray(value),
     `${label} must be an object.`);
   return value as Record<string, unknown>;
 }
 
-function validReport(report: GeometryReport): void {
+function validReport(report: AtomicStructure): void {
   requireValue(Number.isInteger(report.atom_count) && report.atom_count >= 1 && report.atom_count <= 400
     && report.elements.length === report.atom_count && report.positions.length === report.atom_count,
   'The structure report has an invalid atom count.');
@@ -96,12 +131,13 @@ function validSha256(value: unknown): value is string {
 }
 
 export function parseChargeData(
-  text: string, report: GeometryReport, structureSha256: string, filename: string,
+  text: string, report: AtomicStructure, structureSha256: string, filename: string,
+  identity?: ImportIdentity,
 ): ChargeDataset {
   boundedText(text, MAX_CHARGE_BYTES, 'Charge data');
   validReport(report);
   let parsed: unknown;
-  try { parsed = JSON.parse(text); }
+  try { parsed = JSON.parse(text.replace(/^\uFEFF/, '')); }
   catch { throw new Error('Charge data must be valid JSON with finite numeric values or null.'); }
   // JSON.parse silently rounds tiny nonzero literals to zero. Scan validated
   // JSON tokens while consuming complete strings, including escaped quotes.
@@ -139,12 +175,12 @@ export function parseChargeData(
     seen.add(index);
     values[index - 1] = value as number | null;
   }
-  return { kind, method, source, filename: metadata(filename, 'Filename'),
+  return { ...importIdentity(kind, text, filename, identity), kind, method, source, filename: metadata(filename, 'Filename'),
     structureSha256: structureSha256.toLowerCase(), values };
 }
 
 export function makeChargeTemplate(
-  report: GeometryReport, structureSha256: string, kind: ChargeKind = 'partial_charge',
+  report: AtomicStructure, structureSha256: string, kind: ChargeKind = 'partial_charge',
 ): string {
   validReport(report);
   requireValue(validSha256(structureSha256), 'A valid original CIF SHA-256 is required.');
@@ -198,7 +234,8 @@ function nondegenerateGrid(vectors: Vec3[]): boolean {
 
 /** Validate a bounded scalar Cube, then normalize only its spatial coordinates to Å. */
 export function parseCubeData(
-  text: string, report: GeometryReport, options: CubeOptions, filename: string,
+  text: string, report: AtomicStructure, options: CubeOptions, filename: string,
+  identity?: ImportIdentity,
 ): VolumeDataset {
   boundedText(text, MAX_CUBE_BYTES, 'Cube data');
   validReport(report);
@@ -293,6 +330,88 @@ export function parseCubeData(
     ...vectors.map((v, axis) => [-counts[axis], ...v].join(' ')),
     ...atomRows, ...scalarLines,
   ].join('\n');
-  return { kind: options.kind, source, filename: metadata(filename, 'Filename'), units,
+  return { ...importIdentity(options.kind, text, filename, identity), kind: options.kind, source, filename: metadata(filename, 'Filename'), units,
     cubeText, min, max, suggestedIsovalue, pointCount };
+}
+
+export function auxiliaryByteSize(data: ViewerAuxiliaryData): number {
+  return [...data.charges, ...data.volumes].reduce((total, dataset) => {
+    requireValue(typeof dataset.rawText === 'string', 'The original dataset file is missing.');
+    return total + new TextEncoder().encode(dataset.rawText).byteLength;
+  }, 0);
+}
+
+export function assertAuxiliaryLimits(data: ViewerAuxiliaryData): void {
+  requireValue(Array.isArray(data.charges) && Array.isArray(data.volumes), 'Auxiliary datasets must be arrays.');
+  const datasets = [...data.charges, ...data.volumes];
+  requireValue(datasets.length <= MAX_AUXILIARY_DATASETS,
+    `At most ${MAX_AUXILIARY_DATASETS} electronic datasets can be attached to one CIF.`);
+  const seen = new Set<string>();
+  for (const dataset of datasets) {
+    const id = datasetId(dataset.id);
+    requireValue(!seen.has(id), 'Electronic dataset IDs must be unique within a CIF.');
+    seen.add(id);
+    metadata(dataset.name, 'Dataset name'); metadata(dataset.filename, 'Filename');
+  }
+  for (const dataset of data.charges) boundedText(dataset.rawText, MAX_CHARGE_BYTES, 'Charge data');
+  for (const dataset of data.volumes) boundedText(dataset.rawText, MAX_CUBE_BYTES, 'Cube data');
+  requireValue(auxiliaryByteSize(data) <= MAX_AUXILIARY_BYTES,
+    `Electronic datasets exceed the ${MAX_AUXILIARY_BYTES / 1024 / 1024} MiB total limit per CIF.`);
+}
+
+/** Append without replacing datasets of the same physical quantity. */
+export function appendAuxiliaryDataset(
+  data: ViewerAuxiliaryData, dataset: ChargeDataset | VolumeDataset,
+): ViewerAuxiliaryData {
+  const used = new Set([...data.charges, ...data.volumes].map((item) => item.id));
+  let id = dataset.id; let suffix = 2;
+  while (used.has(id)) id = `${dataset.id.slice(0, 115)}-${suffix++}`;
+  const next = 'values' in dataset
+    ? { ...data, charges: [...data.charges, { ...dataset, id }] }
+    : { ...data, volumes: [...data.volumes, { ...dataset, id }] };
+  assertAuxiliaryLimits(next);
+  return next;
+}
+
+/** Only original files and their import metadata are authoritative in saved projects. */
+export function serializeAuxiliaryData(data: ViewerAuxiliaryData): SerializedAuxiliaryData {
+  assertAuxiliaryLimits(data);
+  return {
+    schemaVersion: 1,
+    charges: data.charges.map(({ id, name, filename, rawText }) => ({ id, name, filename, rawText })),
+    volumes: data.volumes.map(({ id, name, filename, rawText, kind, source, units }) => ({ id, name, filename, rawText, kind, source, units })),
+  };
+}
+
+/** Rebuild derived values from original text; never trust cached colors, values or meshes. */
+export function restoreAuxiliaryData(
+  value: unknown, report: AtomicStructure, structureSha256: string,
+): ViewerAuxiliaryData {
+  const input = object(value, 'Electronic datasets');
+  requireValue(input.schemaVersion === 1, 'Unsupported electronic dataset schema version.');
+  requireValue(validSha256(structureSha256), 'A valid original CIF SHA-256 is required.');
+  requireValue(Array.isArray(input.charges) && Array.isArray(input.volumes), 'Electronic dataset collections must be arrays.');
+  requireValue(input.charges.length + input.volumes.length <= MAX_AUXILIARY_DATASETS,
+    `At most ${MAX_AUXILIARY_DATASETS} electronic datasets can be attached to one CIF.`);
+  // Bound all files together before parsing any volume or allocating its scalar grid.
+  let total = 0; const ids = new Set<string>();
+  const read = (raw: unknown, maximum: number): Record<string, unknown> & { id: string; name: string; filename: string; rawText: string } => {
+    const item = object(raw, 'Electronic dataset');
+    const id = datasetId(item.id);
+    requireValue(!ids.has(id), 'Electronic dataset IDs must be unique within a CIF.'); ids.add(id);
+    const name = metadata(item.name, 'Dataset name'); const filename = metadata(item.filename, 'Filename');
+    requireValue(typeof item.rawText === 'string', 'The original dataset file is missing.');
+    boundedText(item.rawText, maximum, 'Electronic dataset');
+    total += new TextEncoder().encode(item.rawText).byteLength;
+    requireValue(total <= MAX_AUXILIARY_BYTES, 'Electronic datasets exceed the total byte limit per CIF.');
+    return { ...item, id, name, filename, rawText: item.rawText };
+  };
+  const charges = input.charges.map((raw) => read(raw, MAX_CHARGE_BYTES));
+  const volumes = input.volumes.map((raw) => read(raw, MAX_CUBE_BYTES));
+  return {
+    charges: charges.map((item) => parseChargeData(item.rawText, report, structureSha256, item.filename, item)),
+    volumes: volumes.map((item) => parseCubeData(item.rawText, report, {
+      kind: item.kind as CubeOptions['kind'], source: item.source as string, units: item.units as string,
+    }, item.filename, item)),
+  };
 }

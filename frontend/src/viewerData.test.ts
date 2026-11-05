@@ -3,7 +3,8 @@ import test from 'node:test';
 import type { GeometryReport, Vec3 } from './types.ts';
 import {
   atomicNumber, isMetalElement, makeChargeTemplate, parseChargeData, parseCubeData,
-  MAX_CHARGE_BYTES, MAX_CUBE_BYTES, MAX_VOLUME_POINTS,
+  appendAuxiliaryDataset, assertAuxiliaryLimits, auxiliaryByteSize, serializeAuxiliaryData, restoreAuxiliaryData,
+  MAX_CHARGE_BYTES, MAX_CUBE_BYTES, MAX_VOLUME_POINTS, MAX_AUXILIARY_DATASETS,
 } from './viewerData.ts';
 
 const sha = 'a'.repeat(64);
@@ -197,4 +198,57 @@ test('atomic helpers distinguish nuclear identity and metal elements', () => {
   assert.equal(atomicNumber('Og'), 118); assert.equal(atomicNumber('Xx'), undefined);
   for (const element of ['Fe', 'Cu', 'Na', 'W', 'U']) assert.equal(isMetalElement(element), true);
   for (const element of ['C', 'Si', 'Cl', 'He', 'Xx']) assert.equal(isMetalElement(element), false);
+});
+
+test('named datasets of the same kind append independently and preserve exact original text', () => {
+  const raw = '\uFEFF' + JSON.stringify(charges(), null, 2).replace(/\n/g, '\r\n') + '\r\n';
+  const first = parseChargeData(raw, report(), sha, 'calc-a.json', { name: 'Calculation A' });
+  const second = parseChargeData(raw, report(), sha, 'calc-b.json', { name: 'Calculation B' });
+  let data = appendAuxiliaryDataset({ charges: [], volumes: [] }, first);
+  data = appendAuxiliaryDataset(data, second);
+  assert.equal(data.charges.length, 2);
+  assert.notEqual(data.charges[0].id, data.charges[1].id);
+  assert.deepEqual(data.charges.map((item) => item.name), ['Calculation A', 'Calculation B']);
+  assert.equal(first.rawText, raw);
+  assert.equal(parseChargeData(raw, report(), sha, 'calc-a.json').id, first.id);
+  assert.equal(auxiliaryByteSize(data), new TextEncoder().encode(raw).byteLength * 2);
+});
+
+test('saved electronic data restores originals and recomputes all derived values', () => {
+  const rawCube = '\uFEFF' + cube({ bohr: true }).replace(/\n/g, '\r\n') + '\r\n';
+  const charge = parseChargeData(JSON.stringify(charges()), report(), sha, 'q.json', { id: 'charge-a', name: 'Hirshfeld A' });
+  const volume = parseCubeData(rawCube, report(), density, 'density.cube', { id: 'density-a', name: 'Density A' });
+  const archived = serializeAuxiliaryData({ charges: [charge], volumes: [volume] });
+  assert.deepEqual(Object.keys(archived.charges[0]).sort(), ['filename', 'id', 'name', 'rawText']);
+  assert.ok(!('cubeText' in archived.volumes[0]));
+  const restored = restoreAuxiliaryData(JSON.parse(JSON.stringify(archived)), report(), sha);
+  assert.deepEqual(restored, { charges: [charge], volumes: [volume] });
+  assert.equal(restored.volumes[0].rawText, rawCube);
+  const injected = { ...archived, charges: [{ ...archived.charges[0], values: [100, 100] }],
+    volumes: [{ ...archived.volumes[0], min: -999, cubeText: 'untrusted cache' }] };
+  assert.deepEqual(restoreAuxiliaryData(injected, report(), sha), restored);
+});
+
+test('restoring electronic data rejects foreign CIF identity and corrupted raw files atomically', () => {
+  const charge = parseCharge(JSON.parse(JSON.stringify(charges())));
+  const volume = parseCubeData(cube(), report(), density, 'density.cube');
+  const archived = serializeAuxiliaryData({ charges: [charge], volumes: [volume] });
+  assert.throws(() => restoreAuxiliaryData(archived, report(), 'b'.repeat(64)), /SHA-256/);
+  assert.throws(() => restoreAuxiliaryData({ ...archived, volumes: [{ ...archived.volumes[0],
+    rawText: cube().replace('1 1.0 1 0 0', '1 1.0 5 0 0') }] }, report(), sha), /not aligned/);
+  assert.throws(() => restoreAuxiliaryData({ ...archived, charges: [archived.charges[0], archived.charges[0]] }, report(), sha), /unique/);
+  assert.throws(() => restoreAuxiliaryData({ ...archived, volumes: [{ ...archived.volumes[0], units: 'arbitrary' }] }, report(), sha), /units/);
+});
+
+test('dataset collection limits bound counts, individual bytes and aggregate original bytes', () => {
+  const charge = parseCharge(charges());
+  const volume = parseCubeData(cube(), report(), density, 'density.cube');
+  const many = Array.from({ length: MAX_AUXILIARY_DATASETS + 1 }, (_, index) => ({ ...charge, id: `q-${index}` }));
+  assert.throws(() => serializeAuxiliaryData({ charges: many, volumes: [] }), /At most/);
+  assert.throws(() => restoreAuxiliaryData({ schemaVersion: 1, charges: many, volumes: [] }, report(), sha), /At most/);
+  assert.throws(() => assertAuxiliaryLimits({ charges: [{ ...charge, rawText: 'é'.repeat(MAX_CHARGE_BYTES) }], volumes: [] }), /exceeds/);
+  const largeRaw = ' '.repeat(MAX_CUBE_BYTES);
+  assert.throws(() => assertAuxiliaryLimits({ charges: [{ ...charge, rawText: 'x' }], volumes: [
+    { ...volume, id: 'v-1', rawText: largeRaw }, { ...volume, id: 'v-2', rawText: largeRaw },
+  ] }), /total limit/);
 });

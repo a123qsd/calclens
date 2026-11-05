@@ -316,8 +316,26 @@ def test_invalid_marker_and_missing_app_have_clear_errors(package, monkeypatch, 
     assert launcher.main([], project_dir=package) == 1
     assert "DEFAULT_LANGUAGE.txt must contain" in capsys.readouterr().err
     (package / "streamlit_app.py").unlink()
-    assert launcher.main([], project_dir=package) == 1
+    assert launcher.main(["--legacy-ui", "--language", "en"], project_dir=package) == 1
     assert "streamlit_app.py is missing" in capsys.readouterr().err
+
+
+def test_workspace_launcher_does_not_require_the_legacy_script(package, monkeypatch):
+    (package / "streamlit_app.py").unlink()
+    calls = []
+    monkeypatch.setattr(launcher, "choose_port", lambda requested: 43123)
+    monkeypatch.setattr(launcher, "_run_workspace", lambda *args: calls.append(args) or 0)
+    assert launcher.main(["--no-browser"], project_dir=package) == 0
+    assert calls[0][:3] == (package, 43123, "ko")
+
+
+def test_workspace_frozen_bundle_explains_the_separate_legacy_variant(package, monkeypatch):
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    (package / "WINDOWS_BUILD_INFO.json").write_text(json.dumps({
+        "version": "0.6.0", "language": "en", "includes_legacy_ui": False,
+    }), encoding="utf-8")
+    with pytest.raises(launcher.LauncherError, match="-legacy Windows bundle"):
+        launcher._require_legacy_ui(package, "en")
 
 
 @pytest.mark.parametrize("status,body,final_url,expected", [

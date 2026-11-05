@@ -1,0 +1,79 @@
+{
+  "case": "Actual isolated H2O RHF/STO-3G calculation; original illustrative geometry",
+  "program": "PySCF",
+  "program_version": "2.12.0",
+  "python_version": "3.12.16",
+  "environment": {
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "h5py": "3.16.0",
+    "ase": "3.29.0"
+  },
+  "method": "RHF",
+  "basis": "STO-3G",
+  "charge": 0,
+  "spin_2s": 0,
+  "electron_count": 10,
+  "basis_function_count": 7,
+  "converged": true,
+  "scf_cycles": 8,
+  "energy_hartree": -74.9630631297292,
+  "energy_convergence_tolerance_hartree": 1e-12,
+  "gradient_convergence_tolerance": 1e-08,
+  "maximum_scf_cycles": 100,
+  "threads": 1,
+  "geometry_optimization_performed": false,
+  "periodic_calculation": false,
+  "input_units": "angstrom",
+  "source_geometry": "source/water.xyz",
+  "atom_order": [
+    "O",
+    "H",
+    "H"
+  ],
+  "display_translation_angstrom": [
+    6.0,
+    6.0,
+    6.0
+  ],
+  "display_cell_angstrom": [
+    12.0,
+    12.0,
+    12.0
+  ],
+  "structure_sha256": "f145b937192b9f08b9e8761b20623301062d0ca10355d5e230ce061836b6d11c",
+  "cube": {
+    "shape": [
+      30,
+      30,
+      30
+    ],
+    "margin_bohr": 4.0,
+    "spatial_units": "bohr; all voxel counts positive; z fastest",
+    "density_units": "e/bohr^3",
+    "orbital_units": "bohr^-3/2",
+    "comments_modified": "Only the PySCF date comment is replaced for reproducibility.",
+    "scalar_precision": "PySCF cubegen default: %13.5E (six significant digits)",
+    "orbital_index_one_based": 5,
+    "orbital_energy_hartree": -0.39127421895477105,
+    "orbital_occupation": 2.0,
+    "orbital_phase_convention": "Largest-magnitude AO coefficient made positive",
+    "display_density_isovalue": 0.05,
+    "display_orbital_isovalue": 0.05
+  },
+  "references": {
+    "pyscf_rhf": "https://pyscf.org/quickstart.html#hartree-fock",
+    "pyscf_mulliken": "https://pyscf.org/_modules/pyscf/scf/hf.html#mulliken_pop",
+    "pyscf_lowdin": "https://pyscf.org/_modules/pyscf/lo/orth.html#lowdin",
+    "pyscf_cube": "https://pyscf.org/_modules/pyscf/tools/cubegen.html",
+    "ase_cube": "https://gitlab.com/ase/ase/-/blob/3.29.0/ase/io/cube.py"
+  },
+  "limitations": [
+    "Fixed illustrative molecular geometry; not experimentally sourced or optimized.",
+    "RHF and minimal STO-3G are an educational calculation, not chemical accuracy evidence.",
+    "Partial charges are partition-dependent; neither method is an oxidation state.",
+    "The 12 angstrom P1 cell is only a display container; it did not enter the molecular SCF.",
+    "The coarse finite Cube is for display, not an accurate electron-count integration grid.",
+    "Independent checks share PySCF integrals/AO evaluator; no second electronic code was run."
+  ]
+}

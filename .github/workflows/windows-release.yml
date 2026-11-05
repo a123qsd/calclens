@@ -2,13 +2,19 @@ name: Windows executables
 
 on:
   workflow_dispatch:
+    inputs:
+      include_legacy_ui:
+        description: Include the optional Streamlit/Plotly UI in a separate -legacy bundle
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   build:
-    name: Windows x64 (${{ matrix.language }})
+    name: Windows x64 (${{ matrix.language }}${{ inputs.include_legacy_ui && ' legacy' || '' }})
     runs-on: windows-latest
     timeout-minutes: 60
     strategy:
@@ -18,6 +24,7 @@ jobs:
     env:
       PYTHONUTF8: '1'
       PYTHONHASHSEED: '0'
+      CALCLENS_INCLUDE_LEGACY_UI: ${{ inputs.include_legacy_ui && '1' || '0' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -27,6 +34,7 @@ jobs:
           cache: pip
           cache-dependency-path: |
             requirements.lock
+            requirements-legacy.lock
             packaging/windows/*-requirements.lock
       - name: Resolve artifact names from project version
         shell: pwsh
@@ -34,7 +42,9 @@ jobs:
           $version = python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "CALCLENS_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "CALCLENS_NAME=CalcLens-$version-windows-x64-${{ matrix.language }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $suffix = if ($env:CALCLENS_INCLUDE_LEGACY_UI -eq '1') { '-legacy' } else { '' }
+          "CALCLENS_VARIANT_SUFFIX=$suffix" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "CALCLENS_NAME=CalcLens-$version-windows-x64-${{ matrix.language }}$suffix" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: '26.7.0'
@@ -53,7 +63,9 @@ jobs:
         run: git diff --exit-code -- src/slab_preflight/web_assets frontend/public/THIRD_PARTY_LICENSES.txt
       - name: Install locked runtime and build dependencies
         run: |
-          python -m pip install --require-hashes -r requirements.lock
+          # Full source tests also cover the optional UI; PyInstaller explicitly
+          # excludes it from the default workspace executable.
+          python -m pip install --require-hashes -r requirements-legacy.lock
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m pip install --require-hashes -r packaging/windows/build-requirements.lock
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -67,9 +79,13 @@ jobs:
           python -m ruff check .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Collect bundled licenses and exact ASE source
-        run: python scripts/collect_windows_licenses.py --output build/windows/notices --source-commit ${{ github.sha }}
+        run: |
+          $legacyFlags = if ($env:CALCLENS_INCLUDE_LEGACY_UI -eq '1') { @('--include-legacy-ui') } else { @() }
+          python scripts/collect_windows_licenses.py --output "build/windows/notices$env:CALCLENS_VARIANT_SUFFIX" --source-commit ${{ github.sha }} @legacyFlags
       - name: Build directory bundle
-        run: python scripts/build_windows.py --language ${{ matrix.language }} --mode onedir --output dist/onedir
+        run: |
+          $legacyFlags = if ($env:CALCLENS_INCLUDE_LEGACY_UI -eq '1') { @('--include-legacy-ui') } else { @() }
+          python scripts/build_windows.py --language ${{ matrix.language }} --mode onedir --output dist/onedir @legacyFlags
       - name: Install browser test tools
         run: |
           python -m pip install --require-hashes -r packaging/windows/smoke-requirements.lock
@@ -81,6 +97,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist/windows | Out-Null
+          Copy-Item "dist/onedir/$env:CALCLENS_NAME.build.json" "dist/windows/$env:CALCLENS_NAME-folder.build.json"
           Compress-Archive -Path "dist/onedir/$env:CALCLENS_NAME" -DestinationPath "dist/windows/$env:CALCLENS_NAME-folder.zip"
       - name: Verify packaged directory archive
         shell: pwsh
@@ -98,20 +115,23 @@ jobs:
           $selfTest = Get-Content "build/folder-archive-self-test.json" -Raw | ConvertFrom-Json
           if ($selfTest.status -ne "ok" -or $selfTest.frozen -ne $true) { throw "Extracted folder ZIP self-test failed." }
       - name: Build final standalone executable
-        run: python scripts/build_windows.py --language ${{ matrix.language }} --mode onefile --output dist/windows
+        run: |
+          $legacyFlags = if ($env:CALCLENS_INCLUDE_LEGACY_UI -eq '1') { @('--include-legacy-ui') } else { @() }
+          python scripts/build_windows.py --language ${{ matrix.language }} --mode onefile --output dist/windows @legacyFlags
       - name: Exercise final executable in isolation
         run: python scripts/smoke_windows_exe.py --exe "dist/windows/$env:CALCLENS_NAME.exe" --language ${{ matrix.language }} --output build/smoke-onefile
       - name: Package exact source and third-party notices
         if: matrix.language == 'ko'
         run: |
-          git archive --format=zip --prefix=calclens-source/ --output=build/windows/notices/CalcLens-windows-source.zip ${{ github.sha }}
+          $notices = "build/windows/notices$env:CALCLENS_VARIANT_SUFFIX"
+          git archive --format=zip --prefix=calclens-source/ --output="$notices/CalcLens-windows-source$env:CALCLENS_VARIANT_SUFFIX.zip" ${{ github.sha }}
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Copy-Item packaging/windows/README.*.md build/windows/notices/
-          Compress-Archive -Path build/windows/notices/* -DestinationPath "dist/windows/CalcLens-$env:CALCLENS_VERSION-windows-support.zip"
+          Copy-Item packaging/windows/README.*.md "$notices/"
+          Compress-Archive -Path "$notices/*" -DestinationPath "dist/windows/CalcLens-$env:CALCLENS_VERSION-windows-support$env:CALCLENS_VARIANT_SUFFIX.zip"
       - name: Upload verified executable
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: windows-x64-${{ matrix.language }}
+          name: windows-x64-${{ matrix.language }}${{ inputs.include_legacy_ui && '-legacy' || '' }}
           path: dist/windows/*
           compression-level: 0
           retention-days: 14
@@ -120,7 +140,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: windows-diagnostics-${{ matrix.language }}
+          name: windows-diagnostics-${{ matrix.language }}${{ inputs.include_legacy_ui && '-legacy' || '' }}
           path: |
             build/smoke-*/
             build/folder-archive-self-test.json

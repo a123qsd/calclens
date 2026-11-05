@@ -18,6 +18,7 @@ import threading
 import traceback
 
 from smoke_viewer_updates import require
+from smoke_workspace import accept_workspace_dialog
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -684,6 +685,7 @@ def run(base_url, output):
         context.set_default_timeout(30_000)
         context.tracing.start(screenshots=True, snapshots=True, sources=False)
         page = context.new_page()
+        page.on("dialog", accept_workspace_dialog)
         page.on("pageerror", lambda error: result["events"]["page_errors"].append(str(error)))
         page.on("console", lambda message: result["events"]["console_errors"].append(message.text)
                 if message.type == "error" else None)
@@ -734,7 +736,8 @@ def run(base_url, output):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", help="Existing local workspace server; otherwise start a temporary one")
-    parser.add_argument("--output", type=Path, default=ROOT.parent / "viewer-features")
+    parser.add_argument("--output", type=Path,
+                        default=ROOT.parent.parent / "work" / "browser" / "viewer-features")
     args = parser.parse_args()
     output = args.output.resolve()
     if args.url:

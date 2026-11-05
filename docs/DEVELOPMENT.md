@@ -6,12 +6,12 @@ This naming difference does not indicate a second application.
 
 ## Local workflow
 
-The source tree is v0.6.0. Release package names and installation instructions
+The source tree is v0.7.0. Release package names and installation instructions
 are listed in [DOWNLOADS.md](DOWNLOADS.md).
 Use Python 3.12 or 3.13 and install the pinned runtime, build, and test dependencies:
 
 ```bash
-python -m pip install --require-hashes -r requirements.lock
+python -m pip install --require-hashes -r requirements-legacy.lock
 python -m pip install --no-deps --no-build-isolation .
 python -m pytest
 python -m ruff check .
@@ -41,7 +41,9 @@ python run_app.py --language en
 
 The build writes `src/slab_preflight/web_assets/`, including dependency notices.
 Commit these assets together with their source and lockfile. `--legacy-ui`
-selects the previous Streamlit interface. Both interfaces use the same Python
+selects the optional previous Streamlit interface (`.[legacy-ui]`).
+`requirements.lock` contains the default environment and development tools;
+`requirements-legacy.lock` also supports the legacy UI tests. Both interfaces use the same Python
 calculation and project code; the command-line report interface is unchanged.
 
 The default server binds only to `127.0.0.1`. One server owns one in-memory
@@ -60,13 +62,16 @@ a project to continue later. The bounded API contract is in
 | `src/slab_preflight/reporting.py` | English/Korean report descriptions and CSV export with criteria, units, findings, and numbering conventions |
 | `src/slab_preflight/provenance.py` | Exact-byte SHA-256, original filename, and CalcLens/ASE runtime identity at file-delivery boundaries |
 | `src/slab_preflight/batch.py` | Up to 20 independent per-file checks, preserved failures, comparison rows, and summary CSV |
-| `src/slab_preflight/project.py` | Bounded portable projects, schema migration, review provenance, pair selections and atomic file edits |
+| `src/slab_preflight/project.py` | Bounded portable projects, schema migration, workspace state, review provenance and atomic file edits |
+| `src/slab_preflight/preparation.py` | Validated P1 preview/expansion with original-source provenance |
 | `src/slab_preflight/review.py` | Stable upload identities and bounded session cache shared by every input mode |
 | `src/slab_preflight/plotting.py` | Visual representation of the report, including selected sites and periodic images |
 | `src/slab_preflight/web_api.py` | Local HTTP adapter, canonical workspace, atomic mutations, exports and offline assets |
 | `frontend/src/App.tsx` | Bilingual workspace, records, notes, review, measurements and comparison |
 | `frontend/src/MolecularViewer.tsx` | 3Dmol rendering, image-aware atom selection, camera controls and exact diagnostic highlights |
 | `frontend/src/viewerGeometry.ts` | Display repeats, cell/gap geometry and optional inferred connections |
+| `frontend/src/workspaceState.ts` | File drafts, comparison scales and validated saved client state |
+| `frontend/src/viewerState.ts` | Serializable viewer settings and independent dataset selections |
 | `streamlit_app.py` | Previous Streamlit interface, available through `--legacy-ui` |
 | `scripts/generate_examples.py` | Reproducible analytical fixtures; no remote data retrieval |
 | `run_app.py` | Local launch and initial interface language |
@@ -118,7 +123,9 @@ line endings and other byte changes are part of the SHA-256 identity. Keep
 package versions synchronized in `pyproject.toml`, `__init__.py`, and `uv.lock`.
 Do not confuse the package version with the JSON schema version.
 
-Project schema 2 stores a review stamp tied to the original SHA-256, axis,
+Project schema 3 retains schema-1/2 migration, bounded ZIP import/export,
+workspace drafts/electronic sources/viewer state and original P1 preparation
+provenance. Project schema 2 introduced a review stamp tied to the original SHA-256, axis,
 cutoff, analysis revision and ASE version. The app version is informational.
 Increment `ANALYSIS_REVISION` when analysis semantics change; display-only
 changes do not invalidate review completion. Keep historical stamps when an
@@ -164,20 +171,26 @@ python -m playwright install chromium
 python scripts/smoke_workspace_regressions.py --output build/workspace-regressions
 python scripts/smoke_viewer_updates.py --samples 1 --output build/viewer-updates
 python scripts/smoke_viewer_features.py --output build/viewer-features
+python scripts/smoke_research_workspace.py --output build/research-workspace
+python scripts/prepare_electronic_case.py --check
 ```
 
 The incremental-viewer check starts a temporary Vite server and asserts model
 reuse on a 400-site / 3,600-displayed-atom fixture. The feature check serves the
 built workspace and covers responsive controls, camera synchronization, bounded
-charge/Cube imports and actual high-resolution PNG downloads. Electronic fields
-in these tests are synthetic format fixtures, not scientific calculations.
+charge/Cube imports and actual high-resolution PNG downloads. Its electronic
+fields are synthetic format fixtures. The research-workspace suite separately
+uses the [actual water calculation](ELECTRONIC_CASE.md) for multi-dataset import,
+comparison, saved projects and PNG export.
 
 The Windows release workflow builds and checks each locale in both one-file and
 folder forms. It verifies the extracted folder ZIP before collecting release
 assets. The harness checks the launch manager, readiness, diagnostics and shutdown,
 then exercises bilingual upload, project round-trip, saved measurements, reports
 and unsupported inputs through `scripts/smoke_workspace.py` against the packaged
-executable. See [VALIDATION.md](VALIDATION.md) for observed results; the presence
+executable. It then runs the real-data research-workspace suite against the same
+frozen server, including electronic ZIP restoration and P1 preparation, before
+verifying manager shutdown. See [VALIDATION.md](VALIDATION.md) for observed results; the presence
 of workflow steps does not establish that their remote jobs have passed.
 
 ## Source release packages
@@ -197,9 +210,9 @@ The committed browser assets are included, so using a source package does not
 require Node.js or a frontend build.
 See [DOWNLOADS.md](DOWNLOADS.md) for setup instructions.
 
-Windows release assets are `CalcLens-0.6.0-windows-x64-ko.exe`,
-`CalcLens-0.6.0-windows-x64-en.exe`, matching `-folder.zip` archives,
-`CalcLens-0.6.0-windows-support.zip` and `WINDOWS-SHA256SUMS.txt`. The support
+Windows release assets are `CalcLens-0.7.0-windows-x64-ko.exe`,
+`CalcLens-0.7.0-windows-x64-en.exe`, matching `-folder.zip` archives,
+`CalcLens-0.7.0-windows-support.zip` and `WINDOWS-SHA256SUMS.txt`. The support
 archive records the dependency versions and source commit and includes the
 CalcLens source and required third-party notices and source materials.
 Executable build metadata and support manifests identify their own build commit;

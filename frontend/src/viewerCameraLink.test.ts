@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { linkCameraViews } from './viewerCameraLink.ts';
+import { linkCameraViews, observeCamera } from './viewerCameraLink.ts';
 
 function camera(initial: number[]) {
   let view = initial.slice();
@@ -10,6 +10,7 @@ function camera(initial: number[]) {
     getView: () => view.slice(),
     setView(next: number[]) { view = next.slice(); updates += 1; callback?.(view); },
     setViewChangeCallback(next: typeof callback) { callback = next; },
+    get viewChangeCallback() { return callback; },
     emit: () => callback?.(view),
     get updates() { return updates; },
   };
@@ -29,5 +30,21 @@ test('linked cameras preserve different structure centers and pan without feedba
   assert.equal(first.updates, 1);
   unlink();
   second.setView([11, 12, 13, -75, 0, 0, 1, 0]);
+  assert.equal(first.getView()[3], -25);
+});
+
+test('synchronization keeps camera persistence callbacks and restores them after unlink', () => {
+  const first = camera([1, 2, 3, -50, 0, 0, 0, 1]);
+  const second = camera([11, 12, 13, -10, 1, 0, 0, 0]);
+  const saved: number[][] = [];
+  observeCamera(first, (view) => saved.push(view.slice()));
+  observeCamera(second, (view) => saved.push(view.slice()));
+  const unlink = linkCameraViews(first, second);
+  assert.equal(saved.length, 1);
+  first.setView([1, 2, 3, -25, 0, 1, 0, 0]);
+  assert.equal(saved.length, 3);
+  unlink();
+  second.setView([11, 12, 13, -75, 0, 0, 1, 0]);
+  assert.equal(saved.length, 4);
   assert.equal(first.getView()[3], -25);
 });

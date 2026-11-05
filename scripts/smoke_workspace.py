@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import traceback
 import urllib.parse
+import zipfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +35,30 @@ TEXT = {
 def require(condition, message):
     if not condition:
         raise AssertionError(message)
+
+
+def accept_workspace_dialog(dialog):
+    """Explicitly accept replacement and navigation dialogs exercised by smokes."""
+    allowed = dialog.type == "beforeunload" or (
+        dialog.type == "confirm" and any(text in dialog.message for text in (
+            "Replace the unsaved workspace?", "저장하지 않은 작업을 바꾸시겠습니까?",
+        ))
+    )
+    if allowed:
+        dialog.accept()
+        return
+    dialog.dismiss()
+    raise AssertionError(f"Unexpected browser dialog: {dialog.type}: {dialog.message}")
+
+
+def read_project_document(path):
+    """Read the user download, including the schema-3 single-member ZIP format."""
+    path = Path(path)
+    if zipfile.is_zipfile(path):
+        with zipfile.ZipFile(path) as archive:
+            require(archive.namelist() == ["project.json"], "Project ZIP has unexpected members.")
+            return json.loads(archive.read("project.json"))
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
 def default_originals():
@@ -79,7 +104,7 @@ def _project_entry(document, filename):
 
 def _assert_project(document, expected_version=None):
     require(document.get("format") == "calclens.project", "Project format is wrong.")
-    require(document.get("schema_version") == 2, "Project schema must be version 2.")
+    require(document.get("schema_version") == 3, "Project schema must be version 3.")
     require(len(document.get("entries", [])) == 3, "Project did not preserve all uploaded CIFs.")
     selected = _project_entry(document, "mos2_a_normal.cif")
     require(selected["normal_axis"] == "a", "Project lost the selected normal axis.")
@@ -120,8 +145,8 @@ def run_workspace_browser_smoke(
     other_labels = TEXT[other_language]
     expected_origin = _origin(base_url)
     trace_path = output / "workspace-trace.zip"
-    saved_path = output / "workspace.calclens.json"
-    restored_path = output / "workspace-restored.calclens.json"
+    saved_path = output / "workspace.calclens.zip"
+    restored_path = output / "workspace-restored.calclens.zip"
 
     expect.set_options(timeout=30_000)
     with sync_playwright() as playwright:
@@ -133,6 +158,7 @@ def run_workspace_browser_smoke(
         context.set_default_timeout(30_000)
         context.tracing.start(screenshots=True, snapshots=True, sources=False)
         page = context.new_page()
+        page.on("dialog", accept_workspace_dialog)
         page.on("console", lambda message: events["console_errors"].append({
             "type": message.type, "text": message.text,
         }) if message.type == "error" else None)
@@ -223,7 +249,8 @@ def run_workspace_browser_smoke(
                 page, page.get_by_test_id("project-export"),
                 saved_path,
             )
-            saved = json.loads(saved_path.read_text(encoding="utf-8-sig"))
+            require(zipfile.is_zipfile(saved_path), "Project export was not a ZIP archive.")
+            saved = read_project_document(saved_path)
             _assert_project(saved, expected_version)
 
             page.get_by_role("button", name=labels["sample"], exact=True).click()
@@ -244,7 +271,7 @@ def run_workspace_browser_smoke(
                 page, page.get_by_test_id("project-export"),
                 restored_path,
             )
-            restored = json.loads(restored_path.read_text(encoding="utf-8-sig"))
+            restored = read_project_document(restored_path)
             require(restored == saved, "Project export changed after reopening in the workspace.")
 
             page.get_by_test_id("nav-compare").click()
