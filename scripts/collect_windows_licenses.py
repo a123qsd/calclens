@@ -31,8 +31,13 @@ MAX_DOWNLOAD = 64 * 1024 * 1024
 
 
 def is_notice(path: str) -> bool:
-    return any(word in part.lower() for part in PurePosixPath(path).parts
-               for word in NOTICE_WORDS)
+    value = PurePosixPath(path)
+    parts = [part.lower() for part in value.parts]
+    # Installed packages can have a `licenses` Python module. Its generated
+    # bytecode is not a notice and varies with installation time across jobs.
+    if "__pycache__" in parts or value.suffix.lower() in (".pyc", ".pyo"):
+        return False
+    return any(word in part for part in parts for word in NOTICE_WORDS)
 
 
 def safe_record(path: str) -> str:

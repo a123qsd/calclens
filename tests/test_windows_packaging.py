@@ -80,6 +80,37 @@ def test_runtime_notice_roots_exclude_ambient_legacy_packages(monkeypatch):
         ["altair", "ase", "narwhals", "numpy", "plotly", "streamlit"]
 
 
+def test_notice_collection_is_independent_of_installed_bytecode(tmp_path, monkeypatch):
+    notices = {
+        "packaging-26.3.dist-info/licenses/LICENSE": b"Upstream license text",
+        "packaging/licenses/LICENSE.BSD": b"Bundled BSD notice",
+    }
+    caches = ["packaging/licenses/__pycache__/__init__.cpython-313.pyc",
+              "packaging/licenses/legacy.pyc", "packaging/licenses/legacy.pyo",
+              "packaging/licenses/__pycache__/NOTICE"]
+    results = []
+    for language in ("ko", "en"):
+        installed = tmp_path / language / "installed"
+        for name, content in {**notices, **dict.fromkeys(caches, language.encode())}.items():
+            path = installed / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+        distribution = SimpleNamespace(
+            files=[*notices, *caches], version="26.3",
+            metadata={"Name": "packaging", "License-Expression": "Apache-2.0 OR BSD-2-Clause"},
+            locate_file=lambda name, root=installed: root / name,
+        )
+        monkeypatch.setattr(licenses.metadata, "distribution", lambda name: distribution)
+        output = tmp_path / language / "notices"
+        result = licenses.collect_distribution("packaging", output, "runtime-notices")
+        assert {record["package_path"] for record in result["files"]} == set(notices)
+        assert {path.relative_to(output).as_posix() for path in output.rglob("*") if path.is_file()} == {
+            f"runtime-notices/packaging-26.3/{name}" for name in notices
+        }
+        results.append(result)
+    assert results[0] == results[1]
+
+
 def test_build_and_notice_metadata_distinguish_bundle_variants(monkeypatch):
     monkeypatch.setattr(builder.importlib.metadata, "version", lambda name: "1.0")
     info = builder.build_info("en", "onefile", "a" * 40)
