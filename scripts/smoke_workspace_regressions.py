@@ -84,11 +84,43 @@ def _max_delta(left: list[float], right: list[float]) -> float:
     return max(abs(a - b) for a, b in zip(left, right, strict=True))
 
 
+def _settled_view(page) -> list[float]:
+    """Wait for actual camera motion to finish, including React camera echoes.
+
+    3Dmol's 350 ms fit is implemented as a timer chain, so a busy CI runner can
+    take much longer than 350 ms to finish it. Four stable animation frames also
+    let the camera-persistence effects run before we compare completed actions.
+    """
+    return _canvas(page).evaluate("""async element => {
+        const viewer=element._3dmol_viewer;
+        const deadline=performance.now()+30000;
+        let previous=null, stableFrames=0, stableSince=0;
+        return new Promise((resolve,reject)=>{
+            function sample(){
+                const view=viewer.getView();
+                const unchanged=previous && view.length===previous.length &&
+                    view.every((value,index)=>Math.abs(value-previous[index])<1e-9);
+                if(!viewer.isAnimated() && unchanged){
+                    if(stableFrames===0) stableSince=performance.now();
+                    stableFrames++;
+                }else stableFrames=0;
+                previous=view.slice();
+                if(stableFrames>=4 && performance.now()-stableSince>=80) resolve(view);
+                else if(performance.now()>deadline) reject(new Error('Camera did not settle: '+
+                    JSON.stringify({animated:viewer.isAnimated(),view})));
+                else requestAnimationFrame(sample);
+            }
+            sample();
+        });
+    }""")
+
+
 def _check_viewer_camera(page, expect) -> dict:
     _load_example(page, expect, "graphene.cif")
     toolbar = page.get_by_role("toolbar", name="3D viewer tools")
     canvas = _canvas(page)
     expect(canvas).to_be_visible()
+    default_view = _settled_view(page)
     canvas.evaluate(
         """element => {
             const viewer = element._3dmol_viewer;
@@ -98,12 +130,26 @@ def _check_viewer_camera(page, expect) -> dict:
                 viewer.__calclensZoomCalls.push({selection, duration});
                 return original(selection, duration);
             };
+            viewer.__calclensSpinOverrides=[];
+            let spinning=false;
+            const spin=viewer.spin;
+            viewer.spin=function(axis,...args){
+                spinning=axis!==false;return spin.call(this,axis,...args);
+            };
+            const setView=viewer.setView;
+            viewer.setView=function(view,...args){
+                const current=this.getView();
+                if(spinning && current.some((value,index)=>Math.abs(value-view[index])>1e-7)){
+                    viewer.__calclensSpinOverrides.push({current,incoming:view.slice()});
+                }
+                return setView.call(this,view,...args);
+            };
         }"""
     )
     toolbar.get_by_title("Fit cell", exact=True).click()
-    page.wait_for_timeout(450)
+    _settled_view(page)
     toolbar.get_by_title("Fit atoms", exact=True).click()
-    page.wait_for_timeout(450)
+    _settled_view(page)
     zoom_calls = canvas.evaluate("element => element._3dmol_viewer.__calclensZoomCalls")
     require(zoom_calls[-2]["selection"] == {"model": 1},
             "Fit cell did not target the dedicated corner model.")
@@ -115,20 +161,26 @@ def _check_viewer_camera(page, expect) -> dict:
     page.wait_for_timeout(650)
     rotated = _view(page)
     toolbar.get_by_title("Stop rotation", exact=True).click()
+    _settled_view(page)
+    spin_overrides = canvas.evaluate("element => element._3dmol_viewer.__calclensSpinOverrides")
+    require(not spin_overrides,
+            f"A stale state update overwrote the live rotating camera: {spin_overrides!r}")
     toolbar.get_by_title("Reset", exact=True).click()
-    page.wait_for_timeout(100)
-    reset_once = _view(page)
+    reset_once = _settled_view(page)
     toolbar.get_by_title("Reset", exact=True).click()
-    page.wait_for_timeout(100)
-    reset_twice = _view(page)
+    reset_twice = _settled_view(page)
     require(_max_delta(rotated, reset_once) > 1e-4,
             "Rotate did not produce a camera state that Reset could restore.")
     require(_max_delta(reset_once, reset_twice) < 1e-7,
             "Reset changed the camera when invoked a second time.")
+    require(_max_delta(default_view, reset_once) < 1e-7,
+            "The first Reset did not restore the initial default camera.")
     return {
         "fit_cell_selection": zoom_calls[-2]["selection"],
         "fit_atoms_selection": zoom_calls[-1]["selection"],
         "reset_idempotence_max_delta": _max_delta(reset_once, reset_twice),
+        "first_reset_default_max_delta": _max_delta(default_view, reset_once),
+        "spin_camera_overrides": len(spin_overrides),
     }
 
 

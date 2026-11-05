@@ -93,6 +93,7 @@ export default function MolecularViewer({
   const onStateChangeRef = useRef(onStateChange);
   onStateChangeRef.current = onStateChange;
   const lastPublishedRef = useRef(JSON.stringify(settings));
+  const publishedStatesRef = useRef(new WeakSet<ViewerState>());
   const applyingCameraRef = useRef(false);
   const { repeat, showBonds, showCell, showLabels, spinning, representation, colorMode, quality,
     preset, projection, expanded, showDistance, surface } = settings;
@@ -145,6 +146,9 @@ export default function MolecularViewer({
 
   useEffect(() => {
     if (!state) return;
+    // App returns the exact objects we publish. A delayed echo may be older
+    // than the live camera; it must not be mistaken for an archive restore.
+    if (publishedStatesRef.current.has(state)) return;
     const restored = restoreViewerState(state, compact);
     const key = JSON.stringify(restored);
     if (key === JSON.stringify(settingsRef.current)) return;
@@ -165,6 +169,7 @@ export default function MolecularViewer({
     const key = JSON.stringify(settings);
     if (key !== JSON.stringify(settingsRef.current) || key === lastPublishedRef.current) return;
     lastPublishedRef.current = key;
+    publishedStatesRef.current.add(settings);
     onStateChangeRef.current?.(settings);
   }, [settings]);
 

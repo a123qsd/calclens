@@ -97,6 +97,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist/windows | Out-Null
+          Copy-Item "dist/onedir/$env:CALCLENS_NAME.build.json" "dist/windows/$env:CALCLENS_NAME-folder.build.json"
           Compress-Archive -Path "dist/onedir/$env:CALCLENS_NAME" -DestinationPath "dist/windows/$env:CALCLENS_NAME-folder.zip"
       - name: Verify packaged directory archive
         shell: pwsh

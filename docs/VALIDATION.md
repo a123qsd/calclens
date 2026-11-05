@@ -30,7 +30,12 @@ research-workspace groups. The new research suite checks:
 
 The incremental-viewer suite exposed a delayed camera-state echo that replayed
 an earlier animation frame. Camera restoration now runs only for incoming
-external state. The unchanged regression tolerance passes: toggling the gap
+external state; delayed echoes of the viewer's own published state are ignored.
+A Chromium check with 8× CPU slowdown detected nine stale camera overrides on
+the previous build and zero after the correction. The first Reset now matches
+the initial camera, and a second Reset leaves it unchanged. The test waits for
+actual animation completion without increasing its numeric tolerance.
+The unchanged regression tolerance passes: toggling the gap
 indicator off gives a camera delta of zero without rebuilding the atom model.
 The research and viewer-feature runs report zero page/console errors; the
 existing workspace suite retains its two intentional HTTP 409 conflict checks.
