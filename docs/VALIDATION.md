@@ -1,5 +1,46 @@
 # Validation record
 
+## v0.7.0 Windows release verification — 2026-11-05
+
+The release artifacts are bound to source commit
+[`143c0e8eed021310889cc5e40d89de3ef83a09b2`](https://github.com/a123qsd/calclens/commit/143c0e8eed021310889cc5e40d89de3ef83a09b2).
+This record was added after those immutable artifacts were built.
+[Source CI](https://github.com/a123qsd/calclens/actions/runs/42041688150)
+passed on Windows/Ubuntu with Python 3.12/3.13; the Windows suite passed
+**659 Python tests** and **56 frontend tests**, plus build and lint checks.
+
+[Core builds](https://github.com/a123qsd/calclens/actions/runs/42041734396)
+and [optional legacy builds](https://github.com/a123qsd/calclens/actions/runs/42041737050)
+passed for both languages and both standalone/folder layouts. All eight bundles
+ran without an external Python in PATH, launched the manager and actual WebGL
+workspace, completed save/reopen and all eight research-workflow groups, and
+shut down gracefully. All four legacy bundles additionally passed their
+Streamlit chart, CSV, language and exact-project restoration flows. Core builds
+reject `--legacy-ui` with instructions for the separate optional bundle.
+
+Downloaded artifacts passed **24 independent inspection groups**. Checks covered
+the x64 executables, embedded module inventories, exact browser/example bytes,
+build metadata, both support archives and their exact source, license manifests,
+and all native execution reports. Core bundles exclude Streamlit, Plotly and
+the legacy plotting module. Generated Python bytecode is excluded from license
+notices, and Korean/English bundled manifests match their shared support ZIP.
+Both localized source ZIPs also passed all 188 member checks, checksum/guide
+validation and extracted core-only startup checks.
+
+| Bundle | Standalone bytes | Folder ZIP bytes | Observed standalone start | Observed folder start |
+| --- | ---: | ---: | ---: | ---: |
+| Core, Korean | 116,233,379 | 119,429,034 | 6.155 s | 1.432 s |
+| Core, English | 116,233,378 | 119,429,031 | 7.231 s | 2.707 s |
+| Legacy, Korean | 142,440,467 | 145,910,834 | 8.270 s | 1.723 s |
+| Legacy, English | 142,440,476 | 145,910,843 | 8.198 s | 1.483 s |
+
+Startup values are single observations on separate GitHub-hosted Windows runners,
+not a controlled speed comparison or a guarantee for another computer.
+Executables remain unsigned. The complete public artifact inventory, hashes,
+run identities and execution matrix are supplied in
+[`VALIDATION-0.7.0.json`](https://github.com/a123qsd/calclens/releases/download/v0.7.0/VALIDATION-0.7.0.json),
+with `SHA256SUMS.txt` and `WINDOWS-SHA256SUMS.txt` in the same release.
+
 ## v0.7.0 local research-workspace verification — 2026-11-05
 
 The updated source passed **647 Python tests** and **56 frontend tests** on
