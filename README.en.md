@@ -1,5 +1,8 @@
 # CalcLens
 
+Created, led and maintained by [a123qsd](https://github.com/a123qsd).
+[Project origin and responsibilities](AUTHORS.md) · [Citation](CITATION.cff)
+
 **Inspect the geometry of a 2D material CIF before setting up a calculation.**
 
 View atoms and the cell, find short periodic contacts and duplicate sites, and

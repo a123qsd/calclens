@@ -1,5 +1,11 @@
 # CalcLens
 
+Created, led and maintained by [a123qsd](https://github.com/a123qsd).
+[Project origin and responsibilities](AUTHORS.md) · [Citation](CITATION.cff)
+
+창안·기획·개발 총괄 및 유지관리: [a123qsd](https://github.com/a123qsd).
+[프로젝트 출처와 역할](AUTHORS.md) · [인용 정보](CITATION.cff)
+
 **CalcLens v0.7.0 source** preserves drafts and viewer settings, saves original
 electronic files in portable projects, and compares multiple datasets with a
 common charge-color range. It adds validated P1 preparation and an actual

@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use CalcLens in your work, please cite it using this metadata."
+type: software
+title: "CalcLens"
+authors:
+  - family-names: "a123qsd"
+    website: "https://github.com/a123qsd"
+version: "0.7.0"
+date-released: "2026-11-05"
+url: "https://github.com/a123qsd/calclens"
+repository-code: "https://github.com/a123qsd/calclens"
