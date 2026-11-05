@@ -53,3 +53,14 @@ jobs:
       - name: Check viewer controls, scientific data imports and image export
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         run: python scripts/smoke_viewer_features.py --output build/viewer-features
+      - name: Keep browser verification evidence
+        if: always() && matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-verification
+          path: |
+            build/workspace-regressions/
+            build/viewer-updates/
+            build/viewer-features/
+          retention-days: 14
+          if-no-files-found: warn

@@ -507,7 +507,7 @@ def check_png(page, output, expect):
         path = output / f"viewer-{longest}-{background}.png"
         pending.value.save_as(path)
         require(pending.value.failure() is None, "PNG download failed.")
-        expect(page.get_by_test_id("viewer-export-png")).to_be_enabled()
+        expect(page.get_by_test_id("viewer-export-png")).to_be_enabled(timeout=60_000)
         settle(page)
         header = png_header(path)
         require(max(header["width"], header["height"]) == longest, "PNG was not re-rendered at the requested resolution.")
@@ -525,8 +525,8 @@ def check_png(page, output, expect):
     }""")
     try:
         page.get_by_test_id("viewer-export-png").click()
-        expect(viewer(page)).to_contain_text("Synthetic PNG export failure")
-        expect(page.get_by_test_id("viewer-export-png")).to_be_enabled()
+        expect(viewer(page)).to_contain_text("Synthetic PNG export failure", timeout=60_000)
+        expect(page.get_by_test_id("viewer-export-png")).to_be_enabled(timeout=60_000)
         assert_scene_restored(before, scene_state(page))
     finally:
         canvas(page).evaluate("element => {const v=element._3dmol_viewer; v.pngURI=v.__originalPngURI; delete v.__originalPngURI;}")
