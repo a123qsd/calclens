@@ -1,5 +1,64 @@
 # Validation record
 
+## Viewer update verification (unreleased) — 2026-11-05
+
+Compared with source `7e97deff51eede207f73cf1c61c97fe3c1dd296e`, the local
+viewer update adds the Cordero/ASE tungsten covalent radius (1.62 Å) and reuses
+atom models and inferred connectivity when only presentation changes.
+W–S (2.42 Å) and W–Se (2.53 Å) regressions failed before the radius correction
+and passed afterwards, in both atom orders. The overlap exclusion, unknown
+element handling and 2.6 Å display-connection cap remain unchanged. These are
+display estimates; the scientific geometry engine and CIF input contract are
+unchanged.
+
+The browser comparison used the same synthetic 400-carbon-site fixture,
+3×3 repetition (3,600 displayed atoms), viewport and headless Chromium
+156.0.8078.4/WebGL 2 environment on macOS. Each operation was measured three
+times, from dispatch to two animation frames later; the table reports medians.
+It includes browser scheduling and is not a cold-load or frame-rate benchmark.
+
+| Operation | Before | After |
+| --- | ---: | ---: |
+| Start rotation | 158.4 ms | 16.2 ms |
+| Show 180 atom labels | 5,308.7 ms | 63.8 ms |
+| Show unit cell | 229.7 ms | 68.1 ms |
+| Highlight an atom and its repeated copies | 170.9 ms | 32.5 ms |
+| Receive an equivalent report object | 169.1 ms | 26.7 ms |
+
+Across 17 toolbar/report/highlight operations repeated three times, whole-model
+removal fell from 51 calls to zero. Label display drew the scene twice instead
+of 184 times by batching label additions. Style changes still invalidate
+3Dmol's rendered molecular geometry; this change does not eliminate all GPU
+mesh work. Actual geometry, element, repeat-range or extra contact-atom changes
+still update the model. Timings are specific to this local fixture and browser;
+Windows hardware performance has not been measured for this patch.
+
+`scripts/smoke_viewer_updates.py` uses the actual React viewer in StrictMode,
+checks model identity and atom additions, and verifies camera preservation,
+highlight clearing, contact endpoints outside the repeat range and real atom
+picking after style updates. Element-only changes refresh atom identities and
+connections; gap-only changes refresh boundary geometry, labels and the
+corner model while retaining the atom model. It starts and stops a temporary
+Vite server when no URL is supplied:
+
+```bash
+python scripts/smoke_viewer_updates.py --samples 3 --output build/viewer-updates
+```
+
+`--mode baseline` records the same operations without requiring model reuse.
+The verification mode fails on the old viewer as expected. CI runs the new
+regression harness with one sample; it asserts behavior and redraw counts,
+without imposing machine-dependent timing thresholds.
+
+Local validation passed 14 frontend geometry tests, TypeScript checking,
+the production build, 547 Python tests and Ruff. The existing 11 ASE/NumPy
+deprecation warnings and upstream 3Dmol build advisories remain. The rebuilt
+production workspace also passed all eight existing Chromium regression
+groups, including camera controls, real repeated-atom clicks, source/input
+selection reset, gap inspection, concurrent-tab conflicts and bilingual UI.
+The only HTTP/console errors were the two intentional conflict responses.
+No release or remote CI run is claimed by this local verification.
+
 ## v0.5.0 native Windows release verification — 2026-11-05
 
 Release source: [`84f6444`](https://github.com/a123qsd/calclens/commit/84f6444ee04f3193646ff6c6f1ec45d991738f28).

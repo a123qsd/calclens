@@ -47,3 +47,6 @@ jobs:
       - name: Check real browser interactions and concurrent tabs
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         run: python scripts/smoke_workspace_regressions.py --output build/workspace-regressions
+      - name: Check incremental 3D viewer updates
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        run: python scripts/smoke_viewer_updates.py --samples 1 --output build/viewer-updates

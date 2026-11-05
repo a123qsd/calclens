@@ -1,14 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as $3Dmol from '3dmol';
-import type { AtomSpec, GLViewer } from '3dmol';
+import type { AtomSpec, GLModel, GLViewer } from '3dmol';
 import type { GeometryReport, MolecularViewerProps, Vec3 } from './types';
 import {
   buildDisplayAtoms, cellCorners, cellEdges, contactEndpoints, inferDisplayBonds,
   gapBoundary, gapFractions, markAtomIndices, normalViewQuaternion, withContactEndpoints,
 } from './viewerGeometry';
+import type { DisplayAtom, DisplayBond } from './viewerGeometry';
 import './viewer.css';
 
 type RepeatCount = 1 | 2 | 3;
+
+interface ViewerScene {
+  structureKey: string;
+  highlightKey: string;
+  atomHighlightKey: string;
+  extraAtomsKey: string;
+  overlayKey: string;
+  gapKey: string;
+  highlightGap: boolean;
+  showBonds: boolean;
+  baseAtoms: DisplayAtom[];
+  bonds: DisplayBond[];
+  displayAtoms: DisplayAtom[];
+  atomModel: GLModel;
+  cornerModel: GLModel;
+}
 
 const text = {
   ko: {
@@ -48,9 +65,7 @@ export default function MolecularViewer({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<GLViewer | null>(null);
   const onAtomPickRef = useRef(onAtomPick);
-  const previousStructureRef = useRef('');
-  const previousGapRef = useRef(false);
-  const previousHighlightRef = useRef('');
+  const sceneRef = useRef<ViewerScene | null>(null);
   const [repeat, setRepeat] = useState<RepeatCount>(compact ? 1 : 3);
   const [showBonds, setShowBonds] = useState(true);
   const [showCell, setShowCell] = useState(false);
@@ -59,11 +74,14 @@ export default function MolecularViewer({
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
 
-  const structureKey = useMemo(() => [report.formula, report.atom_count, report.normal_axis,
-    repeat, report.positions.flat().join(','), report.cell.flat().join(',')].join('|'), [report, repeat]);
+  const structureKey = useMemo(() => JSON.stringify([
+    report.elements, report.positions, report.cell, report.normal_axis_index, repeat,
+  ]), [report, repeat]);
   const highlightKey = highlight ? [highlight.i, highlight.j, ...(highlight.start_shift ?? [0, 0, 0]),
     ...(highlight.end_shift ?? highlight.shift)].join(',') : '';
   const atomHighlightKey = highlightedAtomIndices?.join(',') ?? '';
+  const gapKey = highlightGap ? gapFractions(report).join(',') : '';
+  const overlayKey = JSON.stringify([showCell, showLabels, highlightKey, gapKey, language]);
 
   useEffect(() => { onAtomPickRef.current = onAtomPick; }, [onAtomPick]);
 
@@ -85,6 +103,7 @@ export default function MolecularViewer({
         viewer.removeAllShapes();
         viewer.removeAllModels();
         viewerRef.current = null;
+        sceneRef.current = null;
         host.replaceChildren();
       };
     } catch (cause) {
@@ -96,76 +115,103 @@ export default function MolecularViewer({
     const viewer = viewerRef.current;
     if (!viewer) return;
     try {
-      const sameStructure = previousStructureRef.current === structureKey;
+      const previous = sceneRef.current;
+      const sameStructure = previous?.structureKey === structureKey;
       if (!sameStructure) setPicked(null);
-      const shouldFitGap = highlightGap && (!sameStructure || !previousGapRef.current);
-      const shouldFitContact = Boolean(highlightKey && highlightKey !== previousHighlightRef.current);
-      const previousView = sameStructure ? viewer.getView() : null;
-      viewer.removeAllLabels();
-      viewer.removeAllShapes();
-      viewer.removeAllModels();
+      const shouldFitGap = highlightGap && (!sameStructure || !previous?.highlightGap);
+      const shouldFitContact = Boolean(highlightKey && highlightKey !== previous?.highlightKey);
 
-      const baseAtoms = buildDisplayAtoms(report, repeat);
-      const bonds = showBonds ? inferDisplayBonds(baseAtoms) : [];
-      const displayAtoms = markAtomIndices(
+      // Display geometry and inferred connectivity depend on the structure, not the toolbar.
+      const baseAtoms = sameStructure ? previous.baseAtoms : buildDisplayAtoms(report, repeat);
+      const bonds = sameStructure ? previous.bonds : inferDisplayBonds(baseAtoms);
+      const sameHighlights = sameStructure && previous.highlightKey === highlightKey
+        && previous.atomHighlightKey === atomHighlightKey;
+      const displayAtoms = sameHighlights ? previous.displayAtoms : markAtomIndices(
         withContactEndpoints(baseAtoms, report, highlight), highlightedAtomIndices,
       );
-      const atomSpecs: AtomSpec[] = displayAtoms.map((atom) => ({
-        x: atom.position[0], y: atom.position[1], z: atom.position[2], elem: atom.element,
-        atom: `${atom.element}${atom.index + 1}`, serial: atom.displayIndex + 1,
-        bonds: [], bondOrder: [], clickable: true,
-        properties: {
-          calclensIndex: atom.index, calclensShift: atom.shift,
-          calclensElement: atom.element, calclensHighlight: atom.highlight,
-        },
-      }));
-      for (const bond of bonds) {
-        atomSpecs[bond.a].bonds?.push(bond.b);
-        atomSpecs[bond.a].bondOrder?.push(1);
-        atomSpecs[bond.b].bonds?.push(bond.a);
-        atomSpecs[bond.b].bondOrder?.push(1);
+      // A selected periodic contact may add atoms outside the current repeat range.
+      const extraAtomsKey = JSON.stringify(displayAtoms.slice(baseAtoms.length).map((atom) => [
+        atom.index, atom.shift, atom.position,
+      ]));
+      const rebuildModels = !sameStructure || previous.extraAtomsKey !== extraAtomsKey;
+      const updateStyles = rebuildModels || !sameHighlights || previous?.showBonds !== showBonds;
+      const updateOverlays = rebuildModels || previous?.overlayKey !== overlayKey;
+      const previousView = rebuildModels && sameStructure ? viewer.getView() : null;
+      let atomModel: GLModel;
+      let cornerModel: GLModel;
+      if (rebuildModels) {
+        viewer.removeAllModels();
+        const atomSpecs: AtomSpec[] = displayAtoms.map((atom) => ({
+          x: atom.position[0], y: atom.position[1], z: atom.position[2], elem: atom.element,
+          atom: `${atom.element}${atom.index + 1}`, serial: atom.displayIndex + 1,
+          bonds: [], bondOrder: [], clickable: true,
+          properties: {
+            calclensIndex: atom.index, calclensShift: atom.shift,
+            calclensElement: atom.element, calclensHighlight: atom.highlight,
+          },
+        }));
+        for (const bond of bonds) {
+          atomSpecs[bond.a].bonds?.push(bond.b);
+          atomSpecs[bond.a].bondOrder?.push(1);
+          atomSpecs[bond.b].bonds?.push(bond.a);
+          atomSpecs[bond.b].bondOrder?.push(1);
+        }
+        atomModel = viewer.addModel();
+        atomModel.addAtoms(atomSpecs);
+        cornerModel = viewer.addModel();
+        viewer.setClickable({ model: 0 }, true, (atom: AtomSpec) => {
+          const properties = atom.properties ?? {};
+          const index = Number(properties.calclensIndex);
+          const shift = properties.calclensShift as Vec3;
+          const element = String(properties.calclensElement ?? atom.elem ?? '');
+          if (!Number.isInteger(index) || !Array.isArray(shift)) return;
+          setPicked(`${element}${index + 1} · [${shift.join(', ')}]`);
+          onAtomPickRef.current?.({ index, shift, element });
+        });
+      } else {
+        atomModel = previous.atomModel;
+        cornerModel = previous.cornerModel;
       }
-      const atomModel = viewer.addModel();
-      atomModel.addAtoms(atomSpecs);
-      atomModel.setStyle({}, showBonds
-        ? { sphere: { scale: 0.32 }, stick: { radius: 0.105 } }
-        : { sphere: { scale: 0.36 } });
-      atomModel.setStyle({ predicate: (atom) => Boolean(atom.properties?.calclensHighlight) }, {
-        sphere: { scale: 0.48, color: '#F59E0B' },
-        ...(showBonds ? { stick: { radius: 0.14, color: '#F59E0B' } } : {}),
-      }, true);
-      viewer.setClickable({ model: 0 }, true, (atom: AtomSpec) => {
-        const properties = atom.properties ?? {};
-        const index = Number(properties.calclensIndex);
-        const shift = properties.calclensShift as Vec3;
-        const element = String(properties.calclensElement ?? atom.elem ?? '');
-        if (!Number.isInteger(index) || !Array.isArray(shift)) return;
-        setPicked(`${element}${index + 1} · [${shift.join(', ')}]`);
-        onAtomPickRef.current?.({ index, shift, element });
-      });
-
-      const corners = cellCorners(report.cell);
-      if (highlightGap) {
-        corners.push(...gapFractions(report).flatMap((fraction) => gapBoundary(report, fraction)));
+      if (updateStyles) {
+        atomModel.selectedAtoms({}).forEach((atom, index) => {
+          if (atom.properties) atom.properties.calclensHighlight = displayAtoms[index].highlight;
+        });
+        atomModel.setStyle({}, showBonds
+          ? { sphere: { scale: 0.32 }, stick: { radius: 0.105 } }
+          : { sphere: { scale: 0.36 } });
+        atomModel.setStyle({ predicate: (atom) => Boolean(atom.properties?.calclensHighlight) }, {
+          sphere: { scale: 0.48, color: '#F59E0B' },
+          ...(showBonds ? { stick: { radius: 0.14, color: '#F59E0B' } } : {}),
+        }, true);
       }
-      const cornerModel = viewer.addModel();
-      cornerModel.addAtoms(corners.map((point, index) => ({
-        ...xyz(point), elem: 'X', atom: `cell${index}`, bonds: [], bondOrder: [],
-        properties: { calclensCellCorner: true },
-      })));
-      cornerModel.setStyle({}, {});
-      if (showCell) {
+      if (rebuildModels || previous?.gapKey !== gapKey) {
+        const corners = cellCorners(report.cell);
+        if (highlightGap) {
+          corners.push(...gapFractions(report).flatMap((fraction) => gapBoundary(report, fraction)));
+        }
+        cornerModel.removeAtoms(cornerModel.selectedAtoms({}));
+        cornerModel.addAtoms(corners.map((point, index) => ({
+          ...xyz(point), elem: 'X', atom: `cell${index}`, bonds: [], bondOrder: [],
+          properties: { calclensCellCorner: true },
+        })));
+        cornerModel.setStyle({}, {});
+      }
+      if (updateOverlays) {
+        viewer.removeAllLabels();
+        viewer.removeAllShapes();
+      }
+      if (updateOverlays && showCell) {
         for (const edge of cellEdges(report.cell)) {
           viewer.addLine({ start: xyz(edge.start), end: xyz(edge.end), color: '#8FA0B3',
             linewidth: 1, opacity: 0.68 });
         }
       }
-      if (highlight) {
+      if (updateOverlays && highlight) {
         const endpoints = contactEndpoints(report, highlight);
         viewer.addCylinder({ start: xyz(endpoints.start), end: xyz(endpoints.end),
           radius: 0.055, color: '#F59E0B', dashed: false });
       }
-      if (highlightGap) {
+      if (updateOverlays && highlightGap) {
         const fractions = gapFractions(report);
         fractions.forEach((fraction, boundaryIndex) => {
           const vertices = gapBoundary(report, fraction);
@@ -181,23 +227,25 @@ export default function MolecularViewer({
           position: xyz(labelPosition), font: 'sans-serif', fontSize: 12, fontColor: '#075E57',
           backgroundColor: '#E9F8F5', backgroundOpacity: 0.9, borderColor: '#22B8A9',
           borderThickness: 1, inFront: true,
-        });
+        }, undefined, true);
       }
-      if (showLabels) {
+      if (updateOverlays && showLabels) {
+        // Batch labels; addLabel otherwise draws the whole scene for each label.
         for (const atom of displayAtoms.slice(0, 180)) {
           viewer.addLabel(`${atom.element}${atom.index + 1}`, {
             position: xyz(atom.position), font: 'sans-serif', fontSize: 11,
             fontColor: '#172331', backgroundColor: '#FFFFFF', backgroundOpacity: 0.72,
             borderThickness: 0, inFront: true,
-          });
+          }, undefined, true);
         }
       }
-      viewer.render();
       if (previousView) {
         viewer.setView(previousView);
-        viewer.render();
-      } else {
+      }
+      if (!sameStructure) {
         defaultCamera(viewer, report);
+      } else if (updateStyles || updateOverlays) {
+        viewer.render();
       }
       if (shouldFitGap) {
         viewer.zoomTo({ model: [0, 1] }, sameStructure ? 350 : 0);
@@ -206,16 +254,21 @@ export default function MolecularViewer({
         viewer.zoomTo({ model: 0 }, sameStructure ? 350 : 0);
         viewer.render();
       }
-      if (spinning) viewer.spin('y', 0.8, true);
-      previousStructureRef.current = structureKey;
-      previousGapRef.current = highlightGap;
-      previousHighlightRef.current = highlightKey;
+      sceneRef.current = {
+        structureKey, highlightKey, atomHighlightKey, extraAtomsKey, overlayKey, gapKey,
+        highlightGap, showBonds, baseAtoms, bonds, displayAtoms, atomModel, cornerModel,
+      };
       setError(null);
     } catch (cause) {
+      sceneRef.current = null;
       setError(cause instanceof Error ? cause.message : labels.fallback);
     }
   }, [atomHighlightKey, highlight, highlightGap, highlightKey, labels.fallback, language, repeat,
-    report, showBonds, showCell, showLabels, spinning, structureKey]);
+    report, showBonds, showCell, showLabels, structureKey, gapKey, overlayKey]);
+
+  useEffect(() => {
+    viewerRef.current?.spin(spinning ? 'y' : false, 0.8, true);
+  }, [spinning]);
 
   function fitAtoms() {
     const viewer = viewerRef.current;
@@ -240,9 +293,7 @@ export default function MolecularViewer({
   }
 
   function toggleSpin() {
-    const next = !spinning;
-    setSpinning(next);
-    viewerRef.current?.spin(next ? 'y' : false, 0.8, true);
+    setSpinning((value) => !value);
   }
 
   return <section className={`molecule-viewer ${compact ? 'molecule-viewer--compact' : ''}`}

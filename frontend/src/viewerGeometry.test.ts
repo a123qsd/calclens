@@ -58,6 +58,26 @@ test('display bonds follow covalent distances and respect the hard cap', () => {
   assert.equal(inferDisplayBonds(many, 7).length, 7);
 });
 
+for (const [element, distance] of [['S', 2.42], ['Se', 2.53]] as const) {
+  test(`tungsten-${element} display bonds are inferred in either atom order`, () => {
+    const data = report();
+    data.positions = [[0, 0, 0], [distance, 0, 0]];
+    for (const elements of [['W', element], [element, 'W']]) {
+      data.elements = elements;
+      assert.deepEqual(inferDisplayBonds(buildDisplayAtoms(data, 1)), [{ a: 0, b: 1 }]);
+    }
+  });
+
+  test(`tungsten-${element} display bonds retain the distance limits`, () => {
+    const data = report();
+    data.elements = ['W', element];
+    for (const distance of [0, 0.3, 2.61, 5]) {
+      data.positions = [[0, 0, 0], [distance, 0, 0]];
+      assert.deepEqual(inferDisplayBonds(buildDisplayAtoms(data, 1)), []);
+    }
+  });
+}
+
 test('cell corners contain the eight triclinic vertices', () => {
   assert.equal(cellCorners(report().cell).length, 8);
   assert.deepEqual(cellCorners(report().cell).at(-1), [2.5, 3, 10]);
