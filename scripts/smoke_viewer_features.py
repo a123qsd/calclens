@@ -175,6 +175,50 @@ def import_file(page, test_id, name, content, mime_type="application/json"):
     settle(page)
 
 
+def check_file_tab_keyboard(page, expect):
+    """Keyboard focus must reveal a whole file tab inside its own scroll region."""
+    contents = (ROOT / "examples/graphene.cif").read_bytes()
+    page.get_by_test_id("cif-replace-upload").set_input_files([
+        {"name": f"{index:02d}_long_filename_연구용_구조_검토_" * 3 + ".cif",
+         "mimeType": "chemical/x-cif", "buffer": contents}
+        for index in range(20)
+    ])
+    idle(page)
+    page.set_viewport_size({"width": 390, "height": 844})
+    results = []
+    for language in ("ko", "en"):
+        if page.locator("html").get_attribute("lang") != language:
+            page.get_by_test_id("language-toggle").click()
+            idle(page)
+        tabs = page.locator(".file-tab")
+        expect(tabs).to_have_count(20)
+        tabs.first.focus()
+        for _ in range(19):
+            page.keyboard.press("Tab")
+        expect(tabs.last).to_be_focused()
+        geometry = tabs.last.evaluate("""element => {
+            const tab = element.getBoundingClientRect();
+            const rail = element.parentElement.getBoundingClientRect();
+            return {left: tab.left, right: tab.right, railLeft: rail.left,
+                railRight: rail.right, overflow: document.documentElement.scrollWidth - innerWidth};
+        }""")
+        require(geometry["left"] >= geometry["railLeft"] - 1
+                and geometry["right"] <= geometry["railRight"] + 1,
+                f"{language}: focused last file tab is clipped: {geometry!r}")
+        require(geometry["overflow"] <= 1, "File tabs overflow the page.")
+        expect(tabs.first).to_have_attribute("aria-pressed", "true")
+        page.keyboard.press("Enter")
+        idle(page)
+        expect(tabs.last).to_have_attribute("aria-pressed", "true")
+        # Restore selection so the next language pass has the same starting state.
+        tabs.first.click()
+        idle(page)
+        results.append({"language": language, "files": 20, "keyboard_reveal": True,
+                        "keyboard_activation": True, **geometry})
+    page.set_viewport_size({"width": 1584, "height": 1000})
+    return results
+
+
 def check_layout(page, output, expect):
     results = []
     for language in ("en", "ko"):
@@ -694,6 +738,10 @@ def run(base_url, output):
             idle(page)
             expect(canvas(page)).to_be_visible()
             expect(page.locator(".molecule-fallback")).to_have_count(0)
+            print("Checking keyboard navigation through 20 file tabs", flush=True)
+            tab_detail = check_file_tab_keyboard(page, expect)
+            result["checks"].append({"name": "keyboard navigation through 20 file tabs",
+                                     "status": "passed", "detail": tab_detail})
             primary_name = "graphene_long_filename_연구용_구조_검토_" * 4 + ".cif"
             page.get_by_test_id("cif-replace-upload").set_input_files([
                 {"name": primary_name, "mimeType": "chemical/x-cif", "buffer": (ROOT / "examples/graphene.cif").read_bytes()},

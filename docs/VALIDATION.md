@@ -8,11 +8,15 @@ and project/API contracts are unchanged.
 
 Local macOS verification: 657 Python tests passed, 2 PowerShell-only tests skipped;
 56 frontend tests, TypeScript/build and Ruff passed. The four existing browser
-suites passed 34 groups: workspace regressions (8), incremental viewer updates (9),
-viewer features (9) and research workspace (8). English and Korean passed layout
+suites passed 35 groups: workspace regressions (8), incremental viewer updates (9),
+viewer features (10) and research workspace (8). English and Korean passed layout
 checks at 390, 820, 1100 and 1584 px with zero horizontal overflow or sample-control
 overlap. Actual PNG exports, camera/model reuse, draft/project roundtrips,
 electronic imports, comparison and P1 preparation remain covered.
+
+Additional file-strip checks passed exact geometry, draft/camera restoration,
+20 long filenames in both languages at all four widths, and doubled-text containment.
+A keyboard regression now verifies that the focused final tab is fully revealed.
 
 All 16 generated CIFs, the public reference case and the real electronic case
 passed their consistency checks. Existing ASE/NumPy deprecation warnings remain.

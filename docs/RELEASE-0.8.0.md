@@ -9,7 +9,7 @@ The selected structure is the focus of the workspace:
 
 - Compact horizontal navigation opens the overview, comparison, review and method screens.
 - The selected filename is the main heading, with visible file and project-save actions.
-- A file strip switches structures; the sample action takes less space.
+- A file strip switches structures and reveals focused tabs during keyboard navigation; the sample action takes less space.
 - A larger viewer sits beside compact numerical results and review controls.
 - Viewer controls stay close to the structure they affect.
 
@@ -35,7 +35,7 @@ CIF 기하 검사, 작업 ZIP, 파일별 초안, 원자쌍 측정, 전자 자료
 ## Verification / 검증
 
 Local verification passed: 657 Python tests, 56 frontend tests, typecheck/build,
-Ruff and all 34 existing browser check groups. Two PowerShell-only tests await
+Ruff and all 35 browser check groups. Two PowerShell-only tests await
 Windows CI. Both languages passed 390, 820, 1100 and 1584 px layout checks with
 no horizontal page overflow or overlapping sample controls. Viewer updates,
 project roundtrips, draft/camera restoration, electronic data, P1 preparation
@@ -43,7 +43,7 @@ and image export passed. Original CIF fixtures and independent reference
 calculations are unchanged.
 
 로컬 검증에서 Python 657개와 프런트엔드 56개 테스트, 빌드·타입 검사·정적 검사,
-기존 브라우저 검사 34개 그룹이 통과했습니다. PowerShell 전용 검사 2개는
+브라우저 검사 35개 그룹이 통과했습니다. PowerShell 전용 검사 2개는
 Windows CI에서 실행합니다. 두 언어의 390·820·1100·1584px 배치, 작업 재열기,
 초안·카메라 복원, 전자 자료, P1 준비와 이미지 저장을 확인했습니다.
 
