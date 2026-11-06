@@ -1,10 +1,13 @@
 # Downloads and installation / 다운로드·설치
 
-**v0.7.0** preserves drafts and viewer settings, includes electronic files in
-project ZIPs, and adds validated P1 preparation. See the
-[workspace guide](WORKSPACE_SAVE.md).
-**v0.7.0**은 초안·뷰어 설정과 전자 자료를 함께 저장하고 P1 준비 기능을 제공합니다.
-자세한 사용법은 [작업 안내](WORKSPACE_SAVE.md)를 참고하세요.
+**v0.8.0** puts the selected filename, a larger structure viewer and compact
+measurements at the center of the workspace. File and save actions stay visible,
+with a file strip and horizontal navigation. See the
+[release notes](RELEASE-0.8.0.md) and [workspace guide](WORKSPACE_SAVE.md).
+
+**v0.8.0**은 선택한 파일명과 넓은 구조 뷰어, 간결한 수치 패널을 중심으로 화면을
+정리했습니다. 파일 열기·작업 저장 버튼을 쉽게 찾을 수 있고, 파일 선택 줄과 가로
+메뉴로 이동합니다. [변경 사항](RELEASE-0.8.0.md)과 [작업 안내](WORKSPACE_SAVE.md)를 참고하세요.
 
 [Project home](../README.md) · [Full English guide](../README.en.md) · [한국어 전체 안내](../README.ko.md)
 
@@ -22,19 +25,21 @@ Windows 10/11 x64에서는 EXE를 받은 뒤 더블클릭하세요. Python을 �
 
 | Language / 언어 | Standalone EXE / 단일 EXE | Folder ZIP / 폴더 ZIP | Guide / 안내 |
 | --- | --- | --- | --- |
-| 한국어 | [한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko.exe) | [한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko-folder.zip) | [한국어 Windows 안내](../packaging/windows/README.ko.md) |
-| English | [English EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en.exe) | [English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en-folder.zip) | [English Windows guide](../packaging/windows/README.en.md) |
+| 한국어 | [한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-ko.exe) | [한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-ko-folder.zip) | [한국어 Windows 안내](../packaging/windows/README.ko.md) |
+| English | [English EXE](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-en.exe) | [English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-en-folder.zip) | [English Windows guide](../packaging/windows/README.en.md) |
 
-These are the default workspace builds. If you need the previous Streamlit
-interface, choose the separate [Korean legacy EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-0.7.0-windows-x64-ko-legacy.exe)
+These are the default workspace builds. Version 0.8.0 has no separate legacy
+release. If you need a published Streamlit executable, use the v0.7.0
+[Korean legacy EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-0.7.0-windows-x64-ko-legacy.exe)
 or [English legacy EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-0.7.0-windows-x64-en-legacy.exe)
 and pass `--legacy-ui`. Matching `-legacy-folder.zip` archives are on the
-[resources page](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources). Keep the [legacy support ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-0.7.0-windows-support-legacy.zip)
+[v0.7.0 resources page](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources). Keep the [legacy support ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-0.7.0-windows-support-legacy.zip)
 with those builds when redistributing them. Their notices and dependency
 inventory differ from the default distribution.
 
-위 표는 새 작업공간을 제공하는 기본 배포판입니다. 이전 Streamlit 화면이 필요하면
-별도의 한국어·영어 `-legacy.exe` 또는 `-legacy-folder.zip`을 받아
+위 표는 새 작업공간을 제공하는 기본 배포판입니다. 0.8.0은 이전 화면을 포함한
+별도 배포판을 제공하지 않습니다. Streamlit 실행 파일이 필요하면 v0.7.0 자료 페이지의
+한국어·영어 `-legacy.exe` 또는 `-legacy-folder.zip`을 받아
 `--legacy-ui`로 실행하세요. 재배포할 때는 같은 배포판의
 `windows-support-legacy.zip`도 함께 보관·전달하세요.
 
@@ -50,8 +55,8 @@ closing only the browser tab leaves it running. Save your project before quittin
 **진단 기록**, **종료**를 사용하세요. 관리 창을 닫으면 서버도 종료되며,
 브라우저 탭만 닫으면 계속 실행됩니다. 종료하기 전에 작업을 저장하세요.
 
-[Windows checksums](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/WINDOWS-SHA256SUMS.txt) ·
-[Windows licenses and build source](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-0.7.0-windows-support.zip)
+[Windows checksums](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/WINDOWS-SHA256SUMS.txt) ·
+[Windows licenses and build source](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-0.8.0-windows-support.zip)
 
 The EXEs are unsigned. Windows may show an unknown-publisher or SmartScreen
 warning. Check the release owner, source and checksum before deciding whether to
@@ -64,36 +69,36 @@ EXE에는 코드 서명이 없어 Windows에서 게시자를 알 수 없다는 �
 
 ## Source packages / 소스 패키지
 
-**CalcLens v0.7.0** includes the molecular workspace, project editing, review
-history, pair measurements and side-by-side structure comparison. The viewer
-adds representation and graphics controls, linked comparison cameras, PNG export
-and imported charge/density/orbital displays. Choose a language-specific source
-ZIP and install it with the commands below.
+**CalcLens v0.8.0** includes the updated structure workspace, project editing,
+review history, pair measurements and side-by-side structure comparison. The
+viewer includes representation and graphics controls, linked comparison cameras,
+PNG export and imported charge/density/orbital displays. Choose a language-specific
+source ZIP and install it with the commands below.
 
-**CalcLens v0.7.0**에는 입체 구조 작업공간, 프로젝트 편집, 검토 이력, 원자쌍 측정과
-두 구조의 나란히 비교가 포함됩니다. 뷰어에 표현·그래픽 설정, 비교 시점 동기화,
-PNG 저장과 외부 전하·전자밀도·오비탈 자료 표시가 추가되었습니다.
+**CalcLens v0.8.0**에는 새로 정리한 구조 작업공간, 프로젝트 편집, 검토 이력, 원자쌍 측정과
+두 구조의 나란히 비교가 포함됩니다. 뷰어에서 표현·그래픽 설정, 비교 시점 동기화,
+PNG 저장과 외부 전하·전자밀도·오비탈 자료 표시를 사용할 수 있습니다.
 원하는 언어의 소스 ZIP을 받은 뒤 아래 명령으로 설치하세요.
 
-Imported viewer data is kept only in the current browser session and is not
-included in saved projects. CalcLens does not calculate electronic data.
-보조 자료는 현재 브라우저 세션에만 보관하며 작업 저장 파일에 포함하지 않습니다.
+Imported electronic source files, drafts and viewer settings are included in
+saved project ZIPs. CalcLens does not calculate electronic data.
+불러온 전자 자료 원본, 초안과 뷰어 설정은 작업 ZIP에 함께 저장합니다.
 CalcLens가 전하나 전자밀도를 계산하지는 않습니다.
 See [Imported viewer data / 보조 자료 안내](VIEWER_DATA.md).
 
 ## English
 
 Download a language-specific source package from
-[CalcLens v0.7.0 resources](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources):
+[CalcLens v0.8.0 resources](https://github.com/a123qsd/calclens/releases/tag/v0.8.0-resources):
 
 | Asset | Initial interface and main guide |
 | --- | --- |
-| [calclens-0.7.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-en.zip) | English |
-| [calclens-0.7.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-ko.zip) | Korean |
+| [calclens-0.8.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/calclens-0.8.0-en.zip) | English |
+| [calclens-0.8.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/calclens-0.8.0-ko.zip) | Korean |
 
 You can also download the guides separately as Markdown files:
-[English guide](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.en.md) ·
-[Korean guide](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.ko.md).
+[English guide](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-Guide.en.md) ·
+[Korean guide](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-Guide.ko.md).
 These text files explain the app; they do not contain the program.
 
 Both packages contain the same geometry engine, examples, and English/Korean
@@ -108,7 +113,7 @@ The installation command examples below use Python 3.12.
 
 ### Install on macOS or Linux
 
-Extract the ZIP and open a terminal in `calclens-0.7.0-en` (or `calclens-0.7.0-ko`
+Extract the ZIP and open a terminal in `calclens-0.8.0-en` (or `calclens-0.8.0-ko`
 for the Korean package), the folder containing `run_app.py` and `requirements.lock`. Run:
 
 ```bash
@@ -120,7 +125,7 @@ python3.12 -m venv .venv
 
 ### Install on Windows
 
-Extract the ZIP and open PowerShell in `calclens-0.7.0-en` (or `calclens-0.7.0-ko`
+Extract the ZIP and open PowerShell in `calclens-0.8.0-en` (or `calclens-0.8.0-ko`
 for the Korean package), the folder containing `run_app.py` and `requirements.lock`. Run:
 
 ```powershell
@@ -185,9 +190,10 @@ CLI commands, and license conditions.
 
 ### Save and reopen work
 
-**Save project** downloads a `.calclens.json` with original CIF bytes, entry IDs,
-per-file settings, notes, review stamps, pair selections and view filters.
-Use **Open project** to restore it without the separate original CIF files.
+**Save project** downloads a `.calclens.zip` with original CIF bytes, entry IDs,
+per-file settings, notes, review stamps, pair selections, drafts, electronic
+source files and viewer state. **Open project** also reads older `.calclens.json`
+files. Separate original CIF files are not needed to restore the workspace.
 Reports and saved distances are recalculated from those originals. Missing or
 corrupt CIF payloads and hash mismatches are rejected. JSON/CSV reports cannot be
 imported as projects.
@@ -195,22 +201,23 @@ imported as projects.
 **Reviewed** records a human review; geometry warnings remain visible. A review
 stamp is tied to the source hash, axis, cutoff, analysis revision and ASE version.
 Changed analysis conditions require rechecking. Tabs of one running server share
-the workspace, and unsaved work stays in memory. Save before stopping the server.
+the analyzed workspace; drafts and viewer changes remain local to each tab until
+saved. Save before closing the tab or stopping the server.
 See the [project guide](../README.en.md#pair-measurements-and-saved-work) for details.
 
 ## 한국어
 
-[CalcLens v0.7.0 자료 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources)에서
+[CalcLens v0.8.0 자료 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.8.0-resources)에서
 원하는 언어의 소스 ZIP을 받으세요.
 
 | 파일 | 처음 열리는 화면과 기본 안내 |
 | --- | --- |
-| [calclens-0.7.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-ko.zip) | 한국어 |
-| [calclens-0.7.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-en.zip) | 영어 |
+| [calclens-0.8.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/calclens-0.8.0-ko.zip) | 한국어 |
+| [calclens-0.8.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/calclens-0.8.0-en.zip) | 영어 |
 
 안내 문서만 필요하면 Markdown 파일로 따로 받을 수 있습니다.
-[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.ko.md) ·
-[영어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.en.md).
+[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-Guide.ko.md) ·
+[영어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-Guide.en.md).
 안내 파일에는 프로그램이 들어 있지 않습니다.
 
 두 파일의 검사 엔진과 예제는 같습니다. 둘 다 한국어·영어 화면을 제공하며, ZIP 안의
@@ -225,8 +232,8 @@ Node.js는 필요하지 않습니다. 처음 설치할 때는 인터넷 연결�
 
 ### macOS·Linux에서 설치
 
-ZIP을 푼 뒤 `run_app.py`와 `requirements.lock`이 있는 `calclens-0.7.0-ko` 폴더에서
-터미널을 열고 실행하세요. 영어 패키지를 받았다면 폴더 이름은 `calclens-0.7.0-en`입니다.
+ZIP을 푼 뒤 `run_app.py`와 `requirements.lock`이 있는 `calclens-0.8.0-ko` 폴더에서
+터미널을 열고 실행하세요. 영어 패키지를 받았다면 폴더 이름은 `calclens-0.8.0-en`입니다.
 
 ```bash
 python3.12 -m venv .venv
@@ -237,8 +244,8 @@ python3.12 -m venv .venv
 
 ### Windows에서 설치
 
-ZIP을 푼 뒤 `run_app.py`와 `requirements.lock`이 있는 `calclens-0.7.0-ko` 폴더에서
-PowerShell을 열고 실행하세요. 영어 패키지를 받았다면 폴더 이름은 `calclens-0.7.0-en`입니다.
+ZIP을 푼 뒤 `run_app.py`와 `requirements.lock`이 있는 `calclens-0.8.0-ko` 폴더에서
+PowerShell을 열고 실행하세요. 영어 패키지를 받았다면 폴더 이름은 `calclens-0.8.0-en`입니다.
 
 ```powershell
 py -3.12 -m venv .venv
@@ -299,13 +306,13 @@ RMSD는 계산하지 않습니다. **전체 CSV**에는 화면 필터와 관계�
 ### 작업 저장하고 다시 열기
 
 **작업 저장**으로 원본 CIF 바이트, 항목 ID, 파일별 조건, 메모, 검토 이력,
-원자쌍 선택과 화면 필터를 담은 `.calclens.json`을 내려받습니다.
-**작업 열기**로 불러오면 별도의 원본 CIF 없이 이어갈 수 있습니다. 보고서와 저장한
+원자쌍 선택, 초안, 전자 자료 원본과 뷰어 설정을 담은 `.calclens.zip`을 내려받습니다.
+**작업 열기**는 이전 `.calclens.json`도 읽으며, 별도의 원본 CIF 없이 이어갈 수 있습니다. 보고서와 저장한
 거리는 포함된 원본으로 다시 계산합니다. CIF 데이터가 없거나 손상되었거나 해시가
 다르면 불러오기를 거부합니다. JSON·CSV 보고서는 작업 파일로 불러올 수 없습니다.
 
 **검토 완료**는 사람이 확인했다는 기록이며, 구조 경고는 계속 표시됩니다.
 원본 해시·축·거리 기준·계산 방식·ASE 버전에 연결된 검토 기록을 남기고,
-관련 조건이 바뀌면 재검토가 필요합니다. 같은 서버의 탭들은 하나의 작업을 공유하며,
-저장하지 않은 작업은 메모리에만 있으므로 서버를 종료하기 전에 저장하세요.
+관련 조건이 바뀌면 재검토가 필요합니다. 같은 서버의 탭들은 분석 작업을 공유하지만,
+저장하기 전의 초안과 뷰어 변경 사항은 각 탭에 남습니다. 탭이나 서버를 닫기 전에 저장하세요.
 자세한 내용은 [작업 저장 안내](../README.ko.md#원자-거리와-작업-저장)를 확인하세요.

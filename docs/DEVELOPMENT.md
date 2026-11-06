@@ -6,8 +6,10 @@ This naming difference does not indicate a second application.
 
 ## Local workflow
 
-The source tree is v0.7.0. Release package names and installation instructions
+The source tree is v0.8.0. Release package names and installation instructions
 are listed in [DOWNLOADS.md](DOWNLOADS.md).
+The [0.8.0 release notes](RELEASE-0.8.0.md) describe the workspace layout update;
+[DESIGN.md](../DESIGN.md) records its presentation rules.
 Use Python 3.12 or 3.13 and install the pinned runtime, build, and test dependencies:
 
 ```bash
@@ -210,15 +212,21 @@ The committed browser assets are included, so using a source package does not
 require Node.js or a frontend build.
 See [DOWNLOADS.md](DOWNLOADS.md) for setup instructions.
 
-Windows release assets are `CalcLens-0.7.0-windows-x64-ko.exe`,
-`CalcLens-0.7.0-windows-x64-en.exe`, matching `-folder.zip` archives,
-`CalcLens-0.7.0-windows-support.zip` and `WINDOWS-SHA256SUMS.txt`. The support
+Windows release assets are `CalcLens-0.8.0-windows-x64-ko.exe`,
+`CalcLens-0.8.0-windows-x64-en.exe`, matching `-folder.zip` archives,
+`CalcLens-0.8.0-windows-support.zip` and `WINDOWS-SHA256SUMS.txt`. The support
 archive records the dependency versions and source commit and includes the
 CalcLens source and required third-party notices and source materials.
 Executable build metadata and support manifests identify their own build commit;
 check those records when comparing them with separately built source archives.
 The EXEs are unsigned. See the [Windows guide](../packaging/windows/README.en.md)
 for usage and rebuilding.
+
+The `v0.8.0` release contains the four default Windows downloads: two locales,
+each with an EXE and folder ZIP. The `v0.8.0-resources` release contains source
+ZIPs, guides, support materials, checksums, build metadata and verification
+records. There is no new 0.8.0 legacy bundle; published legacy downloads remain
+on the [v0.7.0 resources page](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources).
 
 The internal module name may be changed later, but public CLI behavior and report
 semantics need a deliberate compatibility decision. Do not silently change a

@@ -1,6 +1,19 @@
 # Continue a research workspace / 연구 작업 이어가기
 
-This guide describes the default browser workspace in CalcLens 0.7.0.
+This guide describes the default browser workspace in CalcLens 0.8.0.
+
+## Find the current structure
+
+The selected filename is the main heading. Use the file strip to switch CIFs and
+the header actions to open files or save the project. Horizontal navigation opens
+Overview, Compare, Review and Methods. **Try sample** remains available as a
+smaller action. In Overview, the large viewer sits beside compact measurements
+and review controls.
+
+선택한 파일명이 화면 제목에 표시됩니다. 파일 선택 줄에서 CIF를 바꾸고, 상단의
+파일 열기·작업 저장 버튼으로 작업을 다룹니다. 가로 메뉴에서 개요·비교·검토·방법
+화면으로 이동할 수 있습니다. **예제 불러오기**는 작은 보조 버튼으로 제공합니다.
+개요 화면에서는 넓은 뷰어 옆에서 수치와 검토 항목을 확인합니다.
 
 ## Drafts and saved work
 
@@ -98,7 +111,10 @@ checkout, `python -m pip install '.[legacy-ui]'`) before using `--legacy-ui`.
 `requirements.lock` pins the default environment plus development tools;
 `requirements-legacy.lock` additionally pins the legacy interface.
 Windows builds default to the workspace; `--include-legacy-ui` produces a
-separately named legacy variant. Binary size and startup time require a native
+separately named legacy variant. The 0.8.0 Windows release supplies the default
+bundles; previously published legacy builds remain on the
+[v0.7.0 resources page](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources).
+Binary size and startup time require a native
 build measurement; removing dependencies alone does not establish those results.
 
 For a real calculation with reproducible inputs, see the

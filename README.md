@@ -6,16 +6,16 @@ Created, led and maintained by [a123qsd](https://github.com/a123qsd).
 창안·기획·개발 총괄 및 유지관리: [a123qsd](https://github.com/a123qsd).
 [프로젝트 출처와 역할](AUTHORS.md) · [인용 정보](CITATION.cff)
 
-**CalcLens v0.7.0 source** preserves drafts and viewer settings, saves original
-electronic files in portable projects, and compares multiple datasets with a
-common charge-color range. It adds validated P1 preparation and an actual
-electronic-calculation example. The existing offline 3D workspace, review
-history, pair measurements, linked cameras and PNG export remain available.
+**CalcLens v0.8.0** gives the selected structure a larger viewer and makes its
+filename the main heading. Compact horizontal navigation, visible file and save
+actions, a file strip and a numeric inspector keep the current work together.
+Project ZIPs, review history, pair measurements, electronic datasets, P1
+preparation, linked cameras and PNG export remain available.
 
-**CalcLens v0.7.0 소스**는 작성 중인 초안과 뷰어 설정을 유지하고, 전자 자료
-원본까지 작업 파일에 저장합니다. 여러 계산 결과를 공통 전하 범위로 비교할 수
-있으며, 검증된 P1 준비 기능과 실제 전자구조 계산 사례를 추가했습니다. 기존의
-오프라인 3D 작업공간, 검토 이력, 원자쌍 측정, 시점 동기화와 PNG 출력도 제공합니다.
+**CalcLens v0.8.0**은 선택한 파일명을 화면 제목으로 표시하고 구조 뷰어를 넓혔습니다.
+가로 메뉴, 파일 열기·작업 저장, 파일 선택 줄과 간결한 수치 패널을 현재 구조 주변에
+배치했습니다. 작업 ZIP, 검토 이력, 원자쌍 측정, 전자 자료, P1 준비, 시점 동기화와
+PNG 저장 기능도 계속 사용할 수 있습니다.
 
 Externally supplied charge JSON and density/orbital Cube files can be displayed
 for a matching CIF. CalcLens does not calculate those quantities. Imported viewer
@@ -28,14 +28,15 @@ CalcLens가 이 값을 계산하지는 않습니다. 보조 자료, 파일별 �
 같은 CIF에 여러 자료를 연결하고 공통 전하 색상 범위로 비교할 수 있습니다. 형식과 제한은
 [보조 자료 안내](docs/VIEWER_DATA.md)를 참고하세요.
 
-[0.7.0 workspace guide / 새 작업 안내](docs/WORKSPACE_SAVE.md) · [Real electronic-data case / 실제 계산 사례](docs/ELECTRONIC_CASE.md)
+[0.8.0 release notes / 변경 사항](docs/RELEASE-0.8.0.md) ·
+[Workspace guide / 작업 안내](docs/WORKSPACE_SAVE.md) · [Real electronic-data case / 실제 계산 사례](docs/ELECTRONIC_CASE.md)
 
-**Published Windows v0.7.0 / 현재 공개된 Windows v0.7.0**
+**Published Windows v0.8.0 / 현재 공개된 Windows v0.8.0**
 
-[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko.exe) ·
-[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en.exe) ·
-[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko-folder.zip) ·
-[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en-folder.zip) ·
+[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-ko.exe) ·
+[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-en.exe) ·
+[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-ko-folder.zip) ·
+[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-en-folder.zip) ·
 [실행 안내](packaging/windows/README.ko.md) · [Windows guide](packaging/windows/README.en.md)
 
 Double-click the EXE to open the launch manager and browser workspace. Use the
@@ -61,7 +62,7 @@ JSON/CSV exports and comparisons of up to 20 CIF files with settings for each fi
 빈 간격을 확인합니다. 화면·사용 안내·결과 설명을 한국어와 영어로 제공하며,
 예제와 JSON·CSV 내보내기, 파일마다 조건을 정하는 최대 20개 CIF 비교를 지원합니다.
 
-![CalcLens molecular workspace / 입체 구조 작업공간](docs/assets/calclens-viewer-0.6.0.png)
+![CalcLens molecular workspace / 입체 구조 작업공간](docs/assets/calclens-workspace-0.8.0-ko.png)
 
 [Earlier Streamlit demo / 이전 Streamlit 화면 영상](docs/assets/calclens-demo.webm) ·
 [Public graphite case / 공개 흑연 사례](docs/CASE_STUDY.md)
@@ -69,15 +70,15 @@ JSON/CSV exports and comparisons of up to 20 CIF files with settings for each fi
 ## Download / 다운로드
 
 [Windows downloads / Windows 실행 파일](https://github.com/a123qsd/calclens/releases/latest) ·
-[Source packages, guides and verification files / 소스·안내·검증 자료](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources)
+[Source packages, guides and verification files / 소스·안내·검증 자료](https://github.com/a123qsd/calclens/releases/tag/v0.8.0-resources)
 
-| Language | Source ZIP for v0.7.0 | Read guide | Download guide |
+| Language | Source ZIP for v0.8.0 | Read guide | Download guide |
 | --- | --- | --- | --- |
-| English | [calclens-0.7.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.en.md) |
-| 한국어 | [calclens-0.7.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.ko.md) |
+| English | [calclens-0.8.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/calclens-0.8.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-Guide.en.md) |
+| 한국어 | [calclens-0.8.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/calclens-0.8.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-Guide.ko.md) |
 
-[Windows checksums / Windows 체크섬](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/WINDOWS-SHA256SUMS.txt) ·
-[Windows licenses and build source / Windows 라이선스·빌드 소스](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-0.7.0-windows-support.zip)
+[Windows checksums / Windows 체크섬](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/WINDOWS-SHA256SUMS.txt) ·
+[Windows licenses and build source / Windows 라이선스·빌드 소스](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-0.8.0-windows-support.zip)
 
 Both ZIPs contain the same analysis engine and both interface languages. Each
 opens in its selected language by default. **Python 3.12 or 3.13 and dependency

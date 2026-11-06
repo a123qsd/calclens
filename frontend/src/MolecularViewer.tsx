@@ -600,17 +600,21 @@ export default function MolecularViewer({
       <div className="molecule-badge">3D · {report.formula}</div>
     </div>
     <div className="molecule-toolbar" role="toolbar" aria-label={language === 'ko' ? '3D 보기 도구' : '3D viewer tools'}>
-      <button type="button" onClick={fitAtoms} title={labels.fitAtoms}>⌖ <span>{labels.fitAtoms}</span></button>
-      <button type="button" onClick={fitCell} title={labels.fitCell}>□ <span>{labels.fitCell}</span></button>
-      <button type="button" onClick={reset} title={labels.reset}>↻ <span>{labels.reset}</span></button>
-      <button type="button" className={spinning ? 'is-active' : ''} aria-pressed={spinning}
-        onClick={toggleSpin} title={spinning ? labels.stop : labels.rotate}>⟳ <span>{spinning ? labels.stop : labels.rotate}</span></button>
-      <button type="button" className={showLabels ? 'is-active' : ''} aria-pressed={showLabels}
-        onClick={() => setShowLabels((value) => !value)} title={labels.labels}># <span>{labels.labels}</span></button>
-      <button type="button" className={showCell ? 'is-active' : ''} aria-pressed={showCell}
-        onClick={() => setShowCell((value) => !value)} title={labels.cell}>▱ <span>{labels.cell}</span></button>
-      <button type="button" className={showBonds ? 'is-active' : ''} aria-pressed={showBonds}
-        onClick={() => setShowBonds((value) => !value)} title={labels.bonds}>⌁ <span>{labels.bonds}</span></button>
+      <div className="molecule-toolbar-group">
+        <button type="button" onClick={fitAtoms} title={labels.fitAtoms}><span>{labels.fitAtoms}</span></button>
+        <button type="button" onClick={fitCell} title={labels.fitCell}><span>{labels.fitCell}</span></button>
+        <button type="button" onClick={reset} title={labels.reset}><span>{labels.reset}</span></button>
+      </div>
+      <div className="molecule-toolbar-group">
+        <button type="button" className={spinning ? 'is-active' : ''} aria-pressed={spinning}
+          onClick={toggleSpin} title={spinning ? labels.stop : labels.rotate}><span>{spinning ? labels.stop : labels.rotate}</span></button>
+        <button type="button" className={showLabels ? 'is-active' : ''} aria-pressed={showLabels}
+          onClick={() => setShowLabels((value) => !value)} title={labels.labels}><span>{labels.labels}</span></button>
+        <button type="button" className={showCell ? 'is-active' : ''} aria-pressed={showCell}
+          onClick={() => setShowCell((value) => !value)} title={labels.cell}><span>{labels.cell}</span></button>
+        <button type="button" className={showBonds ? 'is-active' : ''} aria-pressed={showBonds}
+          onClick={() => setShowBonds((value) => !value)} title={labels.bonds}><span>{labels.bonds}</span></button>
+      </div>
       <label>{labels.repeat}
         <select value={repeat} onChange={(event) => setRepeat(Number(event.target.value) as RepeatCount)}>
           <option value={1}>1×1</option><option value={2}>2×2</option><option value={3}>3×3</option>
@@ -624,6 +628,17 @@ export default function MolecularViewer({
         <button type="button" data-testid="viewer-expanded" aria-pressed={expanded} onClick={() => setExpanded((value) => !value)}>{expanded ? t('기본 높이', 'Normal height') : t('크게 보기', 'Expand view')}</button>
         <button ref={fullscreenButtonRef} type="button" data-testid="viewer-fullscreen" aria-pressed={fullscreen} onClick={() => void toggleFullscreen()}>{fullscreen ? t('전체 화면 종료', 'Exit fullscreen') : t('전체 화면', 'Fullscreen')}</button>
       </div>
+    </div>
+    <div data-testid="viewer-legend" className="viewer-legend" aria-label={t('색상 범례', 'Color legend')}>
+      {effectiveColor === 'element' ? [...new Set(report.elements)].map((element) => <span key={element}><i className="legend-dot" style={{ background: elementColor(element) }} />{element}</span>) : effectiveColor === 'metal' ? <><span><i className="legend-dot" style={{ background: '#B9824F' }} />{t('금속 원소', 'Metal element')}</span><span><i className="legend-dot" style={{ background: '#BEC7CF' }} />{t('다른 원소', 'Other element')}</span><small>{t('물질의 금속성을 판정하지 않습니다.', 'Does not classify the material as metallic.')}</small></> : charge && <>
+        <strong>{charge.kind === 'partial_charge' ? t('부분전하', 'Partial charge') : charge.kind === 'formal_charge' ? t('형식전하', 'Formal charge') : charge.kind === 'ionic_charge' ? t('이온 순전하', 'Ionic net charge') : t('산화수 · 무차원', 'Oxidation state · dimensionless')}</strong>
+        <span><i className="legend-dot" style={{ background: chargeColor(colorRange[0], colorRange) }} />{colorRange[0].toPrecision(3)}</span>
+        {colorRange[0] < 0 && colorRange[1] > 0 && <span><i className="legend-dot" style={{ background: chargeColor(0, colorRange) }} />0</span>}
+        <span><i className="legend-dot" style={{ background: chargeColor(colorRange[1], colorRange) }} />{colorRange[1].toPrecision(3)} {charge.kind === 'oxidation_state' ? '' : 'e'}</span>
+        <span><i className="legend-dot" style={{ background: chargeColor(null, colorRange) }} />{t('정보 없음', 'Unknown')}</span>
+        <small>{charge.name} · {charge.method} · {charge.source}<br />{chargeRange ? t('비교 화면에서 지정한 색상 범위 · 범위를 벗어난 값은 끝 색으로 표시', 'Color range set by comparison · values beyond the range use endpoint colors') : t('이 자료의 자동 색상 범위', 'Automatic range for this dataset')}</small>
+      </>}
+      {(picked || highlight || Boolean(highlightedAtomIndices?.length)) && <span><i className="legend-dot" style={{ background: '#F59E0B' }} />{t('선택·검토 강조', 'Selection / review highlight')}</span>}
     </div>
     <details className="viewer-settings">
       <summary data-testid="viewer-settings-toggle">{t('표시 설정 및 이미지 저장', 'Display settings and image export')}</summary>
@@ -680,20 +695,9 @@ export default function MolecularViewer({
           <label className="viewer-checkbox"><input data-testid="viewer-export-distance" type="checkbox" checked={exportDistance} onChange={(event) => setExportDistance(event.target.checked)} />{t('표시 중인 거리 포함', 'Include visible distance')}</label>
           <button type="button" data-testid="viewer-export-png" disabled={exporting || Boolean(error)} onClick={() => void savePng()}>{exporting ? t('이미지 생성 중…', 'Rendering image…') : t('PNG 저장', 'Save PNG')}</button>
         </div>
-        <p>{t('현재 시점과 표현을 실제 고해상도로 다시 그립니다. 투명 배경에는 화면의 그라디언트가 포함되지 않습니다.', 'Re-renders the current view at the selected resolution. Transparent images do not include the page gradient.')}</p>
+        <p>{t('현재 시점과 표현을 선택한 해상도로 다시 그립니다. 투명 배경에는 화면 배경색이 포함되지 않습니다.', 'Re-renders the current view at the selected resolution. Transparent images do not include the canvas background.')}</p>
       </fieldset>
     </details>
-    <div data-testid="viewer-legend" className="viewer-legend" aria-label={t('색상 범례', 'Color legend')}>
-      {effectiveColor === 'element' ? [...new Set(report.elements)].map((element) => <span key={element}><i className="legend-dot" style={{ background: elementColor(element) }} />{element}</span>) : effectiveColor === 'metal' ? <><span><i className="legend-dot" style={{ background: '#B9824F' }} />{t('금속 원소', 'Metal element')}</span><span><i className="legend-dot" style={{ background: '#BEC7CF' }} />{t('다른 원소', 'Other element')}</span><small>{t('물질의 금속성을 판정하지 않습니다.', 'Does not classify the material as metallic.')}</small></> : charge && <>
-        <strong>{charge.kind === 'partial_charge' ? t('부분전하', 'Partial charge') : charge.kind === 'formal_charge' ? t('형식전하', 'Formal charge') : charge.kind === 'ionic_charge' ? t('이온 순전하', 'Ionic net charge') : t('산화수 · 무차원', 'Oxidation state · dimensionless')}</strong>
-        <span><i className="legend-dot" style={{ background: chargeColor(colorRange[0], colorRange) }} />{colorRange[0].toPrecision(3)}</span>
-        {colorRange[0] < 0 && colorRange[1] > 0 && <span><i className="legend-dot" style={{ background: chargeColor(0, colorRange) }} />0</span>}
-        <span><i className="legend-dot" style={{ background: chargeColor(colorRange[1], colorRange) }} />{colorRange[1].toPrecision(3)} {charge.kind === 'oxidation_state' ? '' : 'e'}</span>
-        <span><i className="legend-dot" style={{ background: chargeColor(null, colorRange) }} />{t('정보 없음', 'Unknown')}</span>
-        <small>{charge.name} · {charge.method} · {charge.source}<br />{chargeRange ? t('비교 화면에서 지정한 색상 범위 · 범위를 벗어난 값은 끝 색으로 표시', 'Color range set by comparison · values beyond the range use endpoint colors') : t('이 자료의 자동 색상 범위', 'Automatic range for this dataset')}</small>
-      </>}
-      {(picked || highlight || Boolean(highlightedAtomIndices?.length)) && <span><i className="legend-dot" style={{ background: '#F59E0B' }} />{t('선택·검토 강조', 'Selection / review highlight')}</span>}
-    </div>
     {picked && <div className="viewer-atom-detail" data-testid="viewer-atom-detail">
       <strong>{picked.element}{picked.index + 1} · [{picked.shift.join(', ')}]</strong>
       <span>{t('원자핵 전하', 'Nuclear charge')}: +{atomicNumber(picked.element)}e</span>

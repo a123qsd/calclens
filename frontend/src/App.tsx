@@ -19,7 +19,7 @@ import {
 } from './api.ts';
 import { copy } from './i18n.ts';
 import {
-  Aperture, Book, Check, CheckSquare, Compare, Download, External, Flask, GitHub,
+  Aperture, Book, Check, CheckSquare, Compare, Download, External, GitHub,
   Home, Info, Play, Ruler, Sliders, Trash, Upload,
 } from './icons.tsx';
 import type {
@@ -49,11 +49,10 @@ function StatusPill({ entry, language }: { entry: Entry; language: Language }) {
   return <span className={`status-pill status-${state}`}><StatusMark state={state} />{label}</span>;
 }
 
-function MetricCard({ label, value, hint, tone = 'teal' }: { label: string; value: string; hint: string; tone?: 'teal' | 'amber' }) {
-  return <article className="metric-card">
-    <span className={`metric-icon ${tone}`}><Ruler /></span>
-    <div><strong>{label}</strong><div className="metric-value">{value}</div><small>{hint}</small></div>
-  </article>;
+function MetricRow({ label, value, hint, attention = false }: { label: string; value: string; hint: string; attention?: boolean }) {
+  return <div className={`inspection-metric${attention ? ' inspection-metric--attention' : ''}`}>
+    <dt>{label}<small>{hint}</small></dt><dd className="metric-value">{value}</dd>
+  </div>;
 }
 
 function shiftText(shift: Vec3 | undefined): string { return `[${(shift ?? ZERO).join(', ')}]`; }
@@ -372,33 +371,32 @@ export default function App() {
   const after = workspace.entries.find((entry) => entry.id === compareAfter) ?? null;
 
   return <div className="app-shell" data-testid="app-ready">
-    <aside className="sidebar">
-      <button className="brand" onClick={() => navigate('overview')}><Aperture /><span><b>CalcLens</b></span><small>COMPUTATIONAL CHEMISTRY</small></button>
-      <nav aria-label="Primary navigation">
-        <button className={view === 'overview' ? 'active' : ''} onClick={() => navigate('overview')}><Home />{c.overview}</button>
-        <button data-testid="nav-compare" className={view === 'compare' ? 'active' : ''} onClick={() => navigate('compare')}><Compare />{c.compare}</button>
-        <button className={view === 'review' ? 'active' : ''} onClick={() => navigate('review')}><CheckSquare />{c.review}</button>
-        <button className={view === 'methods' ? 'active' : ''} onClick={() => navigate('methods')}><Book />{c.methods}</button>
+    <a className="skip-link" href="#workspace-main">{language === 'ko' ? '작업공간으로 건너뛰기' : 'Skip to workspace'}</a>
+    <header className="appbar">
+      <button className="brand" onClick={() => navigate('overview')} aria-label="CalcLens"><Aperture /><b>CalcLens</b></button>
+      <nav aria-label={language === 'ko' ? '주 메뉴' : 'Primary navigation'}>
+        <button aria-current={view === 'overview' ? 'page' : undefined} className={view === 'overview' ? 'active' : ''} onClick={() => navigate('overview')}><Home />{c.overview}</button>
+        <button data-testid="nav-compare" aria-current={view === 'compare' ? 'page' : undefined} className={view === 'compare' ? 'active' : ''} onClick={() => navigate('compare')}><Compare />{c.compare}</button>
+        <button aria-current={view === 'review' ? 'page' : undefined} className={view === 'review' ? 'active' : ''} onClick={() => navigate('review')}><CheckSquare />{c.review}</button>
+        <button aria-current={view === 'methods' ? 'page' : undefined} className={view === 'methods' ? 'active' : ''} onClick={() => navigate('methods')}><Book />{c.methods}</button>
       </nav>
-      <div className="sidebar-spacer" />
-      <button className="project-chip" onClick={() => navigate('overview')}>
-        <Flask /><span><b>{selected?.filename ?? 'CalcLens project'}</b><small>{workspace.entries.length} CIF · {reviewedCount}/{workspace.entries.length} {c.reviewed}</small></span>
-      </button>
-      <div className="side-links"><a href="https://github.com/a123qsd/calclens#readme" target="_blank" rel="noreferrer"><Book />Documentation</a><a href="https://github.com/a123qsd/calclens" target="_blank" rel="noreferrer"><GitHub />GitHub</a></div>
-      <small className="version">v{workspace.runtime?.calclens_version ?? workspace.project.calclens_version} · {workspace.runtime?.analysis_revision ?? workspace.project.analysis_revision}</small>
-    </aside>
+      <div className="appbar-utilities"><span className="local-label">{language === 'ko' ? '로컬 작업공간' : 'Local workspace'}</span><a href="https://github.com/a123qsd/calclens" target="_blank" rel="noreferrer" aria-label="GitHub"><GitHub /></a><button data-testid="language-toggle" disabled={busy} className="language" onClick={() => void act({ type: 'patch_workspace', language: language === 'ko' ? 'en' : 'ko' })} aria-label="Switch language"><b>{language === 'en' ? 'EN' : 'KR'}</b><span>/</span>{language === 'en' ? 'KR' : 'EN'}</button></div>
+    </header>
 
-    <main className="workspace">
+    <main id="workspace-main" className="workspace" tabIndex={-1}>
       <header className="topbar">
-        <div><p className="breadcrumb">{c.workspace} / {selected?.filename}</p><h1>{view === 'overview' ? c.title : view === 'compare' ? c.compare : view === 'review' ? c.review : c.methods}</h1><p>{c.subtitle}</p></div>
+        <div className="file-heading"><h1>{view === 'overview' ? c.title : view === 'compare' ? c.compare : view === 'review' ? c.review : c.methods}</h1><p className="breadcrumb" title={selected?.filename}>{selected?.filename ?? c.workspace}</p><p className="file-context"><span>{report?.formula ?? c.unsupported}</span><span>{report ? `${report.atom_count} ${c.atoms}` : 'CIF'}</span><span>{workspace.entries.length} CIF · {reviewedCount}/{workspace.entries.length} {c.reviewed}</span></p></div>
         <div className="header-actions">
-          <button className="button secondary" disabled={busy} onClick={() => projectInput.current?.click()}>{c.openProject}</button>
+          <button className="button primary" onClick={() => cifInput.current?.click()} disabled={busy}><Upload />{c.open}</button>
           <button data-testid="project-export-global" className="button secondary" disabled={busy} onClick={() => void saveProject()}><Download />{c.saveProject}</button>
-          <button className="button secondary" onClick={() => cifInput.current?.click()} disabled={busy}><Upload />{c.open}</button>
-          <div className="sample-control"><select aria-label={c.sample} value={sampleName} onChange={(event) => setSampleName(event.target.value)}>{workspace.examples.map((example) => <option value={example.name} key={example.name}>{language === 'ko' ? example.label_ko : example.label_en}</option>)}</select><button className="button primary" onClick={() => void act({ type: 'load_example', name: sampleName })} disabled={busy || !sampleName}><Play />{c.sample}</button></div>
-          <button data-testid="language-toggle" disabled={busy} className="language" onClick={() => void act({ type: 'patch_workspace', language: language === 'ko' ? 'en' : 'ko' })} aria-label="Switch language"><b>{language === 'en' ? 'EN' : 'KR'}</b><span>/</span>{language === 'en' ? 'KR' : 'EN'}</button>
+          <button className="button secondary" disabled={busy} onClick={() => projectInput.current?.click()}>{c.openProject}</button>
         </div>
       </header>
+
+      <section className="file-shelf" aria-label={language === 'ko' ? '작업 파일' : 'Workspace files'}>
+        <div className="file-tabs" role="group" aria-label={language === 'ko' ? '구조 선택' : 'Select structure'}>{workspace.entries.map((entry) => <button type="button" key={entry.id} className={`file-tab${entry.id === selected?.id ? ' active' : ''}`} aria-pressed={entry.id === selected?.id} title={entry.filename} disabled={busy} onClick={() => void act({ type: 'patch_workspace', selected_id: entry.id })}><span className={`file-status-dot file-status-dot--${entryState(entry)}`} /><span>{entry.filename}</span><small>{entry.analysis.report?.formula ?? c.unsupported}</small></button>)}<button className="file-add" disabled={busy} onClick={() => addInput.current?.click()} title={c.add} aria-label={c.add}>+</button></div>
+        <div className="sample-control"><select aria-label={c.sample} value={sampleName} onChange={(event) => setSampleName(event.target.value)}>{workspace.examples.map((example) => <option value={example.name} key={example.name}>{language === 'ko' ? example.label_ko : example.label_en}</option>)}</select><button className="button secondary" onClick={() => void act({ type: 'load_example', name: sampleName })} disabled={busy || !sampleName}><Play />{c.sample}</button></div>
+      </section>
 
       <input data-testid="cif-replace-upload" hidden ref={cifInput} type="file" accept=".cif" multiple onChange={(event) => { void importCifs(event.target.files, 'replace'); event.target.value = ''; }} />
       <input hidden ref={addInput} type="file" accept=".cif" multiple onChange={(event) => { void importCifs(event.target.files, 'append'); event.target.value = ''; }} />
@@ -412,22 +410,20 @@ export default function App() {
       {busy && <div className="progress" aria-label="Working"><span /></div>}
 
       {view === 'overview' && <>
-        <section className="truth-banner"><Info /><strong>{language === 'ko' ? '실제 구조 선별' : 'Actual structure screening'}</strong><span /><p className="truth-description">{c.methodNote}</p></section>
-        <section className="metrics-grid">
-          <MetricCard label={c.minimum} value={finite(report?.metrics.minimum_distance_angstrom)} hint={report ? `${report.metrics.minimum_pair.element_i}${report.metrics.minimum_pair.i + 1} ↔ ${report.metrics.minimum_pair.element_j}${report.metrics.minimum_pair.j + 1}` : c.unsupported} tone={selectedState === 'clear' ? 'teal' : 'amber'} />
-          <MetricCard label={c.thickness} value={finite(report?.metrics.nuclei_thickness_angstrom)} hint={report ? `${report.normal_axis} ${c.axes} · ${report.atom_count} ${c.atoms}` : c.unsupported} />
-          <MetricCard label={c.gap} value={finite(report?.metrics.nuclei_gap_angstrom)} hint={report?.gap_review_required ? c.needsReview : (language === 'ko' ? '기하학적 후보 간격' : 'Geometric candidate')} tone={report?.gap_review_required ? 'amber' : 'teal'} />
-        </section>
-
         <section className={`overview-grid ${reviewPanelOpen ? '' : 'overview-grid--wide'}`}>
           <article className="card viewer-card">
             <div className="card-heading"><div><h2>{c.structure}</h2><span>{c.actual}</span></div><div className="viewer-heading-actions"><StatusPill entry={selected!} language={language} /><button type="button" data-testid="review-panel-toggle" aria-expanded={reviewPanelOpen} aria-controls="overview-review-panel" onClick={() => setReviewPanelOpen((value) => !value)}>{reviewPanelOpen ? (language === 'ko' ? '검토 패널 접기' : 'Hide review panel') : (language === 'ko' ? '검토 패널 보기' : 'Show review panel')}</button></div></div>
             {report ? <MolecularViewer key={`${viewerEpoch}:${viewerKey(selected!)}`} report={report} language={language} highlight={focusContact} highlightGap={highlightGap} highlightedAtomIndices={highlightedAtomIndices} onAtomPick={onAtomPick} auxiliary={auxiliaryBySource[selected!.sha256]} state={viewerStates[viewerKey(selected!)]} onStateChange={(state) => changeViewer(viewerKey(selected!), state)} /> : <div data-testid="unsupported-empty" className="empty-view"><Info /><strong>{(language === 'ko' ? selected?.analysis.error_ko : selected?.analysis.error) ?? selected?.analysis.error ?? c.unsupported}</strong></div>}
-            <div className="viewer-filename" title={selected?.filename}>{selected?.filename}</div>
           </article>
 
           <article id="overview-review-panel" className="card review-card" hidden={!reviewPanelOpen}>
-            <div className="card-heading"><h2>{c.checks}</h2><span>{reviewedCount}/{workspace.entries.length}</span></div>
+            <div className="card-heading"><h2>{language === 'ko' ? '구조 검사' : 'Inspection'}</h2><span>{report ? `${report.normal_axis} ${c.axes}` : 'CIF'}</span></div>
+            <dl className="inspection-metrics">
+              <MetricRow label={c.minimum} value={finite(report?.metrics.minimum_distance_angstrom)} hint={report ? `${report.metrics.minimum_pair.element_i}${report.metrics.minimum_pair.i + 1} ↔ ${report.metrics.minimum_pair.element_j}${report.metrics.minimum_pair.j + 1}` : c.unsupported} attention={minimumState === 'review'} />
+              <MetricRow label={c.thickness} value={finite(report?.metrics.nuclei_thickness_angstrom)} hint={report ? `${report.normal_axis} ${c.axes} · ${report.atom_count} ${c.atoms}` : c.unsupported} />
+              <MetricRow label={c.gap} value={finite(report?.metrics.nuclei_gap_angstrom)} hint={report?.gap_review_required ? c.needsReview : (language === 'ko' ? '기하학적 후보 간격' : 'Geometric candidate')} attention={report?.gap_review_required} />
+            </dl>
+            <h3 className="inspection-section-title">{c.checks}</h3>
             <button className="check-row" onClick={() => void inspectFocus('minimum')}><StatusMark state={minimumState} /><span><b>{c.minimum}</b><small>{finite(report?.metrics.minimum_distance_angstrom, 4)}</small></span></button>
             <button className="check-row" onClick={() => void inspectFocus('gap')}><StatusMark state={gapState} /><span><b>{c.gap}</b><small>{!report ? c.unsupported : report.gap_review_required ? c.needsReview : c.clear}</small></span></button>
             <button className="check-row" onClick={() => navigate('review')}><StatusMark state={selectedState} /><span><b>{language === 'ko' ? '구조 경고' : 'Geometry warnings'}</b><small>{reviewIssueCount} {language === 'ko' ? '개' : 'found'}</small></span></button>
@@ -436,8 +432,6 @@ export default function App() {
             {report && <a className="evidence-link" href={reportUrl(selected!.id, 'json', exportLanguage)} target="_blank"><External />{c.evidence}</a>}
           </article>
         </section>
-
-        <Records workspace={workspace} entries={visibleEntries} selected={selected} language={language} act={act} />
 
         <WorkspaceTools
           workspace={workspace} selected={selected!} act={act} busy={busy} language={language}
@@ -451,6 +445,8 @@ export default function App() {
           saveProject={saveProject}
         />
 
+        <Records workspace={workspace} entries={visibleEntries} selected={selected} language={language} act={act} />
+
         <PreparationPanel key={`prepare:${viewerEpoch}:${selected!.id}:${selected!.sha256}`} workspace={workspace} entry={selected!} language={language} busy={busy} act={act} />
 
         {report && selected && <AuxiliaryDataPanel key={`auxiliary:${viewerEpoch}:${selected.id}:${selected.sha256}`} report={report} sourceSha256={selected.sha256} language={language} data={auxiliaryBySource[selected.sha256]} onChange={(data) => {
@@ -463,7 +459,7 @@ export default function App() {
       {view === 'compare' && <ComparisonView workspace={workspace} language={language} before={before} after={after} beforeId={compareBefore} afterId={compareAfter} setBefore={(id) => { setCompareBefore(id); markUnsaved(); }} setAfter={(id) => { setCompareAfter(id); markUnsaved(); }} auxiliaryBySource={auxiliaryBySource} viewerStates={viewerStates} viewerEpoch={viewerEpoch} onViewerState={changeViewer} settings={comparison} onSettings={(settings) => { setComparison(settings); markUnsaved(); }} />}
       {view === 'review' && <ReviewView workspace={workspace} selected={selected!} issues={localizedIssues} language={language} act={act} onInspect={(issue) => void inspectFocus(focusForIssue(issue), issue)} />}
       {view === 'methods' && <MethodView selected={selected!} language={language} reportLanguage={reportLanguage} setReportLanguage={setReportLanguage} />}
-      <footer>CalcLens · Local workflow · Inspectable results</footer>
+      <footer><span>CalcLens <span className="version">v{workspace.runtime?.calclens_version ?? workspace.project.calclens_version}</span> · {language === 'ko' ? '로컬 구조 분석' : 'Local structure analysis'}</span><a href="https://github.com/a123qsd/calclens#readme" target="_blank" rel="noreferrer">{language === 'ko' ? '사용 안내' : 'Documentation'} <External /></a></footer>
     </main>
   </div>;
 }

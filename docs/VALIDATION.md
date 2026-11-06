@@ -1,5 +1,24 @@
 # Validation record
 
+## v0.8.0 structure workspace — 2026-11-06
+
+The interface now uses compact horizontal navigation, a selected-file header,
+file tabs and a large structure view beside an inspection panel. Python analysis
+and project/API contracts are unchanged.
+
+Local macOS verification: 657 Python tests passed, 2 PowerShell-only tests skipped;
+56 frontend tests, TypeScript/build and Ruff passed. The four existing browser
+suites passed 34 groups: workspace regressions (8), incremental viewer updates (9),
+viewer features (9) and research workspace (8). English and Korean passed layout
+checks at 390, 820, 1100 and 1584 px with zero horizontal overflow or sample-control
+overlap. Actual PNG exports, camera/model reuse, draft/project roundtrips,
+electronic imports, comparison and P1 preparation remain covered.
+
+All 16 generated CIFs, the public reference case and the real electronic case
+passed their consistency checks. Existing ASE/NumPy deprecation warnings remain.
+Windows execution and final artifact hashes are recorded in the release resources.
+
+
 ## v0.7.0 Windows release verification — 2026-11-05
 
 The release artifacts are bound to source commit

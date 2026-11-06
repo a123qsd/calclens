@@ -13,9 +13,10 @@ service is required.
 
 [Project home](https://github.com/a123qsd/calclens) · [한국어 안내](README.ko.md) · [English ZIP and installation](docs/DOWNLOADS.md#english) · [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) · [Development](docs/DEVELOPMENT.md) · [Validation record](docs/VALIDATION.md)
 
-**CalcLens v0.7.0 source** includes project editing, review history, chosen-pair
-measurements, side-by-side comparison, a molecular workspace and a Windows
-launch manager.
+**CalcLens v0.8.0** gives the selected structure a larger viewer and makes its
+filename the main heading. Compact horizontal navigation, visible file and save
+actions, a file strip and a numeric inspector keep the current work together.
+See the [0.8.0 release notes](docs/RELEASE-0.8.0.md).
 
 Version 0.6.0 adds ball-and-stick, stick and space-filling views, element
 legends, metal-element highlighting, graphics quality, top/side views,
@@ -32,7 +33,7 @@ charge scales in Compare. See the [workspace guide](docs/WORKSPACE_SAVE.md) and
 [real H2O calculation case](docs/ELECTRONIC_CASE.md). See [Imported viewer data](docs/VIEWER_DATA.md) for formats,
 coordinate matching and units.
 
-![CalcLens molecular workspace](docs/assets/calclens-viewer-0.6.0.png)
+![CalcLens molecular workspace](docs/assets/calclens-workspace-0.8.0-en.png)
 
 [Watch the earlier Streamlit demo](docs/assets/calclens-demo.webm) ·
 [Read the public graphite case](docs/CASE_STUDY.md)
@@ -44,20 +45,20 @@ coordinate matching and units.
 ## Run locally
 
 On Windows x64, download the
-[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en.exe)
+[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-en.exe)
 and double-click it. Python and the app's dependencies are included. A launch
 manager opens the browser workspace and provides **Open CalcLens**, **Diagnostics**
 and **Quit**. Closing the manager stops the server; closing only the browser tab
 leaves it running. For faster repeat launches, extract the complete
-[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en-folder.zip)
+[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-en-folder.zip)
 and run the EXE inside it. These executables are unsigned. See the
 [Windows guide](packaging/windows/README.en.md) for startup, closing the app,
 checksums, and license/source files.
 
 For an English-default source ZIP, choose the English ZIP asset on the
-[v0.7.0 resources page](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources) and follow
+[v0.8.0 resources page](https://github.com/a123qsd/calclens/releases/tag/v0.8.0-resources) and follow
 the [download instructions](docs/DOWNLOADS.md#english). A standalone
-[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.en.md)
+[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-Guide.en.md)
 is also available. Python 3.12 or 3.13 and dependency
 installation are required for that source ZIP. The browser workspace is already
 included; you do not need Node.js to run it.
@@ -89,9 +90,11 @@ a source-launched server with `Ctrl+C` in its terminal after saving your project
 ## Molecular workspace
 
 The default screen uses React/TypeScript and a bundled 3Dmol.js viewer. Python
-still owns CIF parsing, geometric measurements and project storage. The three
-summary cards show the minimum periodic distance, nuclear-span thickness and
-candidate nuclear gap. They do not represent SCF, optimization or frequency results.
+still owns CIF parsing, geometric measurements and project storage. Select the
+current CIF in the file strip. The viewer occupies the main area, with nearby
+controls and a compact inspector for minimum periodic distance, nuclear-span
+thickness and candidate nuclear gap. These measurements do not represent SCF,
+optimization or frequency results.
 After installing the optional `legacy-ui` extra, the earlier Streamlit screen
 remains available with `python run_app.py --legacy-ui`.
 
@@ -117,10 +120,10 @@ Select a record to inspect it. Per-file axis and short-distance cutoff begin at
 c and 1.0 Å for uploaded CIFs; set the actual candidate normal before interpreting
 a gap. Named a/b-normal examples carry their corresponding axis.
 
-The edit panel provides notes, source replacement and removal. Save edits with
-the panel's save button before exporting your work. Replacing a file preserves
-its ID, notes and settings, but changed bytes clear review completion and saved
-pair selections. Removal changes this workspace only; it does not delete a file
+The edit panel provides notes, source replacement and removal. **Apply changes**
+updates the analysis conditions; **Save project** also preserves unapplied drafts.
+Replacing a file preserves its ID, notes and settings, but changed bytes clear
+review completion and saved pair selections. Removal changes this workspace only; it does not delete a file
 from your computer. At least one entry must remain.
 
 Geometry flags and review progress have independent filters. **Reviewed** is a

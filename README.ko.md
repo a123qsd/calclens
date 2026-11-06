@@ -11,8 +11,9 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 
 [Project home](https://github.com/a123qsd/calclens) · [English guide](README.en.md) · [한국어 ZIP 받기·설치](docs/DOWNLOADS.md#한국어) · [계산 방법과 한계](docs/METHODS.md) · [예제 출처](docs/PROVENANCE.md) · [개발 안내](docs/DEVELOPMENT.md) · [검증 기록](docs/VALIDATION.md)
 
-**CalcLens v0.7.0 소스**에는 프로젝트 편집, 검토 이력, 선택 거리 측정, 두 구조 비교,
-입체 구조 작업공간과 Windows 실행 관리 창이 포함됩니다.
+**CalcLens v0.8.0**은 선택한 파일명을 화면 제목으로 표시하고 구조 뷰어를 넓혔습니다.
+가로 메뉴, 파일 열기·작업 저장, 파일 선택 줄과 간결한 수치 패널을 현재 구조 주변에
+배치했습니다. 자세한 내용은 [0.8.0 변경 사항](docs/RELEASE-0.8.0.md)을 참고하세요.
 
 0.6.0의 뷰어에는 구·막대/막대/공간 채움, 원소 범례와 금속 원소 강조,
 그래픽 품질, 위·옆 시점과 정사영, 전체 화면, 비교 시점 동기화 및
@@ -26,7 +27,7 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 [새 작업 안내](docs/WORKSPACE_SAVE.md)와 [실제 H2O 계산 사례](docs/ELECTRONIC_CASE.md)를 참고하세요.
 파일 형식·좌표 및 단위 조건은 [보조 자료 안내](docs/VIEWER_DATA.md)를 참고하세요.
 
-![CalcLens 입체 구조 작업공간](docs/assets/calclens-viewer-0.6.0.png)
+![CalcLens 입체 구조 작업공간](docs/assets/calclens-workspace-0.8.0-ko.png)
 
 [이전 Streamlit 화면 사용 영상](docs/assets/calclens-demo.webm) ·
 [공개 흑연 구조 검사 사례](docs/CASE_STUDY.md)
@@ -38,18 +39,18 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 ## 빠르게 실행하기
 
 Windows x64에서는
-[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko.exe)를
+[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-ko.exe)를
 받아 더블클릭하세요. Python과 필요한 라이브러리가 포함되어 있습니다.
 실행 관리 창에서 브라우저 화면을 열고 **CalcLens 열기**, **진단 기록**, **종료**를
 사용할 수 있습니다. 관리 창을 닫으면 서버도 종료되며, 브라우저 탭만 닫으면
 계속 실행됩니다. 반복 실행 시간을 줄이려면
-[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko-folder.zip)을
+[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-ko-folder.zip)을
 모두 풀고 안에 있는 EXE를 실행하세요. 실행 파일에는 코드 서명이 없습니다.
 종료 방법과 파일 확인, 라이선스·소스 자료는 [Windows 안내](packaging/windows/README.ko.md)에 있습니다.
 
-[v0.7.0 자료 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources)에서 한국어 기본 소스 ZIP을 받으려면
+[v0.8.0 자료 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.8.0-resources)에서 한국어 기본 소스 ZIP을 받으려면
 [다운로드·설치 안내](docs/DOWNLOADS.md#한국어)를 따르세요.
-[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-Guide.ko.md)만
+[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-Guide.ko.md)만
 따로 받을 수도 있습니다. 이 소스 ZIP에는 Python 3.12 또는 3.13과 의존성 설치가 필요합니다.
 화면 파일은 포함되어 있어 실행에 Node.js는 필요하지 않습니다.
 
@@ -80,9 +81,10 @@ ZIP의 기본 언어로 실행하려면 `python run_app.py`를 사용하세요. 
 ## 입체 구조 작업공간
 
 기본 화면은 React·TypeScript와 함께 포함된 3Dmol.js 뷰어를 사용합니다.
-CIF 해석, 기하 계산과 프로젝트 저장은 기존 Python이 담당합니다. 상단 카드 세 개는
-최소 주기 거리, 핵 중심 두께, 후보 핵 간격을 보여 줍니다. SCF·최적화·진동수 분석
-결과가 아닙니다. 선택 의존성 `legacy-ui`를 설치하면 이전 Streamlit 화면도
+CIF 해석, 기하 계산과 프로젝트 저장은 기존 Python이 담당합니다. 파일 선택 줄에서
+현재 CIF를 고르면 넓은 영역에 구조를 표시합니다. 주변의 조작 버튼과 간결한 수치
+패널에서 최소 주기 거리, 핵 중심 두께, 후보 핵 간격을 확인합니다.
+SCF·최적화·진동수 분석 결과가 아닙니다. 선택 의존성 `legacy-ui`를 설치하면 이전 Streamlit 화면도
 `python run_app.py --legacy-ui`로 열 수 있습니다.
 
 구조를 드래그하면 회전하고, 스크롤하면 확대·축소합니다. **원자 맞춤**은 원자 구조를,
@@ -103,8 +105,9 @@ CIF 해석, 기하 계산과 프로젝트 저장은 기존 Python이 담당합�
 행을 선택하면 해당 구조가 열립니다. 업로드한 파일의 축·거리 기준은 c축·1.0 Å로
 시작하므로 실제 층 방향에 맞게 바꾸세요. a·b축 수직 방향의 내장 예제는 해당 축으로 열립니다.
 
-편집 패널에서 메모, 조건, 원본 교체와 삭제를 다룹니다. 수정한 내용은 패널의 저장 버튼으로
-반영한 뒤 내보내세요. 원본을 교체해도 ID·메모·조건은 유지하지만, 바이트가 달라지면
+편집 패널에서 메모, 조건, 원본 교체와 삭제를 다룹니다. **변경 적용**으로 검사 조건을
+반영하며, **작업 저장**에는 아직 적용하지 않은 초안도 포함됩니다.
+원본을 교체해도 ID·메모·조건은 유지하지만, 바이트가 달라지면
 검토 완료와 저장한 원자쌍 선택은 초기화됩니다. 삭제는 현재 작업에서만 이루어지며
 컴퓨터의 원본 파일은 지우지 않습니다. 작업에는 파일이 하나 이상 남아 있어야 합니다.
 

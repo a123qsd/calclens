@@ -1,16 +1,16 @@
 # CalcLens for Windows
 
-CalcLens 0.7.0 for Windows 10/11 x64 includes Python, its required packages and
+CalcLens 0.8.0 for Windows 10/11 x64 includes Python, its required packages and
 the browser workspace. You do not need to install Python or Node.js.
 
-1. Open the [CalcLens v0.7.0 release page](https://github.com/a123qsd/calclens/releases/tag/v0.7.0).
-2. Download the [English EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en.exe)
-   or [Korean EXE](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko.exe).
+1. Open the [CalcLens v0.8.0 release page](https://github.com/a123qsd/calclens/releases/tag/v0.8.0).
+2. Download the [English EXE](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-en.exe)
+   or [Korean EXE](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-ko.exe).
 3. Double-click the file. A small manager window shows startup status and opens
    CalcLens in your default browser. The standalone executable unpacks its
    included files at startup, which can take several seconds. For faster repeat
-   launches, extract the complete [English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-en-folder.zip)
-   or [Korean folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0/CalcLens-0.7.0-windows-x64-ko-folder.zip)
+   launches, extract the complete [English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-en-folder.zip)
+   or [Korean folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-ko-folder.zip)
    and run the executable inside it. Keep its accompanying files together.
 4. Use `Open CalcLens` to reopen the page and `Diagnostics` to inspect the startup
    log. `Quit` or closing the manager stops the local server too. Closing only the
@@ -36,22 +36,22 @@ Do not disable Windows protections to use CalcLens. A matching checksum confirms
 that your file matches the release checksum; it is not a publisher certificate
 or a guarantee about the program.
 
-Download [WINDOWS-SHA256SUMS.txt](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/WINDOWS-SHA256SUMS.txt)
-from the [v0.7.0 resources page](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources). In PowerShell, compare
+Download [WINDOWS-SHA256SUMS.txt](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/WINDOWS-SHA256SUMS.txt)
+from the [v0.8.0 resources page](https://github.com/a123qsd/calclens/releases/tag/v0.8.0-resources). In PowerShell, compare
 the value below with the entry for your downloaded file:
 
 ```powershell
-Get-FileHash .\CalcLens-0.7.0-windows-x64-en.exe -Algorithm SHA256
+Get-FileHash .\CalcLens-0.8.0-windows-x64-en.exe -Algorithm SHA256
 ```
 
 ## Notices, source, and rebuilding
 
-The [English source ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-en.zip)
-and [Korean source ZIP](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/calclens-0.7.0-ko.zip)
+The [English source ZIP](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/calclens-0.8.0-en.zip)
+and [Korean source ZIP](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/calclens-0.8.0-ko.zip)
 require Python 3.12 or 3.13 and dependency installation. Their browser assets are
 included, so running them does not require Node.js. Use an EXE or folder ZIP above
 to run CalcLens without installing Python.
-[CalcLens-0.7.0-windows-support.zip](https://github.com/a123qsd/calclens/releases/download/v0.7.0-resources/CalcLens-0.7.0-windows-support.zip)
+[CalcLens-0.8.0-windows-support.zip](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-0.8.0-windows-support.zip)
 contains third-party notices, the exact ASE
 source archive, dependency details, and the CalcLens source used for the build.
 Keep that support ZIP with the executable when redistributing it. Its checksum
@@ -95,8 +95,12 @@ instead of `--mode onefile` to build an executable with an accompanying folder.
 ## Current and legacy interfaces
 
 The default React/TypeScript workspace and 3Dmol.js viewer are bundled locally.
-Running the executable needs neither Node.js nor a CDN connection. Published
-0.6.0 builds include Streamlit and accept `--legacy-ui`.
+Running the executable needs neither Node.js nor a CDN connection. The 0.8.0
+release supplies the default workspace bundles. For a published Streamlit build,
+use the separate legacy executables or folder ZIPs on the
+[v0.7.0 resources page](https://github.com/a123qsd/calclens/releases/tag/v0.7.0-resources),
+launch with `--legacy-ui` and retain their matching legacy support ZIP.
+Published 0.6.0 builds also include Streamlit and accept `--legacy-ui`.
 
 Starting with the 0.7.0 source, a default Windows build excludes Streamlit and
 Plotly. To include the old interface, install `requirements-legacy.lock` instead
