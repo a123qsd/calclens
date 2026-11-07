@@ -24,7 +24,6 @@ import ase
 from . import __version__
 from .batch import BatchInput, batch_csv
 from .core import UnsupportedStructure, _read_cif, measure_atom_pair
-from .preparation import PreparationError, prepare_p1
 from .project import (
     ANALYSIS_REVISION,
     MAX_ENCODED_FILE_BYTES,
@@ -480,6 +479,8 @@ class Workspace:
             )
             self.project = self._validated(replace_entry(self.project, action["id"], filename, data))
         elif action_type == "prepare_p1":
+            from .preparation import PreparationError, prepare_p1
+
             exact({"id", "source_sha256"})
             entry = self._entry(action["id"])
             if (not isinstance(action["source_sha256"], str)
@@ -619,6 +620,8 @@ class Workspace:
                 raise APIError(422, "invalid_project", str(exc)) from exc
 
     def preview_p1(self, value: object) -> dict:
+        from .preparation import PreparationError, prepare_p1
+
         body = _object(value, "Preparation", {"expected_revision", "entry_id"})
         expected = _integer(body["expected_revision"], "expected_revision", minimum=0)
         with self.lock:

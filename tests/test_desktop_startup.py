@@ -105,3 +105,32 @@ def test_deferred_initialization_does_not_overwrite_a_new_workspace():
     workspace.revision = 1
     workspace.load_initial_example()
     assert workspace.project.entries == []
+
+
+def test_source_entrypoint_forwards_native_timing_flags(tmp_path, monkeypatch):
+    from slab_preflight import desktop_entry
+
+    spec = importlib.util.spec_from_file_location("source_launcher_timing", ROOT / "run_app.py")
+    launcher = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(launcher)
+    calls = []
+    monkeypatch.setattr(desktop_entry, "main", lambda args, **kwargs: calls.append((args, kwargs)) or 0)
+    trace = tmp_path / "startup.json"
+    assert launcher.main(["--startup-benchmark", str(trace)], project_dir=tmp_path) == 0
+    assert calls == [(["--startup-benchmark", str(trace)], {"root": tmp_path})]
+
+
+def test_desktop_import_defers_ase_io_until_analysis_starts():
+    pytest.importorskip("PySide6")
+    program = """
+import sys
+import slab_preflight.desktop
+assert 'ase.io' not in sys.modules
+assert 'scipy.integrate' not in sys.modules
+from pathlib import Path
+from slab_preflight.core import analyze_cif
+report = analyze_cif(Path('examples/graphene.cif').read_bytes())
+assert report['atom_count'] == 2
+assert 'ase.io.cif' in sys.modules
+"""
+    subprocess.run([sys.executable, "-c", program], check=True, cwd=ROOT)

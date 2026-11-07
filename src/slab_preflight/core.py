@@ -17,7 +17,6 @@ from ase import Atoms
 from ase.cell import Cell
 from ase.data import atomic_numbers
 from ase.geometry import find_mic, minkowski_reduce
-from ase.io.cif import parse_cif
 
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_ATOMS = 400
@@ -273,6 +272,10 @@ def _read_cif(data: str | bytes, normal_axis: str) -> tuple[Atoms, list[dict[str
     if "#\\#CIF_2.0" in text:
         raise UnsupportedStructure("CIF 2.0 is unsupported; export a simple CIF 1.1 P1 structure.")
     _reject_duplicate_tags(text)
+    # ASE's io package imports trajectory/symmetry and SciPy integration modules.
+    # Load its unchanged parser when analysis starts, after the desktop can paint.
+    from ase.io.cif import parse_cif
+
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error")

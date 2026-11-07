@@ -41,6 +41,9 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
     parser.add_argument("--legacy-ui", action="store_true", help="Use the previous Streamlit interface.")
     parser.add_argument("--no-browser", action="store_true", help="Do not open the browser.")
     parser.add_argument("--web-ui", action="store_true", help="Open the optional browser workspace.")
+    timing = parser.add_mutually_exclusive_group()
+    timing.add_argument("--startup-trace", type=Path, metavar="TRACE.json")
+    timing.add_argument("--startup-benchmark", type=Path, metavar="TRACE.json")
     parser.add_argument("files", nargs="*", help="CIF files or a saved desktop project.")
     args = parser.parse_args(argv)
     root = (project_dir or Path(__file__).resolve().parent).resolve()
@@ -64,7 +67,12 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
         # restores the user's last language instead of resetting it on each run.
         chosen = args.language or (language if (root / "DEFAULT_LANGUAGE.txt").is_file() else None)
         flags = ["--language", chosen] if chosen else []
+        if args.startup_trace or args.startup_benchmark:
+            flags.extend(["--startup-trace" if args.startup_trace else "--startup-benchmark",
+                          str(args.startup_trace or args.startup_benchmark)])
         return native_main([*flags, *args.files], root=root)
+    if args.startup_trace or args.startup_benchmark:
+        parser.error("Startup diagnostics apply to the native desktop mode.")
     if args.files:
         parser.error("Open file paths using the native desktop mode.")
     args.port = args.port or 8501

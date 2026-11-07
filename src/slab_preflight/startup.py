@@ -118,14 +118,19 @@ def install_diagnostics(*, directory=None, redirect=False):
     if _log_stream is not None:
         return _log_path
     directory = Path(directory) if directory is not None else diagnostic_directory()
-    try:
-        directory.mkdir(parents=True, exist_ok=True)
-    except OSError:
-        directory = Path(tempfile.gettempdir()) / "CalcLens-logs"
-        directory.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    _log_path = directory / f"startup-{stamp}-{os.getpid()}.log"
-    _log_stream = _log_path.open("a", encoding="utf-8", buffering=1)
+    candidates = (directory, Path(tempfile.gettempdir()) / "CalcLens-logs")
+    for candidate in candidates:
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+            path = candidate / f"startup-{stamp}-{os.getpid()}.log"
+            stream = path.open("a", encoding="utf-8", buffering=1)
+        except OSError:
+            continue
+        _log_path, _log_stream = path, stream
+        break
+    if _log_stream is None:
+        raise OSError("CalcLens could not create a diagnostic log in either writable location.")
     _log_stream.write(f"CalcLens startup | Python {sys.version.split()[0]} | {sys.platform}\n")
     try:
         faulthandler.enable(file=_log_stream)
@@ -152,6 +157,9 @@ def log_failure(error):
     }
     if isinstance(error, ModuleNotFoundError) and re.fullmatch(r"[a-zA-Z0-9_.]+", error.name or ""):
         record["missing_module"] = error.name
+    if isinstance(error, OSError):
+        record["errno"] = error.errno
+        record["winerror"] = getattr(error, "winerror", None)
     _log_stream.write(json.dumps(record, ensure_ascii=False) + "\n")
     _log_stream.flush()
     return path
