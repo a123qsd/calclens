@@ -21,7 +21,7 @@ SHA-256, size, source name and optional source URL. Extracted energies,
 frequencies, routes, state declarations and convergence rows retain 1-based
 source line references. `sources` links to the relevant program/parser guidance.
 
-The supported interpretation is deliberately limited to Gaussian text logs
+For Gaussian inputs the supported interpretation covers molecular text logs
 for molecular SCF HF/KS single points, geometry optimizations and harmonic
 frequencies. It records:
 
@@ -75,6 +75,10 @@ original outputs. Gaussian's primary
 and [frequency](https://gaussian.com/freq/) references remain linked in reports;
 their web server returned HTTP 502 during this implementation, so no claim
 is made that their current page contents were retrieved.
+
+## VASP output
+
+The native research panel also reads VASP OUTCAR files. The bundled Ni reference includes 18 sites and a final TOTEN of −68.22868532 eV. Energy without entropy and the sigma-to-zero energy are retained under their own names. The parser tracks the execution footer, electronic convergence marker and ionic convergence separately. Original output text and the selected job's source lines are available when comparing structures. [Reference data and checksum](../examples/research_cases/vasp_reference/sources.json) · [OUTCAR format](https://vasp.at/wiki/OUTCAR)
 
 ## Vacuum-series contract
 

@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 from pathlib import Path
 
@@ -38,6 +39,32 @@ def drain(win, app):
         app.processEvents()
         time.sleep(.005)
     assert not win.is_busy
+
+
+def test_language_rebuild_releases_research_work_signal_before_next_job(app, monkeypatch):
+    from PySide6.QtCore import QCoreApplication, QEvent
+    from PySide6.QtWidgets import QMenu
+    from shiboken6 import isValid
+
+    errors = []
+    monkeypatch.setattr(sys, "excepthook", lambda typ, error, tb: errors.append(error))
+    win = MainWindow("en", root=ROOT, recovery=False)
+    try:
+        for language in ("ko", "en", "ko"):
+            old = win.research_panel.cancel_button
+            old_menus = [win.settings_menu, win.menuBar().actions()[0].menu(), *win.view.findChildren(QMenu)]
+            old_actions = [action for menu in old_menus for action in menu.actions()]
+            win.language_combo.setCurrentIndex(win.language_combo.findData(language))
+            QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+            assert not isValid(old)
+            assert all(not isValid(item) for item in [*old_menus, *old_actions])
+            win.research_panel.cancel_button.setEnabled(True)
+            win.submit(lambda: 1, key="lifetime-test")
+            drain(win, app)
+            assert not win.research_panel.cancel_button.isEnabled()
+        assert not errors
+    finally:
+        win.close()
 
 
 @pytest.mark.parametrize("mode,system_dark", [("light", True), ("dark", False), ("system", True), ("system", False)])

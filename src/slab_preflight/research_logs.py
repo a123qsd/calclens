@@ -1,4 +1,4 @@
-"""A deliberately bounded, source-linked Gaussian text-output reader.
+"""Bounded, source-linked Gaussian and VASP OUTCAR result readers.
 
 This is not a Gaussian execution engine or a replacement for a general parser
 such as cclib. It reports SCF HF/KS energies, optimization markers and harmonic
@@ -11,6 +11,9 @@ from __future__ import annotations
 from hashlib import sha256
 import re
 from typing import Any
+
+from .result_geometry import gaussian_geometries
+from .research_vasp import VASP_BANNER, parse_outcar
 
 HARTREE_EV = 27.211386245988  # adopted CODATA 2018 conversion, eV / Eh
 HARTREE_KJ_MOL = 2625.4996394799
@@ -84,7 +87,8 @@ def _segments(lines: list[str]) -> list[list[tuple[int, str]]]:
         route_start = bool(re.match(r"^\s*#[pPnNtT]?(?:\s|$)", line))
         explicit_step = bool(re.search(
             r"Link1:\s*Proceeding to internal job step|^\s*--Link1--\s*$", line, re.I))
-        new_banner = terminated and bool(re.search(r"Entering Gaussian System", line, re.I))
+        new_banner = terminated and bool(re.match(
+            r"^\s*(?:Entering Gaussian System|Gaussian\s+\d+(?:\s|:|,|$))", line, re.I))
         if current and (explicit_step or new_banner or (route_start and has_route and has_activity)):
             result.append(current)
             current = []
@@ -209,6 +213,13 @@ def _parse_step(rows: list[tuple[int, str]], index: int) -> dict[str, Any]:
     supported = route is not None and unsupported is None
     if not supported:
         warnings.append("Route is missing or contains a job outside the bounded SCF/Opt/Freq scope.")
+    try:
+        geometries, final_geometry, geometry_warnings = gaussian_geometries(rows, natom)
+    except ValueError as exc:
+        raise ResearchError(str(exc)) from exc
+    warnings.extend(geometry_warnings)
+    if not geometries:
+        warnings.append("No complete supported orientation table; molecular coordinates are unavailable.")
     return {
         "index": index, "line_start": rows[0][0], "line_end": rows[-1][0],
         "status": status, "supported_scope": supported, "route": route,
@@ -221,6 +232,10 @@ def _parse_step(rows: list[tuple[int, str]], index: int) -> dict[str, Any]:
         + (["frequencies"] if requested_freq else [])
         or ["single_point"],
         "energies": energies, "final_scf_energy": energies[-1] if energies else None,
+        "final_energy": energies[-1] if energies else None,
+        "geometries": geometries, "final_geometry": final_geometry,
+        "conditions": {"program": "Gaussian", "route": route, "method": method, "basis": basis,
+                       "charge": charge, "multiplicity": multiplicity},
         "scf": {"status": scf_status, "failure_lines": scf_failures,
                 "converged_energy_count": len(energies)},
         "optimization": {"requested": requested_opt, "status": opt_status,
@@ -241,18 +256,24 @@ def parse_log(data: bytes, *, source_name: str = "gaussian.log",
 
     Callers should save the original bytes alongside this report. The exact
     byte hash and source-line references allow checking every extracted value.
-    Only Gaussian text logs are recognized; arbitrary files stay ``unknown``.
+    Gaussian text logs and VASP OUTCAR are recognized; arbitrary files stay unknown.
     A normal earlier Link1 job never hides a failed/truncated later job.
     """
     if not isinstance(data, bytes) or len(data) > MAX_LOG_BYTES:
         raise ResearchError(f"A log must be bytes, at most {MAX_LOG_BYTES} bytes.")
     text = data.decode("utf-8", errors="replace")
+    provenance = {"name": source_name, "sha256": sha256(data).hexdigest(),
+                  "size_bytes": len(data), "source_url": source_url,
+                  "original_preserved": "Caller retains exact input bytes; parser is read-only."}
+    if any(VASP_BANNER.match(line) for line in text.splitlines()):
+        try:
+            return parse_outcar(text, provenance, MAX_JOB_STEPS)
+        except ValueError as exc:
+            raise ResearchError(str(exc)) from exc
     recognized = bool(re.search(r"Gaussian\s+(?:\d+|System)|Entering Gaussian System", text, re.I))
     report: dict[str, Any] = {
         "schema_version": 1, "kind": "gaussian_log", "parser": "calclens-bounded-1",
-        "provenance": {"name": source_name, "sha256": sha256(data).hexdigest(),
-                       "size_bytes": len(data), "source_url": source_url,
-                       "original_preserved": "Caller retains exact input bytes; parser is read-only."},
+        "provenance": provenance,
         "program": _version(text) if recognized else {"name": None, "version": None,
                                                        "revision": None},
         "status": "unknown", "steps": [], "warnings": [], "sources": PARSER_SOURCES,
@@ -263,8 +284,19 @@ def parse_log(data: bytes, *, source_name: str = "gaussian.log",
     if not recognized:
         report["warnings"] = ["Unrecognized output; no calculation success is inferred."]
         return report
-    steps = [_parse_step(segment, index) for index, segment in
-             enumerate(_segments(text.splitlines()), 1)]
+    steps = []
+    current_program = report["program"]
+    for index, segment in enumerate(_segments(text.splitlines()), 1):
+        # A Link1 termination line mentions Gaussian but is not a new version
+        # banner; keep the current executable's revision when no banner echoes.
+        banners = [line for _, line in segment if re.match(
+            r"^\s*Gaussian\s+\d+(?:\s*:|,?\s+Revision\b|\s*$)", line, re.I)]
+        own_program = _version("\n".join(banners))
+        if own_program.get("version") is not None:
+            current_program = own_program
+        step = _parse_step(segment, index)
+        step["program"] = dict(current_program)
+        steps.append(step)
     report["steps"] = steps
     statuses = [step["status"] for step in steps]
     report["status"] = ("failure" if "failure" in statuses else

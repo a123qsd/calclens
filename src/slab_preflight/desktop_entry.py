@@ -24,6 +24,33 @@ def resource_root() -> Path:
     raise FileNotFoundError("CalcLens could not locate its bundled structure examples.")
 
 
+def _smoke_density_figure(app, window, case_root, path):
+    import time
+    from PySide6.QtGui import QImage
+
+    def settle():
+        deadline = time.monotonic() + 45
+        while window.is_busy and time.monotonic() < deadline:
+            app.processEvents()
+            time.sleep(.005)
+        if window.is_busy:
+            raise RuntimeError("The bundled density check timed out.")
+
+    window.open_project(case_root / "h2_density/h2-density.calclens.zip", confirm=False)
+    settle()
+    panel = window.research_panel
+    panel.device.setCurrentIndex(panel.device.findData("cpu"))
+    panel.difference()
+    settle()
+    panel.export_profile_figure(path=path)
+    settle()
+    figure = json.loads(QImage(str(path)).text("CalcLens provenance"))
+    if (figure["verification"]["status"] != "passed" or figure["plot"]["field_kind"] != "difference_density"
+            or len(figure["verification"]["source_identity_and_checksums"]) != 3):
+        raise ValueError("The packaged H₂ figure failed to verify its three source grids.")
+    return path.name
+
+
 def smoke(path: Path, root: Path, language: str) -> int:
     """Exercise a real Qt event loop and render using the packaged runtime."""
     from PySide6.QtCore import QTimer, qVersion
@@ -46,6 +73,7 @@ def smoke(path: Path, root: Path, language: str) -> int:
     try:
         # A display failure or an accidental browser/server fallback must fail this smoke test.
         import socket
+        import tempfile
         import webbrowser
         from unittest.mock import patch
 
@@ -55,6 +83,8 @@ def smoke(path: Path, root: Path, language: str) -> int:
             )
 
         with (
+            tempfile.TemporaryDirectory(prefix="calclens-smoke-") as scratch,
+            patch.dict("os.environ", {"CALCLENS_SETTINGS_FILE": str(Path(scratch) / "desktop.ini")}),
             patch.object(socket.socket, "bind", forbid),
             patch.object(socket.socket, "listen", forbid),
             patch.object(webbrowser, "open", forbid),
@@ -89,18 +119,30 @@ def smoke(path: Path, root: Path, language: str) -> int:
                     gaussian = parse_log(
                         (case_root / "gaussian_reference/dvb_gopt.out").read_bytes()
                     )
+                    vasp = parse_log((case_root / "vasp_reference/OUTCAR_Ni_reference").read_bytes())
                     series = compare_convergence_series(case_root / "hbn_vacuum/series.json")
                     hydrogen = loads_project(
                         (case_root / "h2_density/h2-density.calclens.zip").read_bytes()
                     )
                     if (
                         gaussian["status"] != "normal"
+                        or not gaussian["steps"][0]["final_geometry"]
+                        or len(vasp["steps"][0]["final_geometry"]["elements"]) != 18
+                        or abs(vasp["steps"][0]["final_energy"]["value"] + 68.22868532) > 1e-8
                         or len(series["cases"]) != 3
                         or not hydrogen.entries
                     ):
                         raise AssertionError("Bundled computational research examples failed.")
+                    from PySide6.QtGui import QImage
+
+                    figure = path.with_suffix(".figure.png")
+                    assert window.export_publication(path=figure)
+                    figure_source = json.loads(QImage(str(figure)).text("CalcLens provenance"))["source"]
+                    assert figure_source["sha256"] == entry["sha256"]
                     record["research"] = {
                         "gaussian": gaussian["status"],
+                        "vasp": vasp["status"],
+                        "publication_figure": figure.name,
                         "hbn": series["status"],
                         "h2_project": True,
                     }
@@ -121,6 +163,8 @@ def smoke(path: Path, root: Path, language: str) -> int:
                         }
                     )
                     assert loads_project(archived).entries[0].data == original
+                    record["research"]["verified_density_figure"] = _smoke_density_figure(
+                        app, window, case_root, path.with_suffix(".density.png"))
                     record.update(
                         status="passed",
                         formula=report["formula"],
@@ -174,8 +218,8 @@ def _main(argv=None, *, root=None):
     return desktop_main(language=options.language, root=root, argv=["CalcLens", *options.files])
 
 
-def main(argv=None, *, root=None):
-    return startup.guarded_main(lambda: _main(argv, root=root))
+def main(argv=None, *, root=None, failure_code=1):
+    return startup.guarded_main(lambda: _main(argv, root=root), failure_code=failure_code)
 
 
 if __name__ == "__main__":

@@ -13,9 +13,9 @@ import numpy as np
 from ase.data import atomic_numbers, covalent_radii, vdw_radii
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal, QTimer
 from PySide6.QtGui import (
-    QColor, QFont, QFontMetricsF, QImage, QLinearGradient, QPainter, QTextDocument, QTextOption,
+    QColor, QFont, QFontMetricsF, QImage, QLinearGradient, QPainter, QPen, QTextDocument, QTextOption,
 )
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QApplication, QWidget
 
 from .desktop_raster import Primitive, rasterize
 
@@ -38,6 +38,9 @@ GRAPHICS_PRESETS = {
     "high": {"sample_scale": 1.5, "labels": 240, "shaded": True, "antialias": True,
              "interaction_scale": 1.0},
 }
+# Far beyond the supported structural coordinates and any usable screen pan.
+# Keep restored cameras in the same numeric range as live interaction.
+MAX_CAMERA_VALUE = 1e9
 
 
 def _color(value, fallback="#89a1b5"):
@@ -76,13 +79,17 @@ class StructureView(QWidget):
         self.charges = None
         self.surfaces = []
         self.positions = np.zeros((0, 3))
-        self.cell = np.eye(3)
+        self.cell = np.zeros((3, 3))
+        self.has_cell = False
         self.elements = []
         self.yaw = 0.55
         self.pitch = -0.35
         self.roll = 0.0
         self.zoom = 1.0
         self.pan = np.zeros(2)
+        self._camera_center = np.zeros(3)
+        self._camera_radius = 1.0
+        self._fit_target = "cell"
         self.show_cell = True
         self.show_bonds = True
         self.show_gap = False
@@ -92,6 +99,7 @@ class StructureView(QWidget):
         self.background = "gradient"
         self._auto_quality = "balanced"
         self._frame_times = deque(maxlen=12)
+        self._auto_quality_changed = 0.0
         self._interacting = False
         self._interaction_timer = QTimer(self)
         self._interaction_timer.setSingleShot(True)
@@ -100,10 +108,13 @@ class StructureView(QWidget):
         self._pick_rect = QRectF()
         self._text_cache = {}
         self._last_render_stats = {}
+        self._scene_revision = 0
+        self._scene_cache = None
         self.selected_atoms = []
         self.selected_contact = None
         self._last_pointer = None
         self._press_pointer = None
+        self._dragging = False
         self._projected_atoms = []
         self._guides = []
         self._hover = -1
@@ -135,14 +146,23 @@ class StructureView(QWidget):
         complexity = len(self.positions) * 12 + sum(len(surface["faces"]) for surface in self.surfaces)
         if complexity > 18000:
             return "light"
-        if self._frame_times:
+        # Only uncached, stationary scene renders enter this window. A dwell
+        # and separated thresholds prevent the cheaper drag/hover frames from
+        # repeatedly promoting a scene that is expensive at full resolution.
+        if self._frame_times and time.monotonic() - self._auto_quality_changed >= 2:
             mean_ms = sum(self._frame_times) / len(self._frame_times)
-            if mean_ms > 70:
-                self._auto_quality = "light"
-            elif len(self._frame_times) == self._frame_times.maxlen and mean_ms < 18 and complexity < 3000:
-                self._auto_quality = "high"
-            elif mean_ms < 40 and self._auto_quality == "light":
-                self._auto_quality = "balanced"
+            candidate = self._auto_quality
+            if mean_ms > 90 or (candidate == "high" and mean_ms > 65):
+                candidate = "light" if mean_ms > 90 else "balanced"
+            elif len(self._frame_times) == self._frame_times.maxlen:
+                if mean_ms < 12 and complexity < 3000 and candidate == "balanced":
+                    candidate = "high"
+                elif mean_ms < 25 and candidate == "light":
+                    candidate = "balanced"
+            if candidate != self._auto_quality:
+                self._auto_quality = candidate
+                self._auto_quality_changed = time.monotonic()
+                self._frame_times.clear()
         return self._auto_quality
 
     def _finish_interaction(self):
@@ -161,13 +181,22 @@ class StructureView(QWidget):
         if report is None:
             self.positions = np.zeros((0, 3))
             self.elements = []
-            self.cell = np.eye(3)
+            self.cell = np.zeros((3, 3))
+            self.has_cell = False
             self._guides = []
         else:
             self.positions = np.asarray(report["positions"], dtype=float)
-            self.cell = np.asarray(report["cell"], dtype=float)
+            self.has_cell = report.get("cell") is not None
+            # The zero transform represents absent periodic translations only;
+            # it is never presented as a molecular lattice or written to data.
+            self.cell = np.asarray(report["cell"], dtype=float) if self.has_cell else np.zeros((3, 3))
             self.elements = list(report["elements"])
             self._guides = self._contact_guides()
+        self._scene_revision += 1
+        self._scene_cache = None
+        self._hover = -1
+        self._frame_times.clear()
+        self.fit_view("cell" if self.show_cell and self.has_cell else "atoms", emit=False)
         self._pick_map = None
         self.update()
 
@@ -207,6 +236,7 @@ class StructureView(QWidget):
                     raise ValueError("Each charge must be a finite number or unknown (None).")
             self.charges = charges
         self.charge_metadata = metadata
+        self._scene_revision += 1
         self.update()
 
     def set_surfaces(self, surfaces=None, metadata=None):
@@ -235,6 +265,7 @@ class StructureView(QWidget):
             })
         self.surfaces = checked
         self.surface_metadata = dict(metadata or {})
+        self._scene_revision += 1
         self.update()
 
     def clear_electronic(self):
@@ -242,6 +273,7 @@ class StructureView(QWidget):
         self.surfaces = []
         self.charge_metadata = {}
         self.surface_metadata = {}
+        self._scene_revision += 1
         self.update()
 
     def reset_view(self, preset="perspective"):
@@ -250,8 +282,7 @@ class StructureView(QWidget):
             "front": (0.0, -math.pi / 2), "side": (-math.pi / 2, -math.pi / 2),
         }.get(preset, (0.55, -0.35))
         self.roll = 0.0
-        self.zoom = 1.0
-        self.pan = np.zeros(2)
+        self.fit_view("cell" if self.show_cell and self.has_cell else "atoms", emit=False)
         self.update()
         self.viewChanged.emit()
 
@@ -262,6 +293,8 @@ class StructureView(QWidget):
             "gap": self.show_gap, "labels": self.show_labels,
             "representation": self.representation, "background": self.background,
             "projection": "orthographic",
+            "camera_center": self._camera_center.tolist(), "camera_radius": self._camera_radius,
+            "fit_target": self._fit_target,
         }
 
     def restore_view_state(self, state):
@@ -274,7 +307,7 @@ class StructureView(QWidget):
         pan = state.get("pan")
         if (isinstance(pan, list) and len(pan) == 2
                 and all(type(item) in (int, float) and math.isfinite(item) for item in pan)):
-            self.pan = np.clip(np.array(pan, dtype=float), -2000, 2000)
+            self.pan = np.clip(np.asarray(pan, dtype=float), -MAX_CAMERA_VALUE, MAX_CAMERA_VALUE)
         for key, attribute in (("cell", "show_cell"), ("bonds", "show_bonds"),
                                ("gap", "show_gap"), ("labels", "show_labels")):
             if type(state.get(key)) is bool:
@@ -283,6 +316,15 @@ class StructureView(QWidget):
             self.representation = state["representation"]
         if state.get("background") in ("gradient", "white", "dark", "transparent"):
             self.background = state["background"]
+        center, radius = state.get("camera_center"), state.get("camera_radius")
+        if (isinstance(center, list) and len(center) == 3
+                and all(type(value) in (int, float) and abs(value) <= MAX_CAMERA_VALUE for value in center)
+                and type(radius) in (int, float) and 1 <= radius <= MAX_CAMERA_VALUE):
+            self._camera_center = np.array(center, dtype=float)
+            self._camera_radius = float(radius)
+            target = state.get("fit_target")
+            if target in ("cell", "atoms", "measurement"):
+                self._fit_target = target
         self.update()
 
     def set_selection(self, indices):
@@ -294,6 +336,68 @@ class StructureView(QWidget):
         self.selected_contact = dict(contact) if contact else None
         self.update()
 
+    def _contact_endpoints(self):
+        if not self.selected_contact:
+            return None
+        contact = self.selected_contact
+        return np.array([
+            self.positions[contact["i"]] + np.asarray(contact.get("start_shift", [0, 0, 0])) @ self.cell,
+            self.positions[contact["j"]] + np.asarray(contact.get("end_shift", contact.get("shift", [0, 0, 0]))) @ self.cell,
+        ])
+
+    def fit_view(self, target="cell", *, emit=True):
+        """Fit once using a world-space sphere, safe under any later rotation.
+
+        A fit is an explicit camera operation. Measurements, visibility changes
+        and subsequent paints never recompute its pivot or magnification.
+        """
+        if target not in ("cell", "atoms", "measurement"):
+            raise ValueError("Fit target must be cell, atoms or measurement.")
+        if not len(self.positions):
+            return False
+        if target == "measurement":
+            points = self._contact_endpoints()
+            if points is None:
+                if not self.selected_atoms:
+                    return False
+                points = self.positions[self.selected_atoms]
+                elements = [self.elements[index] for index in self.selected_atoms]
+            else:
+                elements = [self.elements[self.selected_contact[key]] for key in ("i", "j")]
+        else:
+            points = self.positions.copy()
+            elements = list(self.elements)
+        radii = np.array([_display_vdw_radius(element) * 0.75 if self.representation == "spacefill"
+                          else 0.24 + covalent_radii[atomic_numbers[element]] * 0.27 for element in elements])
+        if target == "cell" and self.has_cell:
+            corners = np.array(list(product((0, 1), repeat=3))) @ self.cell
+            points = np.vstack((points, corners))
+            radii = np.r_[radii, np.zeros(len(corners))]
+        if target in ("cell", "atoms"):
+            for surface in self.surfaces:
+                points = np.vstack((points, surface["vertices"]))
+                radii = np.r_[radii, np.zeros(len(surface["vertices"]))]
+        lower = (points - radii[:, None]).min(axis=0)
+        upper = (points + radii[:, None]).max(axis=0)
+        self._camera_center = (lower + upper) / 2
+        self._camera_radius = max(1.0, float(np.max(np.linalg.norm(points - self._camera_center, axis=1) + radii)))
+        self._fit_target = target
+        self.zoom = 1.0
+        self.pan = np.zeros(2)
+        self.update()
+        if emit:
+            self.viewChanged.emit()
+        return True
+
+    def fit_cell(self):
+        return self.fit_view("cell")
+
+    def fit_atoms(self):
+        return self.fit_view("atoms")
+
+    def fit_measurement(self):
+        return self.fit_view("measurement")
+
     def _transform(self, points):
         cy, sy = math.cos(self.yaw), math.sin(self.yaw)
         cp, sp = math.cos(self.pitch), math.sin(self.pitch)
@@ -301,22 +405,12 @@ class StructureView(QWidget):
         rotation = (np.array([[1, 0, 0], [0, cp, -sp], [0, sp, cp]])
                     @ np.array([[cr, 0, sr], [0, 1, 0], [-sr, 0, cr]])
                     @ np.array([[cy, -sy, 0], [sy, cy, 0], [0, 0, 1]]))
-        center = self.cell.sum(axis=0) / 2 if self.show_cell else self.positions.mean(axis=0)
-        return (np.asarray(points) - center) @ rotation.T
+        return (np.asarray(points) - self._camera_center) @ rotation.T
 
     def _projection(self, rect, *, pan_scale=1.0):
         corners = np.array(list(product((0, 1), repeat=3))) @ self.cell
-        bounds = np.vstack([corners if self.show_cell else self.positions,
-                            *(surface["vertices"] for surface in self.surfaces)])
-        if self.representation == "spacefill":
-            padding = max(_display_vdw_radius(element) for element in self.elements) * 0.75
-            bounds = np.vstack((bounds, self.positions.min(axis=0) - padding, self.positions.max(axis=0) + padding))
-        transformed = self._transform(bounds)
-        extent = np.ptp(transformed[:, :2], axis=0)
-        scale = 0.76 * min(rect.width() / max(extent[0], 2), rect.height() / max(extent[1], 2))
-        scale *= self.zoom
-        center = (transformed[:, :2].min(axis=0) + transformed[:, :2].max(axis=0)) / 2
-        origin = np.array([rect.center().x(), rect.center().y()]) + self.pan * pan_scale - center * np.array([scale, -scale])
+        scale = 0.86 * max(1, min(rect.width(), rect.height()) - 32) / (2 * self._camera_radius) * self.zoom
+        origin = np.array([rect.center().x(), rect.center().y()]) + self.pan * pan_scale
 
         def project(points):
             rotated = self._transform(points)
@@ -411,7 +505,6 @@ class StructureView(QWidget):
         return document
 
     def _paint(self, painter, rect, *, export=False, quality=None, background=None):
-        started = time.perf_counter()
         effective = quality or self.effective_graphics_quality()
         preset = GRAPHICS_PRESETS[effective]
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, preset["antialias"])
@@ -442,37 +535,246 @@ class StructureView(QWidget):
                              self.tr_text("CIF 파일을 열어 구조를 확인하세요", "Open a CIF to inspect its structure"))
             self._pick_map = None
             return
-        sample_scale = preset["sample_scale"]
-        if not export and self._interacting:
-            sample_scale = min(sample_scale, preset["interaction_scale"])
-        width, height = max(1, round(scene.width() * sample_scale)), max(1, round(scene.height() * sample_scale))
-        # Pan is a display-space translation: preserve the same camera when the
-        # scene is sampled more densely or exported at a different resolution.
-        view_scale = sample_scale * (scene.width() / max(1, self.width() - 44) if export else 1)
-        project, scale, corners = self._projection(QRectF(0, 0, width, height), pan_scale=view_scale)
-        primitives, painted, label_count = self._scene_primitives(project, scale, corners, preset, sample_scale, export)
-        pixels, pick_map = rasterize(width, height, primitives, world_per_pixel=1 / scale)
-        # QImage owns a detached copy; it must not outlive a borrowed NumPy buffer.
-        image = QImage(pixels.data, width, height, pixels.strides[0], QImage.Format.Format_RGBA8888).copy()
-        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, preset["antialias"])
-        painter.drawImage(scene, image)
+        self._draw_scene(painter, scene, export=export, quality=effective, background=selected_background)
         painter.setFont(font)
         painter.setPen(foreground)
         painter.save()
         painter.translate(rect.left() + margin, rect.bottom() - legend_height + 4)
         legend.drawContents(painter, QRectF(0, 0, rect.width() - margin * 2, legend_height - 8))
         painter.restore()
+
+    def _scene_key(self, scene, quality, sampling, pan_scale):
+        # Public camera/toggle values remain assignable. Include them directly
+        # so picking after a wheel, resize or programmatic edit cannot consult
+        # the preceding frame. Hover and selected atom IDs are overlays only.
+        return (self._scene_revision, scene.width(), scene.height(), quality, sampling, pan_scale,
+                self.yaw, self.pitch, self.roll, self.zoom, *self.pan, *self._camera_center,
+                self._camera_radius, self.show_cell, self.show_bonds, self.show_gap,
+                self.show_labels, self.representation,
+                tuple((surface["opacity"], surface["color"], id(surface["vertices"]), id(surface["faces"]))
+                      for surface in self.surfaces),
+                json.dumps(self.selected_contact, sort_keys=True, default=str))
+
+    def _draw_scene(self, painter, scene, *, export=False, quality=None, background=None):
+        started = time.perf_counter()
+        effective = quality or self.effective_graphics_quality()
+        preset = GRAPHICS_PRESETS[effective]
+        # All geometry, pen widths and annotations start in logical widget
+        # coordinates. Only the offscreen sample buffer uses physical pixels.
+        # Print already specifies its desired physical pixel grid; rendering
+        # another 1.5x buffer adds memory without adding requested resolution.
+        if export:
+            sampling = min(1.0, preset["sample_scale"]) * abs(painter.deviceTransform().m11())
+        else:
+            sample_scale = min(preset["sample_scale"], preset["interaction_scale"]) if self._interacting else preset["sample_scale"]
+            sampling = sample_scale * self.devicePixelRatioF()
+        sampling = max(0.1, sampling)
+        pan_scale = scene.width() / max(1, self.width() - 44) if export else 1.0
+        key = self._scene_key(scene, effective, sampling, pan_scale)
+        cached = not export and self._scene_cache is not None and self._scene_cache["key"] == key
+        project, scale, corners = self._projection(QRectF(0, 0, scene.width(), scene.height()), pan_scale=pan_scale)
+        if cached:
+            frame = self._scene_cache
+        else:
+            width, height = max(1, round(scene.width() * sampling)), max(1, round(scene.height() * sampling))
+            sx, sy = width / scene.width(), height / scene.height()
+
+            def raster_project(points):
+                xy, depths = project(points)
+                return xy * [sx, sy], depths
+
+            raw_scale = scale * min(sx, sy)
+            primitives, painted, label_count = self._scene_primitives(
+                raster_project, raw_scale, corners, preset, min(sx, sy), export)
+            pixels, pick_map = rasterize(width, height, primitives, world_per_pixel=1 / raw_scale)
+            # Detach from the borrowed NumPy buffer before returning/caching.
+            image = QImage(pixels.data, width, height, pixels.strides[0], QImage.Format.Format_RGBA8888).copy()
+            frame = {"key": key, "image": image, "pick_map": pick_map, "labels": label_count,
+                     "painted": [(index, x / sx, y / sy, radius / min(sx, sy))
+                                 for index, x, y, radius in painted], "sampling": min(sx, sy),
+                     "widget_size": (self.width(), self.height()), "language": self.language}
+            if not export:
+                self._scene_cache = frame
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, preset["antialias"])
+        painter.drawImage(scene, frame["image"])
+        self._draw_highlights(painter, scene, frame, include_hover=not export)
+        self._draw_annotations(painter, scene, project, frame["painted"], background or self.background, frame)
         if not export:
-            self._pick_map, self._pick_rect = pick_map, QRectF(scene)
-            self._projected_atoms = [(index, scene.x() + x / sample_scale, scene.y() + y / sample_scale, radius / sample_scale)
-                                     for index, x, y, radius in painted]
+            self._pick_map, self._pick_rect = frame["pick_map"], QRectF(scene)
+            self._projected_atoms = [(index, scene.x() + x, scene.y() + y, radius)
+                                     for index, x, y, radius in frame["painted"]]
             frame_ms = (time.perf_counter() - started) * 1000
-            self._frame_times.append(frame_ms)
+            if not cached and not self._interacting:
+                self._frame_times.append(frame_ms)
             self._last_render_stats = {"quality": effective, "requested_quality": self.graphics_quality,
-                                       "frame_ms": frame_ms, "raster_size": (width, height),
-                                       "labels": label_count, "interacting": self._interacting,
+                                       "frame_ms": frame_ms, "raster_size": (frame["image"].width(), frame["image"].height()),
+                                       "labels": frame["labels"], "interacting": self._interacting,
+                                       "cached_scene": cached, "device_pixel_ratio": self.devicePixelRatioF(),
                                        "surface_faces": sum(len(surface["faces"]) for surface in self.surfaces),
                                        "mesh_simplification": "none; original triangles retained"}
+        return scale
+
+    def _draw_highlights(self, painter, scene, frame, *, include_hover=True):
+        """Outline visible atom fragments without rerasterizing the 3-D scene.
+
+        The exact depth-tested pick map is the mask: an atom hidden behind an
+        opaque mesh receives no ring, and a partly hidden atom is outlined only
+        where it is visible. The array operations touch its small screen bounds.
+        """
+        indices = tuple(dict.fromkeys([*self.selected_atoms, *([self._hover] if include_hover and self._hover >= 0 else [])]))
+        overlay_key = indices, scene.x(), scene.y(), scene.width(), scene.height()
+        if frame.get("highlight_key") != overlay_key:
+            picks = frame["pick_map"]
+            height, width = picks.shape
+            sx, sy = width / scene.width(), height / scene.height()
+            padding = max(1, math.ceil(2 * min(sx, sy)))
+            overlays = []
+            centers = {index: (x * sx, y * sy, radius * min(sx, sy)) for index, x, y, radius in frame["painted"]}
+            for index in indices:
+                if index not in centers:
+                    continue
+                x, y, radius = centers[index]
+                x0, y0 = max(0, math.floor(x - radius - padding - 2)), max(0, math.floor(y - radius - padding - 2))
+                x1, y1 = min(width, math.ceil(x + radius + padding + 2)), min(height, math.ceil(y + radius + padding + 2))
+                if x1 <= x0 or y1 <= y0:
+                    continue
+                mask = picks[y0:y1, x0:x1] == index
+                if not mask.any():
+                    continue
+                expanded = mask.copy()
+                padded = np.pad(mask, padding)
+                for dy in range(-padding, padding + 1):
+                    for dx in range(-padding, padding + 1):
+                        if dx * dx + dy * dy <= padding * padding:
+                            expanded |= padded[padding + dy:padding + dy + mask.shape[0],
+                                               padding + dx:padding + dx + mask.shape[1]]
+                rgba = np.zeros((*mask.shape, 4), dtype=np.uint8)
+                rgba[expanded & ~mask] = [201, 149, 58, 255]
+                if self.show_labels and index >= frame["labels"]:
+                    # Keep selected/hovered atoms identifiable even beyond a
+                    # preset's ordinary label budget. Paint just that glyph
+                    # through its visible fragments; the base scene is reused.
+                    color = self._atom_color(index)
+                    glyph = self._text_texture(self.elements[index], max(8 * min(sx, sy), radius * 0.83),
+                                               "#ffffff" if color.lightness() < 155 else "#183447",
+                                               square=max(1, round(max(10 * min(sx, sy), radius * 2))))
+                    yy, xx = np.mgrid[y0:y1, x0:x1]
+                    gx = np.clip(((xx + 0.5 - x + radius) * glyph.shape[1] / (2 * radius)).astype(int), 0, glyph.shape[1] - 1)
+                    gy = np.clip(((yy + 0.5 - y + radius) * glyph.shape[0] / (2 * radius)).astype(int), 0, glyph.shape[0] - 1)
+                    rgba[mask] = glyph[gy[mask], gx[mask]]
+                overlay = QImage(rgba.data, rgba.shape[1], rgba.shape[0], rgba.strides[0], QImage.Format.Format_RGBA8888).copy()
+                overlays.append((QRectF(scene.x() + x0 / sx, scene.y() + y0 / sy,
+                                        (x1 - x0) / sx, (y1 - y0) / sy), overlay))
+            frame["highlight_key"], frame["highlights"] = overlay_key, overlays
+        for target, image in frame.get("highlights", []):
+            painter.drawImage(target, image)
+
+    def _scene_annotations(self, project, background):
+        annotations = []
+        dark = background == "dark"
+
+        def annotation(text, point, color):
+            xy, _ = project(np.asarray([point]))
+            annotations.append((text, xy[0], color))
+
+        if self.show_cell and self.has_cell:
+            colors = ("#ffb1a9", "#b8e1be", "#b5d7ff") if dark else ("#923d35", "#28643d", "#2d6090")
+            for axis, color in enumerate(colors):
+                annotation("abc"[axis], self.cell[axis], color)
+        endpoints = self._contact_endpoints()
+        if endpoints is not None:
+            annotation(f"{self.selected_contact['distance_angstrom']:.3f} Å", endpoints.mean(axis=0),
+                       "#ffe3a8" if dark else "#68410d")
+        if self.show_gap and self.has_cell and "nuclei_gap_angstrom" in self.report.get("metrics", {}):
+            axis = int(self.report.get("normal_axis_index", 2))
+            metrics = self.report["metrics"]
+            start, end = metrics["gap_start_fraction"], metrics["gap_end_fraction"]
+            location = np.full(3, 0.5)
+            location[axis] = (start + (end + 1 if end <= start else end)) / 2 % 1
+            annotation(self.tr_text("핵 간격 ", "Nuclei gap ") + f"{metrics['nuclei_gap_angstrom']:.3f} Å",
+                       location @ self.cell, "#bce2db" if dark else "#265f58")
+        return annotations
+
+    def _draw_annotations(self, painter, scene, project, painted, background, frame):
+        # Text is a screen annotation, deliberately outside the depth buffer.
+        # Font metrics/layout are evaluated once in logical units; Qt rasterizes
+        # them sharply at the actual screen/print DPR after the 3-D image blit.
+        painter.save()
+        painter.setClipRect(scene)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+        font = QFont("Arial")
+        font.setPixelSize(12)
+        painter.setFont(font)
+        metrics = QFontMetricsF(font)
+        layout_key = background, self.language
+        if frame.get("annotation_key") != layout_key:
+            occupied, layout, boxes = [], [], []
+            atoms = np.array([[x - radius, y - radius, x + radius, y + radius] for _, x, y, radius in painted])
+            for text, anchor, color in self._scene_annotations(project, background):
+                width, height = math.ceil(metrics.horizontalAdvance(text)) + 12, math.ceil(metrics.height()) + 6
+                ax, ay = anchor
+                candidates = []
+                for dx, dy in ((8, -height - 8), (8, 8), (-width - 8, -height - 8), (-width - 8, 8),
+                               (-width / 2, -height - 22), (-width / 2, 22)):
+                    candidate = QRectF(max(3, min(scene.width() - width - 3, ax + dx)),
+                                       max(3, min(scene.height() - height - 3, ay + dy)), width, height)
+                    overlap = np.maximum(0, np.minimum(atoms[:, 2:], [candidate.right(), candidate.bottom()])
+                                         - np.maximum(atoms[:, :2], [candidate.left(), candidate.top()]))
+                    score = np.prod(overlap, axis=1).sum() + 8 * sum(
+                        candidate.intersected(other).width() * candidate.intersected(other).height() for other in occupied)
+                    candidates.append((score, candidate))
+                box = min(candidates, key=lambda item: item[0])[1]
+                occupied.append(box)
+                layout.append((text, anchor, color, box))
+                boxes.append({"text": text, "rect": (box.x(), box.y(), box.width(), box.height()),
+                              "foreground": color, "background": "#223646" if background == "dark" else "#ffffff"})
+            frame["annotation_key"], frame["annotation_layout"], frame["annotation_boxes"] = layout_key, layout, boxes
+        for text, anchor, color, box in frame["annotation_layout"]:
+            ax, ay = anchor
+            target = box.translated(scene.topLeft())
+            painter.setPen(QPen(QColor(color), 0.8))
+            painter.drawLine(QPointF(scene.x() + ax, scene.y() + ay), target.center())
+            painter.setBrush(QColor("#223646" if background == "dark" else "#ffffff"))
+            painter.drawRoundedRect(target, 4, 4)
+            painter.drawText(target, Qt.AlignmentFlag.AlignCenter, text)
+        self._last_annotation_boxes = frame["annotation_boxes"]
+        painter.restore()
+
+    def render_scene_image(self, width, height, *, quality="high", background="white", logical_width=800):
+        """Return a scene-only QImage on a fixed logical publication canvas.
+
+        Doubling physical output dimensions doubles every font/line width while
+        preserving camera framing. Text metadata contains the actual physical
+        pixels per ångström for scientific scale bars. No viewer state changes.
+        """
+        if self.report is None or not len(self.positions):
+            raise ValueError("A supported structure must be loaded before exporting an image.")
+        if (type(width) is not int or type(height) is not int or not 1 <= width <= 16000
+                or not 1 <= height <= 16000 or width * height > 64_000_000):
+            raise ValueError("Scene image dimensions must be positive pixels, at most 64 megapixels.")
+        if quality not in GRAPHICS_PRESETS or background not in ("white", "transparent", "gradient", "dark"):
+            raise ValueError("Choose a supported scene quality and background.")
+        if type(logical_width) not in (int, float) or not math.isfinite(logical_width) or logical_width < 100:
+            raise ValueError("Logical scene width must be at least 100 pixels.")
+        logical_height = height * logical_width / width
+        image = QImage(width, height, QImage.Format.Format_ARGB32_Premultiplied)
+        image.fill(Qt.GlobalColor.transparent if background == "transparent" else QColor("#152431" if background == "dark" else "#ffffff"))
+        painter = QPainter(image)
+        factor = width / logical_width
+        painter.scale(factor, factor)
+        rect = QRectF(0, 0, logical_width, logical_height)
+        if background == "gradient":
+            gradient = QLinearGradient(rect.topLeft(), rect.bottomRight())
+            gradient.setColorAt(0, QColor("#f8fbfd"))
+            gradient.setColorAt(1, QColor("#eaf1f4"))
+            painter.fillRect(rect, gradient)
+        scale = self._draw_scene(painter, rect, export=True, quality=quality, background=background)
+        painter.end()
+        image.setText("CalcLens scene", json.dumps({"pixels_per_angstrom": scale * factor,
+                      "logical_width": logical_width, "logical_height": logical_height,
+                      "raster_width": width, "raster_height": height, "projection": "orthographic"}))
+        return image
 
     @staticmethod
     def _rgba(color, alpha=1.0):
@@ -484,7 +786,7 @@ class StructureView(QWidget):
         if key in self._text_cache:
             return self._text_cache[key]
         font = QFont("Arial")
-        font.setPixelSize(max(7, int(size)))
+        font.setPixelSize(max(1, round(size)))
         metrics = QFontMetricsF(font)
         width = int(square or math.ceil(metrics.horizontalAdvance(text)) + 6)
         height = int(square or math.ceil(metrics.height()) + 4)
@@ -506,11 +808,7 @@ class StructureView(QWidget):
         primitives = []
         points, depths = project(self.positions)
         atom_points = np.column_stack((points, depths))
-        display_scale = max(0.25, min(self.width() / 800, self.height() / 560)) * sampling
-        if export:
-            # Export radii scale with scene geometry, independent of the chosen
-            # screen quality and output pixel count.
-            display_scale = max(sampling, scale / 70)
+        display_scale = sampling
 
         def projected(xyz):
             xy, z = project(np.asarray(xyz))
@@ -518,15 +816,10 @@ class StructureView(QWidget):
 
         def line(xyz, color, width=1.1, dashed=False, alpha=1):
             primitives.append(Primitive("line", projected(xyz), self._rgba(color, alpha),
-                                        radius=max(0.55, width * display_scale / 2), dashed=dashed))
+                                        radius=width * display_scale / 2, dashed=dashed,
+                                        dash_length=7 * display_scale, dash_gap=4 * display_scale))
 
-        def sprite(text, point, color="#426a70", size=11):
-            texture = self._text_texture(text, max(8, size * display_scale), color)
-            location = projected([point])[0]
-            location[:2] += [6 * display_scale, -texture.shape[0]]
-            primitives.append(Primitive("sprite", location[None, :], (1, 1, 1, 1), texture=texture))
-
-        if self.show_gap:
+        if self.show_gap and self.has_cell and "nuclei_gap_angstrom" in self.report.get("metrics", {}):
             axis = int(self.report.get("normal_axis_index", 2))
             others = [index for index in range(3) if index != axis]
             start, end = (self.report["metrics"][key] for key in ("gap_start_fraction", "gap_end_fraction"))
@@ -540,11 +833,7 @@ class StructureView(QWidget):
                     primitives.append(Primitive("triangle", quad[list(indices)], self._rgba("#5ba498", 0.13)))
                 for first, second in ((0, 1), (1, 2), (2, 3), (3, 0)):
                     line(xyz[[first, second]], "#7ab6ad", dashed=True)
-            location = np.zeros(3)
-            location[axis] = (start + (end + 1 if end <= start else end)) / 2 % 1
-            location[others] = 0.5
-            sprite(self.tr_text("핵 간격 ", "Nuclei gap ") + f"{self.report['metrics']['nuclei_gap_angstrom']:.3f} Å", location @ self.cell)
-        if self.show_cell:
+        if self.show_cell and self.has_cell:
             for index, corner in enumerate(product((0, 1), repeat=3)):
                 for axis in range(3):
                     if corner[axis] == 0:
@@ -554,7 +843,6 @@ class StructureView(QWidget):
                         line(corners[[index, other_index]], "#8fa7b6")
             for axis, color in enumerate(("#b45d55", "#4a8861", "#4b7eac")):
                 line([np.zeros(3), self.cell[axis]], color, 2)
-                sprite("abc"[axis], self.cell[axis], color)
         if self.show_bonds and self.representation != "spacefill":
             width = 5 if self.representation == "stick" else 3
             for first, second in self._guides:
@@ -564,55 +852,47 @@ class StructureView(QWidget):
             for face in surface["faces"]:
                 primitives.append(Primitive("triangle", xyz[face], self._rgba(surface["color"], surface["opacity"])))
         if self.selected_contact:
-            contact = self.selected_contact
-            endpoints = np.array([
-                self.positions[contact["i"]] + np.asarray(contact.get("start_shift", [0, 0, 0])) @ self.cell,
-                self.positions[contact["j"]] + np.asarray(contact.get("end_shift", contact.get("shift", [0, 0, 0]))) @ self.cell,
-            ])
+            endpoints = self._contact_endpoints()
             line(endpoints, "#ae722f", 2, dashed=True)
             for center in projected(endpoints):
                 angles = np.linspace(0, math.tau, 25)
                 ring = np.column_stack((center[0] + 6 * display_scale * np.cos(angles),
                                         center[1] + 6 * display_scale * np.sin(angles), np.full(25, center[2])))
                 for first, second in zip(ring[:-1], ring[1:]):
-                    primitives.append(Primitive("line", np.array([first, second]), self._rgba("#ae722f"), max(0.7, display_scale)))
-            sprite(f"{contact['distance_angstrom']:.3f} Å", endpoints.mean(axis=0), "#8a551c")
-        priorities = list(dict.fromkeys([*self.selected_atoms, *([self._hover] if self._hover >= 0 else []), *range(len(self.positions))]))
-        label_indices = set(priorities[:preset["labels"]]) if self.show_labels else set()
+                    primitives.append(Primitive("line", np.array([first, second]), self._rgba("#ae722f"), display_scale))
+        label_indices = set(range(min(len(self.positions), preset["labels"]))) if self.show_labels else set()
         painted = []
         for index in np.argsort(depths):
             index = int(index)
-            number = atomic_numbers[self.elements[index]]
-            if self.representation == "spacefill":
-                radius = scale * _display_vdw_radius(self.elements[index]) * 0.75
-            elif self.representation == "stick":
-                radius = max(3 * display_scale, min(9 * display_scale, scale * 0.13))
-            else:
-                radius = min(29 * display_scale, max(7.5 * display_scale, scale * (0.24 + covalent_radii[number] * 0.27)))
+            radius = self._atom_radius(index, scale, display_scale)
             color = self._atom_color(index)
             texture = None
             if index in label_indices:
                 text_color = "#ffffff" if color.lightness() < 155 else "#183447"
-                texture = self._text_texture(self.elements[index], max(8, radius * 0.83), text_color, square=max(10, round(radius * 2)))
+                texture = self._text_texture(self.elements[index], max(8 * display_scale, radius * 0.83), text_color,
+                                             square=max(1, round(max(10 * display_scale, radius * 2))))
             primitives.append(Primitive("sphere", atom_points[index:index + 1], self._rgba(color), radius,
                                         atom=index, shaded=preset["shaded"], texture=texture))
-            if index in self.selected_atoms or index == self._hover:
-                center = atom_points[index]
-                angles = np.linspace(0, math.tau, 33)
-                ring = np.column_stack((center[0] + (radius + 4 * display_scale) * np.cos(angles),
-                                        center[1] + (radius + 4 * display_scale) * np.sin(angles), np.full(33, center[2])))
-                for first, second in zip(ring[:-1], ring[1:]):
-                    primitives.append(Primitive("line", np.array([first, second]), self._rgba("#bf9148"), max(0.8, display_scale)))
             painted.append((index, *points[index], radius))
         return primitives, painted, len(label_indices)
+
+    def _atom_radius(self, index, scale, display_scale=1.0):
+        element = self.elements[index]
+        if self.representation == "spacefill":
+            return scale * _display_vdw_radius(element) * 0.75
+        if self.representation == "stick":
+            return max(3 * display_scale, min(9 * display_scale, scale * 0.13))
+        return min(29 * display_scale, max(7.5 * display_scale,
+                   scale * (0.24 + covalent_radii[atomic_numbers[element]] * 0.27)))
 
     def _export_annotations(self):
         lines = [
             "CalcLens · annotated structure image",
             f"File: {self.metadata.get('filename', '—')}",
             f"SHA-256: {self.metadata.get('sha256', '—')}",
-            f"Normal axis: {self.report.get('normal_axis', 'c')} · Cartesian lengths: Å · "
-            "Gray cell edges; a red / b green / c blue; gold circles mark selected images.",
+            (f"Normal axis: {self.report.get('normal_axis', 'c')} · Cartesian lengths: Å · "
+             "Gray cell edges; a red / b green / c blue; gold circles mark selected images.") if self.has_cell else
+            "Cartesian molecular geometry · lengths: Å · no periodic cell or crystal axes.",
             f"Display: {self.representation}; orthographic projection; atoms {len(self.positions)}; "
             "software per-pixel depth; opaque surfaces hide geometry and block picking, "
             "translucent surfaces composite per-pixel depth layers. Full mesh triangles are retained at the declared isovalue.",
@@ -713,6 +993,7 @@ class StructureView(QWidget):
         return Path(path)
 
     def _picked(self, point):
+        self._ensure_pick_map()
         if self._pick_map is None or not self._pick_rect.contains(point):
             return -1
         height, width = self._pick_map.shape
@@ -720,20 +1001,48 @@ class StructureView(QWidget):
         y = min(height - 1, max(0, int((point.y() - self._pick_rect.y()) / self._pick_rect.height() * height)))
         return int(self._pick_map[y, x])
 
+    def _ensure_pick_map(self):
+        if not self.report or not len(self.positions):
+            self._pick_map = None
+            return
+        effective = self.effective_graphics_quality()
+        preset = GRAPHICS_PRESETS[effective]
+        sampling = (min(preset["sample_scale"], preset["interaction_scale"]) if self._interacting
+                    else preset["sample_scale"]) * self.devicePixelRatioF()
+        frame = self._scene_cache
+        if (frame is not None and frame["widget_size"] == (self.width(), self.height())
+                and frame["language"] == self.language
+                and frame["key"] == self._scene_key(self._pick_rect, effective, max(0.1, sampling), 1.0)):
+            return
+        # Qt may not have delivered the queued paint yet. Rebuild synchronously
+        # against the current camera, without processing events or trusting the
+        # previous pick map. The eventual paint will reuse this exact frame.
+        image = QImage(max(1, self.width()), max(1, self.height()), QImage.Format.Format_ARGB32_Premultiplied)
+        image.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(image)
+        self._paint(painter, QRectF(self.rect()), export=False)
+        painter.end()
+
     def mousePressEvent(self, event):
         self.setFocus()
         self._last_pointer = event.position()
         self._press_pointer = event.position()
+        self._dragging = False
         event.accept()
 
     def mouseMoveEvent(self, event):
         point = event.position()
-        if self._last_pointer is not None and event.buttons():
+        if self._last_pointer is not None and self._press_pointer is not None and event.buttons():
+            if not self._dragging:
+                if (point - self._press_pointer).manhattanLength() < QApplication.startDragDistance():
+                    event.accept()
+                    return
+                self._dragging = True
             self._interacting = True
             self._interaction_timer.start(140)
             delta = point - self._last_pointer
             if event.buttons() & Qt.MouseButton.RightButton or event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
-                self.pan += [delta.x(), delta.y()]
+                self.pan = np.clip(self.pan + [delta.x(), delta.y()], -MAX_CAMERA_VALUE, MAX_CAMERA_VALUE)
             else:
                 self.yaw += delta.x() * 0.009
                 self.pitch += delta.y() * 0.009
@@ -749,12 +1058,22 @@ class StructureView(QWidget):
 
     def mouseReleaseEvent(self, event):
         if (event.button() == Qt.MouseButton.LeftButton and self._press_pointer is not None
-                and (event.position() - self._press_pointer).manhattanLength() < 5):
+                and not self._dragging
+                and (event.position() - self._press_pointer).manhattanLength() < QApplication.startDragDistance()):
             index = self._picked(event.position())
             if index >= 0:
                 self.atomPicked.emit(index)
         self._last_pointer = None
         self._press_pointer = None
+        self._dragging = False
+        event.accept()
+
+    def leaveEvent(self, event):
+        if self._hover >= 0:
+            self._hover = -1
+            self.setToolTip("")
+            self.update()
+        super().leaveEvent(event)
 
     def wheelEvent(self, event):
         self._interacting = True

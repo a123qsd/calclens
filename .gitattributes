@@ -12,6 +12,7 @@
 # Research manifests identify the original files by their exact bytes.
 /examples/research_cases/** -text
 /examples/research_cases/gaussian_reference/*.out -whitespace
+/examples/research_cases/vasp_reference/OUTCAR* -whitespace
 /examples/research_cases/h2_density/reference-profile.csv -whitespace
 # Browser build inputs and generated resources must agree across build hosts.
 /frontend/** text eol=lf

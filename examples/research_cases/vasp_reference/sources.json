@@ -1,0 +1,12 @@
+{
+  "files": [
+    {
+      "path": "OUTCAR_Ni_reference",
+      "source_url": "https://gitlab.com/ase/ase/-/raw/3.26.0/ase/test/testdata/vasp/OUTCAR_example_1",
+      "sha256": "a2d4f83580b9ac070c7cdf29f51b4c230648941feb203012e1870d32c727700e",
+      "size_bytes": 161682,
+      "description": "Unmodified public ASE 3.26.0 VASP test-data original, Ni18 VASP 5.3.3 output. This is a reference import fixture, not a calculation run by CalcLens.",
+      "license_url": "https://gitlab.com/ase/ase/-/raw/3.26.0/LICENSE"
+    }
+  ]
+}

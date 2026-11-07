@@ -142,6 +142,21 @@ def test_pair_measurement_uses_exact_periodic_image_and_can_be_saved(window, app
     assert window.saved_measurements.count() == 1
 
 
+def test_changing_measurement_inputs_invalidates_displayed_and_pending_distances(window, application):
+    window.measure_pair()
+    finish_jobs(window, application)
+    assert window.view.selected_contact["distance_kind"] == "minimum_image"
+    window.measurement_mode.setCurrentIndex(1)
+    assert window.view.selected_contact is None and "1.420282" not in window.measurement_label.text()
+    window.measure_pair()
+    window.shift_spins[1][0].setValue(2)
+    finish_jobs(window, application)
+    assert window.view.selected_contact is None
+    window.measure_pair()
+    finish_jobs(window, application)
+    assert window.view.selected_contact["end_shift"][0] == 2
+
+
 def test_prepare_preview_apply_keeps_original_source_evidence(window, application, tmp_path, monkeypatch):
     source = b"""data_nonp1
 _cell_length_a 4

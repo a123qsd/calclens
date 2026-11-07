@@ -1,8 +1,8 @@
-# CalcLens 데스크톱 0.9.1 / CalcLens Desktop
+# CalcLens 데스크톱 0.10.0 / CalcLens Desktop
 
 Windows에서는 ZIP 전체를 빈 폴더에 푼 뒤 `runtime` 옆의 `CalcLens.exe`를 실행합니다. 폴더 전체를 함께 보관하고, 새 버전은 별도 폴더에 푸세요. Apple Silicon Mac은 DMG를 열어 앱을 응용 프로그램 폴더로 옮깁니다. 첫 창에서 그래핀을 불러온 뒤 CIF 또는 저장한 프로젝트를 열 수 있습니다. [다운로드와 파일 검증](DOWNLOADS.md) · [Windows 빌드와 시작 진단](../packaging/desktop/windows-portable-build.md)
 
-Extract the complete Windows ZIP and open `CalcLens.exe` beside its `runtime` folder. Keep these files together and extract upgrades into a new folder. On Apple Silicon, drag the app from the DMG into Applications. Open CIF files or a saved project in the native Qt window. [Windows x64 folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-macOS-Apple-Silicon.dmg) · [SHA-256 checksums](https://github.com/a123qsd/calclens/releases/download/v0.9.1/SHA256SUMS.txt)
+Extract the complete Windows ZIP and open `CalcLens.exe` beside its `runtime` folder. Keep these files together and extract upgrades into a new folder. On Apple Silicon, drag the app from the DMG into Applications. Open CIF files or a saved project in the native Qt window. [Windows x64 folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.10.0/CalcLens-0.10.0-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.10.0/CalcLens-0.10.0-macOS-Apple-Silicon.dmg) · [SHA-256 checksums](https://github.com/a123qsd/calclens/releases/download/v0.10.0/SHA256SUMS.txt)
 
 ## 화면과 환경 설정
 
@@ -26,8 +26,18 @@ Recovery files live under `%LOCALAPPDATA%/CalcLens/Recovery` on Windows and `~/L
 
 - **전자 자료**에서 선택한 CIF와 일치하는 전하 JSON이나 Cube를 엽니다. 수치를 읽을 때 물리량과 파일 단위를 선택합니다. 차이·스핀 밀도와 오비탈에는 양·음 등치면이 있습니다. 그림에는 실제 표시한 자료의 출처, 단위와 등치값을 기록할 수 있습니다.
 - **연산 장치·밀도 차이 → H₂ 실제 계산 예제 열기**는 같은 기하와 격자에서 계산한 H₂와 두 H 조각의 원본으로 작업을 엽니다. Δρ를 다시 계산한 뒤 평면 평균과 계산 기록을 내보낼 수 있습니다. [원본과 계산 방법](../examples/research_cases/h2_density/README.md)
-- **Gaussian 로그 → 기준 예제**는 공개 Gaussian 출력에서 계산 단계, 정상·오류·중단 상태, SCF 에너지, 최적화, 진동수와 원본 행 번호를 읽습니다. 원본 파일과 해석 JSON을 따로 저장할 수 있습니다.
+- **연구 도구 → Gaussian / VASP 출력**에서 Gaussian 로그 또는 VASP OUTCAR를 엽니다. 계산 단계별 종료 상태, 에너지, 마지막으로 완전히 기록된 좌표와 원본 행을 확인할 수 있습니다. 구조 비교 창에서 파일과 작업 단계를 선택하고 같은 원자가 같은 번호인지 확인하면 RMSD와 최대 변위를 볼 수 있습니다.
 - **진공 간격 수렴 → h-BN 예제**는 주기적 PySCF 계산 세 건과 입력·출력 해시를 비교합니다. 사용한 방법, 고정한 조건, 허용오차와 샘플 범위를 결과 JSON에서 확인할 수 있습니다. [연구 사례와 검증](RESEARCH_CASES.md)
+
+## 전자밀도와 그림 출력
+
+- **전자 자료 → CHGCAR 열기**로 선택한 CIF에 맞는 VASP 5/6 파일을 엽니다. 원소 순서와 주기적 위치, 셀을 확인하고 첫 블록의 총 전자밀도를 읽습니다. 원본은 작업 파일에 보관합니다. **연산 장치·밀도 차이**에서 평면 평균과 누적 전자수, 분할 평면 양쪽의 적분값을 볼 수 있습니다.
+- 보관한 H₂ 계산은 **보관 Δρ CPU 재검증**으로 다시 계산할 수 있습니다. 검증 보고서에는 원본 해시, 당시 계산 축과 조각 조건, CPU 재계산과의 오차가 담깁니다.
+- 평면 평균 또는 누적 전자수를 선택한 뒤 **프로파일 논문용 그림**을 누르면 현재 곡선을 PNG나 PDF로 저장합니다. PDF의 축, 글자와 곡선은 벡터로 그리며 그림에는 원본 해시, 계산 조건과 CPU 검증 기록을 함께 담습니다.
+- **표시 → 셀 전체 맞춤 / 원자 맞춤 / 측정 대상 맞춤**으로 회전 중심과 화면에 넣을 범위를 정합니다. 진공이 긴 셀에서 원자만 크게 보고 싶을 때는 **셀**을 끄고 **원자 맞춤**을 선택하세요.
+- **파일 → 논문용 그림 내보내기**에서는 인쇄 너비 85 또는 180 mm, 해상도 300 또는 600 dpi를 선택합니다. Å 눈금은 현재 투영 배율을 따릅니다. PNG는 투명 배경을 지원합니다. PDF에는 구조 그림과 벡터 눈금이 한 페이지에 들어갑니다. 원본과 카메라 기록은 PNG 메타데이터 또는 PDF의 `calclens-figure.json` 첨부 파일에서 확인할 수 있습니다.
+
+The native research panel accepts Gaussian molecular text output, VASP OUTCAR and the first total-density grid of a CHGCAR with explicit species. Compare a specific output job in the two-pane viewer, or select a field to inspect its planar and cumulative integrals. **File → Export publication figure** exports the current camera at 85 or 180 mm and 300 or 600 dpi. [Detailed formats and numerical limits](RELEASE-0.10.0.md)
 
 ## Source and packaging
 

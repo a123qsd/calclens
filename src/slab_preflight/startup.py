@@ -27,6 +27,14 @@ _stages = {}
 _lock = threading.RLock()
 _log_stream = None
 _log_path = None
+_shown_failures = set()
+_showing_notice = False
+_language = "ko"
+
+
+def set_language(language):
+    global _language
+    _language = "en" if language == "en" else "ko"
 
 
 def configure(path=None, *, benchmark=False, started_ns=None):
@@ -34,6 +42,7 @@ def configure(path=None, *, benchmark=False, started_ns=None):
     global _output, _benchmark, _started_ns, _parent_ns
     with _lock:
         _stages.clear()
+        _shown_failures.clear()
         _output = Path(path) if path is not None else None
         _benchmark = bool(benchmark)
         if started_ns is not None:
@@ -151,7 +160,7 @@ def log_failure(error):
     path = install_diagnostics()
     frames = traceback.extract_tb(error.__traceback__)
     record = {
-        "event": "startup_failure",
+        "event": "runtime_failure" if "first_window" in _stages else "startup_failure",
         "exception": type(error).__name__,
         "last_milestone": next(reversed(_stages), "before_python_entry"),
         "frames": [{"file": Path(frame.filename).name, "line": frame.lineno,
@@ -167,10 +176,31 @@ def log_failure(error):
     return path
 
 
-def show_failure(error, *, language="ko", path=None):
+def show_failure(error, *, language=None, path=None):
+    global _showing_notice
     path = path or log_failure(error)
+    runtime = "first_window" in _stages
+    frames = traceback.extract_tb(error.__traceback__, limit=-1)
+    key = (runtime, type(error), (frames[-1].filename, frames[-1].lineno) if frames else None)
+    with _lock:
+        if key in _shown_failures or _showing_notice:
+            return
+        _shown_failures.add(key)
+        _showing_notice = True
+    try:
+        _failure_notice(error, language or _language, path, runtime)
+    finally:
+        with _lock:
+            _showing_notice = False
+
+
+def _failure_notice(error, language, path, runtime):
     reason = type(error).__name__
-    if isinstance(error, ModuleNotFoundError):
+    if runtime:
+        explanation = ("작업 중 오류가 발생했습니다. 자세한 내용은 아래 진단 파일에 있습니다."
+                       if language == "ko" else
+                       "An error occurred during this operation. Details are in the diagnostic file below.")
+    elif isinstance(error, ModuleNotFoundError):
         explanation = ("필요한 구성 요소를 불러오지 못했습니다. ZIP 전체를 새 폴더에 다시 풀어 주세요."
                        if language == "ko" else
                        "A required component could not be loaded. Extract the complete ZIP to a new folder.")
@@ -179,7 +209,18 @@ def show_failure(error, *, language="ko", path=None):
                        if language == "ko" else
                        "The application could not start. Please check the diagnostic file below.")
     message = f"{explanation}\n\n{reason}\n{path}"
-    # This path deliberately does not import Qt: it must work if Qt itself fails.
+    # Keep the startup fallback usable even if Qt itself failed to import.
+    if runtime and threading.current_thread() is threading.main_thread():
+        qt = sys.modules.get("PySide6.QtWidgets")
+        app = qt.QApplication.instance() if qt else None
+        window = getattr(app, "_calclens_window", None)
+        if window is not None:
+            try:
+                if window.isVisible():
+                    window.show_error(message)
+                    return
+            except RuntimeError:
+                pass  # Qt may already have destroyed the window during shutdown.
     if sys.platform == "win32":
         import ctypes
 
@@ -194,11 +235,11 @@ def _unhandled(kind, error, tb):
     show_failure(error, path=path)
 
 
-def guarded_main(function, *, language="ko"):
+def guarded_main(function, *, language=None, failure_code=1):
     install_diagnostics(redirect=True)
     try:
         return function()
     except Exception as error:
         path = log_failure(error)
         show_failure(error, language=language, path=path)
-        return 1
+        return failure_code

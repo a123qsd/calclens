@@ -6,7 +6,7 @@ This naming difference does not indicate a second application.
 
 ## Local workflow
 
-The source tree is v0.9.1. [Native startup and packaging](DESKTOP.md) use QtWidgets and direct Python engine calls. Release package names and installation instructions
+The source tree is v0.10.0. [Native startup and packaging](DESKTOP.md) use QtWidgets and direct Python engine calls. Release package names and installation instructions
 are listed in [DOWNLOADS.md](DOWNLOADS.md).
 The [0.8.0 release notes](RELEASE-0.8.0.md) describe the workspace layout update;
 [DESIGN.md](../DESIGN.md) records its presentation rules.
@@ -201,9 +201,9 @@ of workflow steps does not establish that their remote jobs have passed.
 
 ## Desktop release packages
 
-The 0.9.1 release provides `CalcLens-0.9.1-Windows-x64-folder.zip`,
-`CalcLens-0.9.1-macOS-Apple-Silicon.dmg` and `SHA256SUMS.txt` on the
-[release page](https://github.com/a123qsd/calclens/releases/tag/v0.9.1).
+The 0.10.0 release provides `CalcLens-0.10.0-Windows-x64-folder.zip`,
+`CalcLens-0.10.0-macOS-Apple-Silicon.dmg` and `SHA256SUMS.txt` on the
+[release page](https://github.com/a123qsd/calclens/releases/tag/v0.10.0).
 Both desktop packages include Python and Qt and allow language selection in
 the app. Keep the complete extracted Windows folder together. The Windows
 launcher is unsigned; the Mac app is ad-hoc signed without Apple notarization.

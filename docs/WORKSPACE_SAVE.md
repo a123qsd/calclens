@@ -1,6 +1,6 @@
 # Continue a research workspace / 연구 작업 이어가기
 
-CalcLens Desktop 0.9.1 stores unsaved native work in an atomic per-session recovery file and offers it at the next startup. A portable project ZIP includes original electronic files and any retained research sources. See the [desktop guide](DESKTOP.md) for backup locations and native controls.
+CalcLens Desktop 0.10.0 stores unsaved native work in an atomic per-session recovery file and offers it at the next startup. A portable project ZIP includes original electronic files and any retained research sources. See the [desktop guide](DESKTOP.md) for backup locations and native controls.
 
 데스크톱은 작업 변경 후 복구본을 자동 저장합니다. 비정상 종료 뒤 다시 열면 이전 세션의 복구 시각을 확인할 수 있습니다. 아래의 탭·서버 설명은 선택적으로 실행하는 기존 브라우저 화면에 해당합니다.
 
@@ -124,7 +124,7 @@ Streamlit and Plotly are optional: install `calclens[legacy-ui]` (or, from this
 checkout, `python -m pip install '.[legacy-ui]'`) before using `--legacy-ui`.
 `requirements.lock` pins the default environment plus development tools;
 `requirements-legacy.lock` additionally pins the legacy interface.
-The 0.9.1 Windows folder ZIP starts the native desktop. For optional browser
+The 0.10.0 Windows folder ZIP starts the native desktop. For optional browser
 builds, `--include-legacy-ui` produces a separately named legacy variant.
 The earlier 0.8.0 Windows release supplied browser workspace bundles;
 previously published legacy builds remain on the

@@ -2,6 +2,10 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from hashlib import sha256
+import json
+
+import numpy as np
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -12,6 +16,7 @@ from PySide6.QtWidgets import (
 
 from .desktop_compat import legacy_camera_state
 from .desktop_view import StructureView
+from .structure_compare import compare_coordinates, energy_comparison
 
 
 class ComparisonDialog(QDialog):
@@ -42,6 +47,7 @@ class ComparisonDialog(QDialog):
         heading.setObjectName("eyebrow")
         layout.addWidget(heading)
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter = splitter
         splitter.setHandleWidth(14)
         for side in range(2):
             body = QWidget()
@@ -97,18 +103,23 @@ class ComparisonDialog(QDialog):
             display.addWidget(representation, 1)
             display.addWidget(background, 1)
             panel.addLayout(display)
-            toggles = QHBoxLayout()
+            toggles = QGridLayout()
             display_toggles = {}
             for key, ko, en, attr in (("cell", "셀", "Cell", "show_cell"), ("bonds", "연결선", "Guides", "show_bonds"),
                                        ("gap", "간격", "Gap", "show_gap"), ("labels", "원소", "Labels", "show_labels")):
                 toggle = QCheckBox(self.t(ko, en))
                 toggle.setChecked(getattr(view, attr))
                 toggle.toggled.connect(lambda checked, view=view, attr=attr: self._display_toggle(view, attr, checked))
-                toggles.addWidget(toggle)
+                toggle_index = len(display_toggles)
+                toggles.addWidget(toggle, toggle_index // 2, toggle_index % 2)
                 display_toggles[key] = toggle
             save = QPushButton("PNG…")
             save.clicked.connect(lambda _checked=False, view=view: self._export_view(view))
-            toggles.addWidget(save)
+            toggles.addWidget(save, 2, 0)
+            figure = QPushButton(self.t("논문용…", "Figure…"))
+            figure.setAccessibleName(self.t("이 비교 구조의 논문용 그림 저장", "Export publication figure for this comparison pane"))
+            figure.clicked.connect(lambda _checked=False, view=view: self.window.export_publication(view=view))
+            toggles.addWidget(figure, 2, 1)
             panel.addLayout(toggles)
             panel.addWidget(view, 1)
             info = QLabel()
@@ -117,6 +128,7 @@ class ComparisonDialog(QDialog):
             panel.addWidget(info)
             self.panes.append({"file": files, "charge": charge, "volume": volume,
                                "surface": surface, "level": level, "units": units, "view": view, "info": info,
+                               "figure": figure,
                                "representation": representation, "background": background, "display_toggles": display_toggles})
             files.currentIndexChanged.connect(lambda _index, side=side: self._select_file(side))
             charge.currentIndexChanged.connect(lambda _index, side=side: self._render_electronic(side))
@@ -126,8 +138,28 @@ class ComparisonDialog(QDialog):
             view.viewChanged.connect(lambda side=side: self._camera_changed(side))
             splitter.addWidget(body)
         layout.addWidget(splitter, 1)
-        self.metrics = QTableWidget(4, 4)
-        self.metrics.setMaximumHeight(175)
+        comparison_form = QFormLayout()
+        comparison_form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+        self.coordinate_mode = QComboBox()
+        for ko, en, key in (("입력 직교좌표 그대로", "Supplied Cartesian coordinates", "cartesian"),
+                            ("분자 회전·이동 정렬", "Rigid fit (molecules only)", "rigid"),
+                            ("같은 셀의 최소 이미지", "Minimum image (same cell)", "minimum_image")):
+            self.coordinate_mode.addItem(self.t(ko, en), key)
+        self.coordinate_mode.setObjectName("compareCoordinateMode")
+        self.coordinate_mode.setAccessibleName(self.t("변위 계산 기준", "Displacement convention"))
+        self.coordinate_mode.currentIndexChanged.connect(self._comparison_conditions_changed)
+        comparison_form.addRow(self.t("변위 기준", "Displacement convention"), self.coordinate_mode)
+        self.correspondence = QCheckBox(self.t("두 구조의 같은 원자 번호가 대응함을 확인", "I confirm matching source atom indices"))
+        self.correspondence.setObjectName("compareCorrespondence")
+        self.correspondence.toggled.connect(self._comparison_conditions_changed)
+        self.conditions_reviewed = QCheckBox(self.t("에너지 비교: 원본 계산 조건의 동등성을 검토함", "Energy comparison: full original inputs reviewed as equivalent"))
+        self.conditions_reviewed.setObjectName("compareConditionsReviewed")
+        self.conditions_reviewed.toggled.connect(self._comparison_conditions_changed)
+        comparison_form.addRow(self.correspondence)
+        comparison_form.addRow(self.conditions_reviewed)
+        layout.addLayout(comparison_form)
+        self.metrics = QTableWidget(8, 4)
+        self.metrics.setMaximumHeight(260)
         self.metrics.setHorizontalHeaderLabels([self.t("항목", "Metric"), self.t("왼쪽", "Left"),
                                                 self.t("오른쪽", "Right"), self.t("차이 (오른쪽 − 왼쪽)", "Δ (right − left)")])
         self.metrics.verticalHeader().hide()
@@ -137,6 +169,11 @@ class ComparisonDialog(QDialog):
         self.metrics.setColumnWidth(1, 190)
         self.metrics.setColumnWidth(2, 190)
         layout.addWidget(self.metrics)
+        self.coordinate_info = QLabel()
+        self.coordinate_info.setObjectName("muted")
+        self.coordinate_info.setWordWrap(True)
+        self.coordinate_info.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        layout.addWidget(self.coordinate_info)
         controls = QGridLayout()
         self.link_cameras = QCheckBox(self.t("시점 함께 움직이기", "Link camera orientation"))
         self.shared_range = QCheckBox(self.t("같은 물리량의 색상 범위 공유", "Share range for the same quantity"))
@@ -149,8 +186,8 @@ class ComparisonDialog(QDialog):
         controls.addWidget(refresh, 1, 1)
         layout.addLayout(controls)
         self.scope = QLabel(self.t(
-            "수치는 각 CIF의 축·거리 조건에 따릅니다. 두 구조의 차이는 안정성이나 개선을 뜻하지 않습니다.",
-            "Metrics use each CIF's own axis and cutoff. A difference does not establish stability or improvement."))
+            "원자 번호는 원본의 1번부터 시작합니다. 원자 재배열·결정 정합은 자동 수행하지 않습니다. CIF의 축과 거리 기준은 각 파일에 따릅니다. 구조·에너지 차이가 안정성이나 개선을 뜻하지 않습니다.",
+            "One-based source atom indices; no automatic permutation or crystal registration. CIF metrics use each file's own axis/cutoff. Geometry or energy differences do not establish stability or improvement."))
         self.scope.setObjectName("muted")
         self.scope.setWordWrap(True)
         layout.addWidget(self.scope)
@@ -165,6 +202,11 @@ class ComparisonDialog(QDialog):
 
     def t(self, ko, en):
         return self.window.text(ko, en)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, "splitter"):
+            self.splitter.setOrientation(Qt.Orientation.Vertical if self.width() < 850 else Qt.Orientation.Horizontal)
 
     def _display_toggle(self, view, attribute, checked):
         setattr(view, attribute, checked)
@@ -218,20 +260,35 @@ class ComparisonDialog(QDialog):
     def refresh_entries(self, snapshot, *, initial=False):
         if self._closed:
             return
-        signature = [(entry["id"], entry["sha256"], entry["normal_axis"], entry["short_distance"])
-                     for entry in snapshot["entries"]]
+        entries = list(snapshot["entries"])
+        panel = self.window.research_panel
+        if panel:
+            entries.extend(panel.output_entries())
+        signature = [self._entry_identity(entry) for entry in entries]
         if signature == self._signature and not initial:
             return
         saved = self.portable_state() if self._signature is not None else None
         self._signature = signature
-        self._entries = {entry["id"]: entry for entry in snapshot["entries"]}
+        self._entries = {entry["id"]: entry for entry in entries}
         if not self._entries:
+            self._updating = True
+            for pane in self.panes:
+                for key in ("file", "charge", "volume"):
+                    pane[key].clear()
+                pane["view"].set_structure(None, {})
+                pane["info"].clear()
+                pane["figure"].setEnabled(False)
+            self.correspondence.setChecked(False)
+            self.conditions_reviewed.setChecked(False)
+            self._updating = False
+            self._update_metrics()
+            self.changed.emit(self.portable_state())
             return
         saved = saved or self._initial_state()
         self._updating = True
         for side, pane in enumerate(self.panes):
             pane["file"].clear()
-            for entry in snapshot["entries"]:
+            for entry in entries:
                 pane["file"].addItem(entry["filename"], entry["id"])
             previous = saved.get("panes", [])
             previous = previous[side] if isinstance(previous, list) and len(previous) > side and isinstance(previous[side], dict) else {}
@@ -249,6 +306,13 @@ class ComparisonDialog(QDialog):
                 pane["display_toggles"][key].setChecked(getattr(pane["view"], attribute))
         self.link_cameras.setChecked(saved.get("linked") is True)
         self.shared_range.setChecked(saved.get("shared_range") is True)
+        # Confirmations belong to this ordered pair of exact sources/geometry,
+        # never to combo-box positions. Missing IDs can silently fall back when
+        # a project is replaced, so restore consent only after identity matching.
+        same_pair = saved.get("pair_identity") == self._pair_identity()
+        self.correspondence.setChecked(same_pair and saved.get("correspondence") is True)
+        self.conditions_reviewed.setChecked(same_pair and saved.get("conditions_reviewed") is True)
+        self.coordinate_mode.setCurrentIndex(max(0, self.coordinate_mode.findData(saved.get("coordinate_mode"))))
         self._updating = False
         self._update_metrics()
         self._render_electronic()
@@ -256,11 +320,27 @@ class ComparisonDialog(QDialog):
     def _entry(self, side):
         return self._entries.get(self.panes[side]["file"].currentData())
 
+    @staticmethod
+    def _entry_identity(entry):
+        if entry is None:
+            return None
+        report = entry.get("analysis", {}).get("report") or {}
+        geometry = {key: report.get(key) for key in
+                    ("elements", "positions", "cell", "periodic_axes", "units")}
+        digest = sha256(json.dumps(geometry, sort_keys=True, allow_nan=False,
+                                   separators=(",", ":")).encode()).hexdigest()
+        return {"entry_id": entry["id"], "source_sha256": entry["sha256"],
+                "geometry_sha256": digest, "normal_axis": entry["normal_axis"],
+                "short_distance": entry["short_distance"]}
+
+    def _pair_identity(self):
+        return [self._entry_identity(self._entry(side)) for side in range(2)]
+
     def _populate_datasets(self, side, saved=None):
         pane = self.panes[side]
         saved = saved or {"charge_id": pane["charge"].currentData(), "volume_id": pane["volume"].currentData()}
         entry = self._entry(side)
-        choices = self.window.research_panel.dataset_choices(entry) if self.window.research_panel and entry else {"charges": [], "volumes": []}
+        choices = self.window.research_panel.dataset_choices(entry) if self.window.research_panel and entry and not entry.get("output") else {"charges": [], "volumes": []}
         for key, datasets, placeholder in (
             ("charge", choices["charges"], self.t("원소 색상", "Element colors")),
             ("volume", choices["volumes"], self.t("표면 없음", "No surface")),
@@ -277,6 +357,8 @@ class ComparisonDialog(QDialog):
         if self._updating:
             return
         self._updating = True
+        self.correspondence.setChecked(False)
+        self.conditions_reviewed.setChecked(False)
         self._populate_datasets(side, {})
         self.panes[side]["surface"].setChecked(False)
         self._set_structure(side)
@@ -287,11 +369,37 @@ class ComparisonDialog(QDialog):
     def _set_structure(self, side):
         pane, entry = self.panes[side], self._entry(side)
         report = entry["analysis"].get("report") if entry else None
-        pane["view"].set_structure(report, {"filename": entry["filename"], "sha256": entry["sha256"]} if entry else {})
+        metadata = {"filename": entry["filename"], "sha256": entry["sha256"]} if entry else {}
+        if entry and entry.get("output"):
+            output = entry["output"]
+            geometry = output["step"]["final_geometry"]
+            metadata.update({"source_filename": output["provenance"]["name"],
+                             "source_sha256": entry["sha256"],
+                             "program": output["program"], "job_index": output["step"]["index"],
+                             "execution_status": output["step"]["status"],
+                             "electronic_status": output["step"]["scf"]["status"],
+                             "geometry_source": geometry["source"],
+                             "geometry_line_start": geometry["line_start"],
+                             "geometry_line_end": geometry["line_end"],
+                             "coordinate_units": "angstrom"})
+        pane["view"].set_structure(report, metadata)
+        pane["figure"].setEnabled(report is not None)
         if report:
-            pane["info"].setText(f"{report['formula']} · {report['atom_count']} " + self.t("원자", "atoms")
-                                  + self.t(f" · {entry['normal_axis']}축 · 짧은 거리 {entry['short_distance']:g} Å",
-                                           f" · axis {entry['normal_axis']} · cutoff {entry['short_distance']:g} Å"))
+            description = f"{report['formula']} · {report['atom_count']} " + self.t("원자", "atoms")
+            if entry.get("output"):
+                output = entry["output"]
+                geometry = output["step"]["final_geometry"]
+                description += (f" · Å · {geometry['source']} · {geometry['line_start']}–{geometry['line_end']}\n"
+                                f"SHA-256 {entry['sha256']}\n"
+                                f"{self.t('실행 / 전자 수렴', 'Execution / electronic convergence')}: "
+                                f"{output['step']['status']} / {output['step']['scf']['status']}")
+                energy = output["step"].get("final_energy")
+                if energy:
+                    description += f"\n{energy['kind']}: {energy['value']:.12g} {energy['unit']} (line {energy['line']})"
+            else:
+                description += self.t(f" · {entry['normal_axis']}축 · 짧은 거리 {entry['short_distance']:g} Å",
+                                      f" · axis {entry['normal_axis']} · cutoff {entry['short_distance']:g} Å")
+            pane["info"].setText(description)
         else:
             error = entry["analysis"].get("error_ko" if self.window.language == "ko" else "error") if entry else ""
             pane["info"].setText(str(error or ""))
@@ -299,6 +407,7 @@ class ComparisonDialog(QDialog):
     def _refresh_datasets(self):
         if self._updating or self._closed:
             return
+        self.refresh_entries(self.window.snapshot)
         saved = self.portable_state()
         self._updating = True
         for side in range(2):
@@ -333,7 +442,7 @@ class ComparisonDialog(QDialog):
                 if changed_side is not None and side != changed_side and shared is None:
                     continue
                 entry = self._entry(side)
-                if panel and entry and pane["view"].report:
+                if panel and entry and pane["view"].report and not entry.get("output"):
                     panel.apply_view_dataset(pane["view"], entry, charge_id=pane["charge"].currentData(),
                                              volume_id=pane["volume"].currentData() if pane["surface"].isChecked() else None,
                                              level=pane["level"].value(), shared_extent=shared)
@@ -344,7 +453,8 @@ class ComparisonDialog(QDialog):
             self.window.show_error(error)
 
     def _update_metrics(self):
-        reports = [self._entry(side)["analysis"].get("report") for side in range(2)]
+        entries = [self._entry(side) for side in range(2)]
+        reports = [entry["analysis"].get("report") if entry else None for entry in entries]
         rows = [
             (self.t("원자 수", "Atom count"), "atom_count", False),
             (self.t("최소 주기 거리 / Å", "Minimum periodic distance / Å"), "minimum_distance_angstrom", True),
@@ -352,11 +462,56 @@ class ComparisonDialog(QDialog):
             (self.t("원자핵 간격 / Å", "Nuclei gap / Å"), "nuclei_gap_angstrom", True),
         ]
         for row, (name, key, metric) in enumerate(rows):
-            values = [(report["metrics"][key] if metric else report[key]) if report else None for report in reports]
+            values = [(report.get("metrics", {}).get(key) if metric else report.get(key)) if report else None for report in reports]
+            comparable = all(value is not None for value in values)
+            if key in ("nuclei_thickness_angstrom", "nuclei_gap_angstrom"):
+                comparable = comparable and entries[0]["normal_axis"] == entries[1]["normal_axis"]
             cells = [name, *(f"{value:.6g}" if value is not None else "—" for value in values),
-                     f"{values[1] - values[0]:+.6g}" if all(value is not None for value in values) else "—"]
+                     f"{values[1] - values[0]:+.6g}" if comparable else "—"]
             for column, value in enumerate(cells):
                 self.metrics.setItem(row, column, QTableWidgetItem(value))
+        comparison = compare_coordinates(*reports, correspondence=self.correspondence.isChecked(),
+                                         mode=self.coordinate_mode.currentData())
+        self.coordinate_comparison = comparison
+        for row, name, key in ((4, self.t("대응 원자 RMSD / Å", "Matched-atom RMSD / Å"), "rmsd"),
+                               (5, self.t("최대 원자 변위 / Å", "Maximum atom displacement / Å"), "maximum")):
+            value = comparison.get(key)
+            for column, cell in enumerate([name, "—", "—", f"{value:.6g}" if value is not None else "—"]):
+                self.metrics.setItem(row, column, QTableWidgetItem(cell))
+        volumes = []
+        for report in reports:
+            cell = np.asarray(report.get("cell"), float) if report else np.asarray(None)
+            volumes.append(abs(float(np.linalg.det(cell))) if cell.shape == (3, 3) else None)
+        cells = [self.t("셀 부피 / Å³", "Cell volume / Å³"),
+                 *(f"{v:.6g}" if v is not None else "—" for v in volumes),
+                 f"{volumes[1] - volumes[0]:+.6g}" if all(v is not None for v in volumes) else "—"]
+        for column, cell in enumerate(cells):
+            self.metrics.setItem(6, column, QTableWidgetItem(cell))
+        energy = energy_comparison(*entries, reviewed=self.conditions_reviewed.isChecked())
+        self.energy_comparison = energy
+        energy_values = [(entry or {}).get("output", {}).get("step", {}).get("final_energy") for entry in entries]
+        cells = [self.t("출력 에너지 / 표기 단위", "Output energy / printed units"),
+                 *(f"{e['value']:.10g} {e['unit']} ({e['kind']})" if e else "—" for e in energy_values),
+                 f"{energy['delta']:+.10g} eV" if energy["status"] == "available" else "—"]
+        for column, cell in enumerate(cells):
+            self.metrics.setItem(7, column, QTableWidgetItem(cell))
+        self.coordinate_info.setText("\n".join([
+            comparison.get("reference", comparison.get("reason", "")),
+            (f"{self.t('가장 큰 변위: 원자', 'Largest displacement: atom')} {comparison['largest_atom_index']}"
+             if comparison.get("status") == "available" else ""), energy["reason"],
+        ]))
+
+    def _comparison_conditions_changed(self, *_args):
+        if self._updating:
+            return
+        self._update_metrics()
+        self.changed.emit(self.portable_state())
+
+    def select_output(self, identifier, *, side=1):
+        self.refresh_entries(self.window.snapshot)
+        index = self.panes[side]["file"].findData(identifier)
+        if index >= 0:
+            self.panes[side]["file"].setCurrentIndex(index)
 
     def _camera_changed(self, side):
         if self._updating or self._linking:
@@ -370,6 +525,9 @@ class ComparisonDialog(QDialog):
 
     def portable_state(self):
         return {"schema_version": 1, "linked": self.link_cameras.isChecked(), "shared_range": self.shared_range.isChecked(),
+                "correspondence": self.correspondence.isChecked(), "conditions_reviewed": self.conditions_reviewed.isChecked(),
+                "pair_identity": self._pair_identity(),
+                "coordinate_mode": self.coordinate_mode.currentData(),
                 "panes": [{"entry_id": pane["file"].currentData(), "charge_id": pane["charge"].currentData(),
                            "volume_id": pane["volume"].currentData(), "surface": pane["surface"].isChecked(),
                            "level": pane["level"].value(), "camera": pane["view"].view_state()} for pane in self.panes]}

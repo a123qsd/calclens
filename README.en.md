@@ -1,10 +1,10 @@
 # CalcLens
 
-**Desktop 0.9.1** opens CIFs in a native desktop program. The Windows folder ZIP and Apple Silicon app include automatic recovery, electronic fields, Apple Metal/CUDA or a remote worker, Gaussian output review and a real vacuum-convergence case. Device availability depends on the computer and selected task. [Desktop guide](docs/DESKTOP.md)
+**Desktop 0.10.0** opens CIFs in a native desktop program. The Windows folder ZIP and Apple Silicon app include automatic recovery, electronic fields, Apple Metal/CUDA or a remote worker, Gaussian output review and a real vacuum-convergence case. Device availability depends on the computer and selected task. [Desktop guide](docs/DESKTOP.md)
 
 Extract the complete Windows ZIP into an empty folder and launch `CalcLens.exe` beside `runtime`. Keep the extracted folder together. **Settings** opens device selection, theme, interactive graphics and PNG options. The H₂ project keeps its original calculation axis when the structure axis changes. [Desktop guide](docs/DESKTOP.md) · [Viewer features](docs/native-graphics.md) · [Pre-release review record](docs/NATIVE_REVIEW.md)
 
-[Windows x64 folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-macOS-Apple-Silicon.dmg) · [Release files](https://github.com/a123qsd/calclens/releases/tag/v0.9.1)
+[Windows x64 folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.10.0/CalcLens-0.10.0-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.10.0/CalcLens-0.10.0-macOS-Apple-Silicon.dmg) · [Release files](https://github.com/a123qsd/calclens/releases/tag/v0.10.0)
 
 Created, led and maintained by [a123qsd](https://github.com/a123qsd).
 [Project origin and responsibilities](AUTHORS.md) · [Citation](CITATION.cff)
@@ -19,10 +19,10 @@ service is required.
 
 [Project home](https://github.com/a123qsd/calclens) · [한국어 안내](README.ko.md) · [English ZIP and installation](docs/DOWNLOADS.md#english) · [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) · [Development](docs/DEVELOPMENT.md) · [Validation record](docs/VALIDATION.md)
 
-Version 0.9.1 retains research sources and calculation conditions when projects
-are reopened, checks the selected data before exporting research results, and
-provides a Windows folder ZIP that reuses its extracted runtime.
-See the [0.9.1 release notes](docs/RELEASE-0.9.1.md).
+Version 0.10.0 compares Gaussian and VASP output geometries by atom index,
+integrates Cube and CHGCAR density fields, replays retained density results on
+the CPU and exports PNG or PDF figures at a specified print width and resolution.
+See the [0.10.0 release notes](docs/RELEASE-0.10.0.md).
 
 The optional browser viewer includes ball-and-stick, stick and space-filling views, element
 legends, metal-element highlighting, graphics quality, top/side views,
@@ -52,9 +52,9 @@ coordinate matching and units.
 
 On Windows, extract the complete ZIP into a new folder and open `CalcLens.exe` beside `runtime`. Keep the extracted folder together, including when moving the app. On an Apple Silicon Mac, open the DMG, drag CalcLens into Applications, and open the app. Both builds include Python and Qt. A graphene example opens on first launch.
 
-[Windows x64 folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-macOS-Apple-Silicon.dmg) · [Release files](https://github.com/a123qsd/calclens/releases/tag/v0.9.1)
+[Windows x64 folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.10.0/CalcLens-0.10.0-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.10.0/CalcLens-0.10.0-macOS-Apple-Silicon.dmg) · [Release files](https://github.com/a123qsd/calclens/releases/tag/v0.10.0)
 
-[Source ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.9.1.zip) · [SHA-256 checksums](https://github.com/a123qsd/calclens/releases/download/v0.9.1/SHA256SUMS.txt) · [Installation guide](docs/DOWNLOADS.md#english)
+[Source ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.10.0.zip) · [SHA-256 checksums](https://github.com/a123qsd/calclens/releases/download/v0.10.0/SHA256SUMS.txt) · [Installation guide](docs/DOWNLOADS.md#english)
 
 To clone the source with Git instead, use the commands below. These installation
 examples use Python 3.12.

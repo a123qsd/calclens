@@ -24,6 +24,8 @@ class Primitive:
     shaded: bool = False
     texture: np.ndarray | None = None
     dashed: bool = False
+    dash_length: float = 0.0
+    dash_gap: float = 0.0
 
     @cached_property
     def bounds(self):
@@ -124,12 +126,23 @@ def _samples(primitive, tile, world_per_pixel):
         a, b = points
         delta = b[:2] - a[:2]
         length_sq = float(delta @ delta)
-        fraction = np.clip(((x - a[0]) * delta[0] + (y - a[1]) * delta[1]) / max(length_sq, 1e-12), 0, 1)
-        square = (x - a[0] - fraction * delta[0]) ** 2 + (y - a[1] - fraction * delta[1]) ** 2
+        if length_sq <= 1e-12:
+            # A line along the view direction projects to a disk. Its nearest
+            # end is visible, whichever endpoint was supplied first. Using a
+            # zero interpolation fraction chose an arbitrary, often hidden end.
+            center = (a[:2] + b[:2]) / 2
+            square = (x - center[0]) ** 2 + (y - center[1]) ** 2
+            depth = np.full(x.shape, max(a[2], b[2]))
+        else:
+            fraction = np.clip(((x - a[0]) * delta[0] + (y - a[1]) * delta[1]) / length_sq, 0, 1)
+            square = (x - a[0] - fraction * delta[0]) ** 2 + (y - a[1] - fraction * delta[1]) ** 2
+            depth = a[2] + fraction * (b[2] - a[2])
         mask = square <= primitive.radius ** 2
-        if primitive.dashed:
-            mask &= np.mod(fraction * math.sqrt(length_sq), max(4, primitive.radius * 6)) < max(2, primitive.radius * 3.6)
-        depth = a[2] + fraction * (b[2] - a[2]) + np.sqrt(np.maximum(0, primitive.radius ** 2 - square)) * world_per_pixel
+        if primitive.dashed and length_sq > 1e-12:
+            dash = primitive.dash_length or max(2, primitive.radius * 3.6)
+            period = dash + primitive.dash_gap if primitive.dash_length else max(4, primitive.radius * 6)
+            mask &= np.mod(fraction * math.sqrt(length_sq), period) < dash
+        depth += np.sqrt(np.maximum(0, primitive.radius ** 2 - square)) * world_per_pixel
     elif primitive.kind == "sprite":
         sx = np.clip((xx - points[0, 0]).astype(int), 0, primitive.texture.shape[1] - 1)
         sy = np.clip((yy - points[0, 1]).astype(int), 0, primitive.texture.shape[0] - 1)

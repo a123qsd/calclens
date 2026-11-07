@@ -267,22 +267,77 @@ def _plane_geometry(grid: CubeGrid, axis: int, normal: Sequence[float] | None) -
 def _profile(grid: CubeGrid, averages: np.ndarray, geometry: dict[str, Any],
              execution: dict[str, Any]) -> dict[str, Any]:
     order = np.argsort(geometry["positions"])
+    positions = geometry["positions"][order]
+    ordered_averages = averages[order]
+    area, step = geometry["area"], abs(geometry["step"])
+    # This makes the N-step rectangle-rule domain explicit and keeps it invariant
+    # when the normal is reversed: each sampled plane represents a centered slab.
+    boundaries = np.concatenate((positions - step / 2, [positions[-1] + step / 2]))
+    with np.errstate(over="ignore", invalid="ignore"):
+        plane_e = ordered_averages * area * step
+        cumulative_e = np.concatenate(([0.0], np.cumsum(plane_e, dtype=np.float64)))
+        voxel_volume = geometry["voxel_volume"]
+        positive_e = float(np.sum(np.maximum(grid.values, 0), dtype=np.float64) * voxel_volume)
+        negative_e = float(np.sum(np.minimum(grid.values, 0), dtype=np.float64) * voxel_volume)
+        absolute_e = positive_e - negative_e
+        integral_e = float(np.sum(plane_e, dtype=np.float64))
+    if not (np.isfinite(plane_e).all() and np.isfinite(cumulative_e).all()
+            and all(math.isfinite(value) for value in (positive_e, negative_e, absolute_e, integral_e))):
+        raise DensityError("Density integration exceeds floating-point precision.")
     return {
         "field_kind": grid.kind, "axis": geometry["axis"],
         "normal_unit_vector": geometry["normal"],
-        "positions_angstrom": geometry["positions"][order].tolist(),
-        "average_e_per_angstrom3": averages[order].tolist(),
-        "line_density_e_per_angstrom": (averages[order] * geometry["area"]).tolist(),
+        "positions_angstrom": positions.tolist(),
+        "average_e_per_angstrom3": ordered_averages.tolist(),
+        "line_density_e_per_angstrom": (ordered_averages * area).tolist(),
         "plane_area_angstrom2": geometry["area"],
         "plane_step_angstrom": abs(geometry["step"]),
-        "integral_e": float(np.sum(averages, dtype=np.float64)
-                            * geometry["area"] * abs(geometry["step"])),
+        "integral_e": integral_e,
+        "integration": {
+            "schema_version": 1,
+            "boundary_positions_angstrom": boundaries.tolist(),
+            "plane_integral_e": plane_e.tolist(),
+            "cumulative_e": cumulative_e.tolist(),
+            "positive_voxel_integral_e": positive_e,
+            "negative_voxel_integral_e": negative_e,
+            "absolute_voxel_integral_e": absolute_e,
+            "voxel_volume_angstrom3": voxel_volume,
+            "convention": "piecewise-constant centered slabs; cumulative electron count from the lowest projected boundary",
+            "positive_negative_scope": "positive and negative parts of the original 3D voxel field, before planar averaging",
+            "interpretation": "Signed electron counts, not electric charge or atom-partitioned charge transfer; interval values assume constant density within each sampled slab.",
+        },
         "quadrature": "equal-volume voxel rectangle rule; domain spans N voxel steps, not N-1",
         "units": "e/angstrom^3", "execution": execution,
         "limitations": ["External electronic calculations are not rerun or independently validated.",
                         "A density difference is not an atom-partitioned charge transfer.",
                         "No grid interpolation, alignment, relaxation or endpoint correction is inferred."],
     }
+
+
+def integrate_profile_interval(profile: dict[str, Any], lower_angstrom: float,
+                               upper_angstrom: float) -> float:
+    """Integrate a closed display interval using the declared centered-slab rule.
+
+    A cut through a slab contributes its fractional width. This is a transparent
+    quadrature convention, not an interpolation of unsampled electronic density.
+    Bounds outside the sampled domain are rejected rather than extrapolated.
+    """
+    integration = profile.get("integration", {})
+    try:
+        edges = np.asarray(integration["boundary_positions_angstrom"], dtype=np.float64)
+        counts = np.asarray(integration["plane_integral_e"], dtype=np.float64)
+        lower, upper = float(lower_angstrom), float(upper_angstrom)
+    except (KeyError, TypeError, ValueError) as error:
+        raise DensityError("A supported density integration profile and finite interval are required.") from error
+    if (type(integration.get("schema_version")) is not int or integration.get("schema_version") != 1
+            or edges.ndim != 1 or counts.ndim != 1
+            or len(edges) != len(counts) + 1 or len(counts) < 2
+            or not np.isfinite(edges).all() or not np.isfinite(counts).all()
+            or np.any(np.diff(edges) <= 0) or not math.isfinite(lower) or not math.isfinite(upper)
+            or not edges[0] <= lower <= upper <= edges[-1]):
+        raise DensityError("Integration interval must stay within the finite sampled slab boundaries.")
+    widths = np.maximum(0, np.minimum(edges[1:], upper) - np.maximum(edges[:-1], lower))
+    return float(np.sum(counts * (widths / np.diff(edges)), dtype=np.float64))
 
 
 def planar_average(grid: CubeGrid, *, axis: int = 2, normal: Sequence[float] | None = None,

@@ -1,10 +1,10 @@
 # CalcLens
 
-**0.9.1 데스크톱 안내** · Windows와 Apple Silicon Mac에서 CIF 파일과 구조를 앱 안에서 엽니다. 자동 복구, 전자 자료, Apple Metal·CUDA·원격 계산, Gaussian 로그 및 실제 수렴 예제를 사용할 수 있습니다. 사용 가능한 계산 장치는 컴퓨터와 선택한 작업에 따라 달라집니다. [데스크톱 실행·사용 안내](docs/DESKTOP.md)
+**0.10.0 데스크톱 안내** · Windows와 Apple Silicon Mac에서 CIF 파일과 구조를 앱 안에서 엽니다. 자동 복구, 전자 자료, Apple Metal·CUDA·원격 계산, Gaussian 로그 및 실제 수렴 예제를 사용할 수 있습니다. 사용 가능한 계산 장치는 컴퓨터와 선택한 작업에 따라 달라집니다. [데스크톱 실행·사용 안내](docs/DESKTOP.md)
 
 Windows에서는 ZIP 전체를 빈 폴더에 풀고 `runtime` 옆의 `CalcLens.exe`를 실행하세요. 폴더 전체를 함께 보관해야 합니다. 주 분석 축을 바꿔도 H₂ 계산 당시의 축과 원본을 보관합니다. 상단 **설정**에서 계산 장치, 테마, 그래픽 품질과 PNG 출력을 선택할 수 있습니다. [사용 안내](docs/DESKTOP.md) · [뷰어 기능 비교](docs/native-graphics.md) · [출시 전 검토 기록](docs/NATIVE_REVIEW.md)
 
-[Windows x64 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.1)
+[Windows x64 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.10.0/CalcLens-0.10.0-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.10.0/CalcLens-0.10.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.10.0)
 
 창안·기획·개발 총괄 및 유지관리: [a123qsd](https://github.com/a123qsd).
 [프로젝트 출처와 역할](AUTHORS.md) · [인용 정보](CITATION.cff)
@@ -17,9 +17,10 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 
 [Project home](https://github.com/a123qsd/calclens) · [English guide](README.en.md) · [한국어 ZIP 받기·설치](docs/DOWNLOADS.md#한국어) · [계산 방법과 한계](docs/METHODS.md) · [예제 출처](docs/PROVENANCE.md) · [개발 안내](docs/DEVELOPMENT.md) · [검증 기록](docs/VALIDATION.md)
 
-0.9.1은 작업을 다시 열 때 연구 원본과 계산 조건을 보관하고, 연구 결과를 내보내기 전에
-선택한 자료가 일치하는지 확인합니다. Windows 폴더 ZIP은 한 번 푼 런타임을 다시 사용합니다.
-자세한 내용은 [0.9.1 변경 사항](docs/RELEASE-0.9.1.md)을 참고하세요.
+0.10.0에서는 Gaussian과 VASP 출력에 기록된 구조의 RMSD를 비교하고, Cube와 CHGCAR의
+전자밀도를 적분할 수 있습니다. 보관한 계산은 원본으로 CPU에서 검산하고, 구조 그림은
+인쇄 너비와 해상도를 지정해 PNG나 PDF로 저장합니다.
+자세한 내용은 [0.10.0 변경 사항](docs/RELEASE-0.10.0.md)을 참고하세요.
 
 선택적으로 실행하는 브라우저 뷰어에는 구·막대/막대/공간 채움, 원소 범례와 금속 원소 강조,
 그래픽 품질, 위·옆 시점과 정사영, 전체 화면, 비교 시점 동기화 및
@@ -46,9 +47,9 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 
 Windows에서는 ZIP 전체를 새 폴더에 풀고 `runtime` 옆의 `CalcLens.exe`를 실행하세요. 앱을 옮길 때도 폴더 전체를 함께 옮겨야 합니다. Apple Silicon Mac에서는 DMG를 열고 CalcLens를 응용 프로그램 폴더로 옮긴 뒤 실행하세요. 두 배포판 모두 Python과 Qt를 포함합니다. 앱을 열면 기본 그래핀 예제가 표시됩니다.
 
-[Windows x64 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.1)
+[Windows x64 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.10.0/CalcLens-0.10.0-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.10.0/CalcLens-0.10.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.10.0)
 
-[소스 ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.9.1.zip) · [SHA-256 파일 검증](https://github.com/a123qsd/calclens/releases/download/v0.9.1/SHA256SUMS.txt) · [다운로드·설치 안내](docs/DOWNLOADS.md#한국어)
+[소스 ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.10.0.zip) · [SHA-256 파일 검증](https://github.com/a123qsd/calclens/releases/download/v0.10.0/SHA256SUMS.txt) · [다운로드·설치 안내](docs/DOWNLOADS.md#한국어)
 
 Git으로 소스를 내려받는 경우에는 다음 명령을 실행합니다.
 설치 명령 예시는 Python 3.12를 사용합니다.

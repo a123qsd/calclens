@@ -216,6 +216,27 @@ def validate_computation(bundle, replay, field=None):
         if value.shape != expected.shape or not np.allclose(
                 value, expected, rtol=2e-5, atol=2e-6 * max(1, float(np.max(np.abs(expected))))):
             raise ValueError("Retained profile values differ from CPU replay.")
+    # Older projects retain their original profile. New integral fields are
+    # optional for migration, but must agree with CPU replay whenever present.
+    if "integration" in profile:
+        integration = profile["integration"]
+        expected = replay.profile["integration"]
+        if not isinstance(integration, dict) or set(integration) != set(expected):
+            raise ValueError("Invalid retained density integration record.")
+        for key, value in expected.items():
+            if isinstance(value, (str, int)):
+                if type(integration[key]) is not type(value) or integration[key] != value:
+                    raise ValueError("Retained integration conditions differ from CPU replay.")
+            else:
+                try:
+                    actual = np.asarray(integration[key], dtype=float)
+                    reference = np.asarray(value, dtype=float)
+                except (TypeError, ValueError) as error:
+                    raise ValueError("Invalid retained density integration values.") from error
+                if actual.shape != reference.shape or not np.allclose(
+                        actual, reference, rtol=2e-5,
+                        atol=2e-6 * max(1, float(np.max(np.abs(reference))))):
+                    raise ValueError("Retained density integrals differ from CPU replay.")
 
 
 def binding_digest(value):

@@ -77,6 +77,8 @@ visible in a small core module. Neither project's developers endorse CalcLens.
 
 ## Example data
 
+The bundled Ni OUTCAR is an unmodified test file from ASE 3.26.0. Its source URL, SHA-256 and upstream license notice accompany the example. [Source record](examples/research_cases/vasp_reference/sources.json) · [ASE license](examples/research_cases/vasp_reference/ASE-LICENSE.txt)
+
 The top-level CIF examples are analytical models created for this project and released
 with the repository under [LICENSE](LICENSE). Parameters, construction rules, and artificial defects are
 recorded in [docs/PROVENANCE.md](docs/PROVENANCE.md). Material names identify the

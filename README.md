@@ -1,14 +1,14 @@
 # CalcLens
 
-**CalcLens Desktop 0.9.1** opens a native Qt desktop application. CIF inspection, 3D rotation, comparison, project recovery and research tools run inside the application. The desktop can compute density differences and planar averages locally or with an explicitly selected worker. [Desktop guide / 데스크톱 사용 안내](docs/DESKTOP.md)
+**CalcLens Desktop 0.10.0** opens CIFs, Gaussian molecular outputs and VASP OUTCARs. Compare reported structures, inspect a Cube or CHGCAR density, verify a saved density calculation and export print-sized PNG or PDF figures. [Desktop guide / 데스크톱 사용 안내](docs/DESKTOP.md)
 
-**CalcLens 데스크톱 0.9.1**은 앱 안에서 구조를 열고 검사하는 네이티브 프로그램입니다. 실제 H₂ 밀도 차이와 h-BN 진공 수렴 예제가 포함되어 있습니다. 두 운영체제 모두 앱 안에서 한국어와 영어를 선택할 수 있습니다.
+**CalcLens 데스크톱 0.10.0**에서는 Gaussian과 VASP 출력에 기록된 구조를 나란히 비교할 수 있습니다. Cube와 CHGCAR의 전자밀도를 적분하고, 보관한 밀도 차이를 원본으로 검산하거나 현재 구조를 논문용 PNG·PDF로 저장할 수 있습니다.
 
 Windows용 ZIP은 한 폴더에 모두 푼 뒤 `runtime` 옆의 `CalcLens.exe`를 실행하세요. 폴더 전체를 함께 보관해야 합니다. H₂ 밀도 차이는 계산 당시의 축·법선·원본으로 다시 열립니다. 상단 **설정**에서 계산 장치, 테마, 화면 그래픽 품질과 PNG 출력을 바꿀 수 있습니다.
 
 Extract the whole Windows ZIP once and start `CalcLens.exe` beside its `runtime` folder. Keep the extracted folder together. Saved density calculations retain their original axis when the structure axis changes, and exports check the active dataset identity. [Native desktop guide](docs/DESKTOP.md) · [Desktop and web graphics](docs/native-graphics.md) · [Pre-release review record / 출시 전 검토 기록](docs/NATIVE_REVIEW.md)
 
-[Windows x64 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.1)
+[Windows x64 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.10.0/CalcLens-0.10.0-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.10.0/CalcLens-0.10.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.10.0)
 
 Created, led and maintained by [a123qsd](https://github.com/a123qsd).
 [Project origin and responsibilities](AUTHORS.md) · [Citation](CITATION.cff)
@@ -27,7 +27,7 @@ CalcLens가 이 값을 계산하지는 않습니다. 보조 자료, 파일별 �
 같은 CIF에 여러 자료를 연결하고 공통 전하 색상 범위로 비교할 수 있습니다. 형식과 제한은
 [보조 자료 안내](docs/VIEWER_DATA.md)를 참고하세요.
 
-[0.9.1 release notes / 변경 사항](docs/RELEASE-0.9.1.md) ·
+[0.10.0 release notes / 변경 사항](docs/RELEASE-0.10.0.md) ·
 [Workspace guide / 작업 안내](docs/WORKSPACE_SAVE.md) · [Real electronic-data case / 실제 계산 사례](docs/ELECTRONIC_CASE.md)
 
 **Inspect a 2D material CIF before setting up a calculation.**
@@ -54,9 +54,9 @@ On Windows, extract the complete ZIP into a new folder and open `CalcLens.exe` b
 
 Windows ZIP은 전체를 새 폴더에 풀어야 합니다. Apple Silicon Mac에서는 DMG를 열고 CalcLens를 응용 프로그램 폴더로 옮기세요. 로컬 작업은 인터넷 연결 없이 실행할 수 있습니다.
 
-[Windows x64 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.1)
+[Windows x64 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.10.0/CalcLens-0.10.0-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.10.0/CalcLens-0.10.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.10.0)
 
-[Source ZIP / 소스 ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.9.1.zip) · [SHA-256 checksums / 파일 검증](https://github.com/a123qsd/calclens/releases/download/v0.9.1/SHA256SUMS.txt) · [Installation guide / 설치 안내](docs/DOWNLOADS.md)
+[Source ZIP / 소스 ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.10.0.zip) · [SHA-256 checksums / 파일 검증](https://github.com/a123qsd/calclens/releases/download/v0.10.0/SHA256SUMS.txt) · [Installation guide / 설치 안내](docs/DOWNLOADS.md)
 
 ## Save and continue work / 작업 저장하고 이어가기
 

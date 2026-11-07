@@ -275,6 +275,7 @@ def collect_source(runtime):
         'Qt source/licenses: https://www.qt.io/licensing/ and https://download.qt.io/\n'
         'PySide6 source: https://code.qt.io/cgit/pyside/pyside-setup.git/\n'
         'Gaussian reference data: examples/research_cases/gaussian_reference/LICENSE.cclib.\n'
+        'VASP reference data: examples/research_cases/vasp_reference/ASE-LICENSE.txt.\n'
         'Wine test system DLLs are not part of this distribution.\n')
 
 
@@ -369,7 +370,11 @@ Section
   runtime_finished:
     FileWrite $5 "Python exited with code $1.$\\r$\\n"
     StrCmp $1 0 finished
+    StrCmp $1 73 diagnostic_shown
     MessageBox MB_ICONSTOP "CalcLens stopped with error $1. Extract the complete ZIP to a new folder if runtime files are damaged.$\\r$\\nDiagnostics: $LOCALAPPDATA\\CalcLens\\logs (fallback: $TEMP\\CalcLens-logs)$\\r$\\n앱이 오류로 종료했습니다. 진단 폴더를 확인해 주세요."
+    Goto finished
+  diagnostic_shown:
+    StrCpy $1 1
   finished:
     FileClose $5
   SetErrorLevel $1

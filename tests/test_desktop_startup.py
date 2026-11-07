@@ -105,6 +105,29 @@ def test_deferred_workspace_has_no_default_result_until_background_initializatio
     assert workspace.project is before
 
 
+def test_runtime_failure_logs_every_event_and_notifies_once_without_startup_message(startup, tmp_path, monkeypatch):
+    from io import StringIO
+    from types import SimpleNamespace
+
+    stream = StringIO()
+    monkeypatch.setattr(startup, "sys", SimpleNamespace(platform="test", stderr=stream, modules={}))
+    monkeypatch.setattr(startup, "_log_stream", StringIO())
+    monkeypatch.setattr(startup, "install_diagnostics", lambda: tmp_path / "app.log")
+    startup.configure()
+    startup.mark("first_window")
+    startup.set_language("en")
+    for _ in range(3):
+        try:
+            raise ValueError("private file content")
+        except ValueError as error:
+            startup._unhandled(type(error), error, error.__traceback__)
+    assert stream.getvalue().count("during this operation") == 1
+    assert "could not start" not in stream.getvalue()
+    events = [json.loads(line) for line in startup._log_stream.getvalue().splitlines()]
+    assert [event["event"] for event in events] == ["runtime_failure"] * 3
+    assert "private file content" not in startup._log_stream.getvalue()
+
+
 def test_deferred_initialization_does_not_overwrite_a_new_workspace():
     from slab_preflight.project import Project
     from slab_preflight.web_api import Workspace

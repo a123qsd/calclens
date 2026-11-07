@@ -86,6 +86,29 @@ def test_native_gaussian_and_hbn_sources_survive_save_and_reopen(window, tmp_pat
     assert not errors
 
 
+def test_chgcar_selected_field_keeps_raw_bytes_and_profile_after_archive_reopen(window, tmp_path):
+    win, errors = window
+    report = win.selected_entry["analysis"]["report"]
+    lines = ["Graphene test grid", "1", *(" ".join(map(str, row)) for row in report["cell"]),
+             "C", "2", "Cartesian", *(" ".join(map(str, row)) for row in report["positions"]),
+             "", "2 2 2", "1 2 3 4 5 6 7 8"]
+    raw = ("\r\n".join(lines) + "\r\n").encode()
+    path = tmp_path / "CHGCAR"
+    path.write_bytes(raw)
+    win.research_panel.import_chgcar(path)
+    uid = win.research_panel.volume.currentData()
+    project = tmp_path / "chgcar.calclens.zip"
+    win.save_project(path=project)
+    win.open_project(project, confirm=False)
+    panel = win.research_panel
+    item = panel._source("volume", uid)
+    assert panel.volume.currentData() == uid and item["rawText"].encode() == raw
+    field = panel._decode("volume", item)
+    assert field.source_sha256 == sha256(raw).hexdigest()
+    assert field.values.sum() * abs(np.linalg.det(field.voxel_vectors_angstrom)) == pytest.approx(4.5)
+    assert not errors
+
+
 def test_compromised_series_file_cannot_change_workspace(window, tmp_path):
     win, errors = window
     p = win.research_panel

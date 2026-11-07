@@ -37,6 +37,7 @@ from .desktop_menus import display_menu, settings_menu
 from .project import ANALYSIS_REVISION, MAX_ARCHIVE_BYTES, MAX_FILE_BYTES, dumps_project_archive
 from .reporting import localized_error_message, localized_report, report_csv
 from .recovery import atomic_write
+from .startup import set_language
 from .web_api import APIError, Workspace
 
 
@@ -102,6 +103,7 @@ class MainWindow(QMainWindow):
         QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs, True)
         self.preferences = DesktopPreferences()
         self.language = language if language in ("ko", "en") else self.preferences.get("language")
+        set_language(self.language)
         self.local_devices = []
         self._defer_startup = defer_startup
         self._sidebar_requested = True
@@ -230,12 +232,13 @@ class MainWindow(QMainWindow):
             (self.text("작업 저장", "Save project"), QKeySequence.StandardKey.Save, self.save_project),
             (self.text("다른 이름으로 저장…", "Save project as…"), QKeySequence.StandardKey.SaveAs, lambda: self.save_project(save_as=True)),
             (self.text("PNG 내보내기…", "Export PNG…"), f"{modifier}+E", self.export_png),
+            (self.text("논문용 그림 내보내기…", "Export publication figure…"), f"{modifier}+Alt+E", self.export_publication),
         ):
-            action = QAction(title, self)
+            action = QAction(title, file_menu)
             action.setShortcut(shortcut)
             action.triggered.connect(function)
             file_menu.addAction(action)
-        quit_action = QAction(self.text("종료", "Quit"), self)
+        quit_action = QAction(self.text("종료", "Quit"), file_menu)
         quit_action.setShortcut(QKeySequence.StandardKey.Quit)
         quit_action.setMenuRole(QAction.MenuRole.QuitRole)
         quit_action.triggered.connect(self.close)
@@ -463,8 +466,9 @@ class MainWindow(QMainWindow):
         for spin in (self.first_atom, self.second_atom):
             spin.setRange(1, 400)
             spin.setPrefix("# ")
-            spin.valueChanged.connect(self._pair_changed)
         self.second_atom.setValue(2)
+        for spin in (self.first_atom, self.second_atom):
+            spin.valueChanged.connect(self._pair_changed)
         pair_row.addWidget(self.first_atom)
         pair_row.addWidget(QLabel("↔"))
         pair_row.addWidget(self.second_atom)
@@ -484,6 +488,7 @@ class MainWindow(QMainWindow):
             for _ in range(3):
                 spin = QSpinBox()
                 spin.setRange(-9, 9)
+                spin.valueChanged.connect(self._pair_changed)
                 spins.append(spin)
                 row.addWidget(spin)
             self.shift_spins.append(spins)
@@ -1382,6 +1387,7 @@ class MainWindow(QMainWindow):
         if index not in selection:
             selection.append(index)
         self.view.set_selection(selection)
+        self._clear_measurement()
         self._updating = True
         if selection:
             self.first_atom.setValue(selection[0] + 1)
@@ -1392,11 +1398,18 @@ class MainWindow(QMainWindow):
             self.measure_pair()
 
     def _pair_changed(self):
-        if not self._updating:
+        if not self._updating and self.selected_entry:
             self.view.set_selection([self.first_atom.value() - 1, self.second_atom.value() - 1])
+            self._clear_measurement()
+
+    def _clear_measurement(self):
+        self.view.set_contact(None)
+        self.measurement_label.setText(self.text("새 선택의 거리를 계산하세요.", "Measure the distance for this selection."))
 
     def _measurement_mode_changed(self):
         self.shift_widget.setVisible(self.measurement_mode.currentData() == "displayed")
+        if not self._updating:
+            self._clear_measurement()
 
     def _pair_selection(self):
         shifts = [[spin.value() for spin in row] for row in self.shift_spins]
@@ -1415,7 +1428,8 @@ class MainWindow(QMainWindow):
                 **{key: value for key, value in selection.items() if key != "mode"}}
 
         def measured(result):
-            if not self.selected_entry or self.selected_entry["id"] != entry_id or self.workspace.revision != revision:
+            if (not self.selected_entry or self.selected_entry["id"] != entry_id
+                    or self.workspace.revision != revision or self._pair_selection() != selection):
                 return
             displayed, minimum = result["displayed"], result["minimum_image"]
             self.measurement_label.setText(self.text(
@@ -1480,6 +1494,38 @@ class MainWindow(QMainWindow):
             self.show_error(error)
             return False
 
+    def export_publication(self, checked=False, *, view=None, path=None, width_mm=85, dpi=300,
+                           transparent=False, scale_bar=True):
+        from .publication import FigureDialog, export_figure
+
+        view = self.view if view is None else view
+        if not view.report:
+            self.show_error(self.text("먼저 지원되는 구조를 여세요.", "Open a supported structure first."))
+            return False
+        if path is None:
+            dialog = FigureDialog(self)
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return False
+            fmt = dialog.format_choice.currentText()
+            source = view.metadata.get("source_filename") or view.metadata.get("filename") or "CalcLens"
+            path, _ = QFileDialog.getSaveFileName(self, dialog.windowTitle(),
+                Path(source).stem + ".figure." + fmt.lower(), f"{fmt} (*.{fmt.lower()})")
+            if not path:
+                return False
+            if not Path(path).suffix:
+                path += "." + fmt.lower()
+            width_mm, dpi = dialog.width_choice.currentData(), dialog.dpi_choice.currentData()
+            transparent = fmt == "PNG" and dialog.transparent.isChecked()
+            scale_bar = dialog.scale_bar.isChecked()
+        try:
+            export_figure(view, path, width_mm=width_mm, dpi=dpi, transparent=transparent, scale_bar=scale_bar)
+        except (OSError, ValueError, MemoryError) as error:
+            self.show_error(error)
+            return False
+        self.status_label.setText(self.text(f"논문용 그림을 저장했습니다 ({width_mm} mm, {dpi} dpi).",
+                                            f"Figure saved ({width_mm} mm, {dpi} dpi)."))
+        return True
+
     def _change_language(self):
         if self._updating or self.language_combo.currentData() == self.language:
             return
@@ -1505,6 +1551,7 @@ class MainWindow(QMainWindow):
         state = self.portable_state()
         factory = self._research_factory
         self.language = new_language
+        set_language(new_language)
         self.preferences.set("language", new_language)
         with self.workspace.lock:
             self.workspace.project = replace(self.workspace.project, workspace_state=state)
@@ -1513,6 +1560,10 @@ class MainWindow(QMainWindow):
         old.hide()
         self.removeToolBar(self.toolbar)
         self.toolbar.deleteLater()
+        # QMenuBar.clear removes actions, but menus shared with a toolbar or
+        # parented to this window otherwise survive every language rebuild.
+        for action in self.menuBar().actions():
+            (action.menu() or action).deleteLater()
         self.menuBar().clear()
         for label in (self.status_label, self.time_label):
             self.statusBar().removeWidget(label)

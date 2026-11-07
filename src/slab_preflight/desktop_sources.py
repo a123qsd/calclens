@@ -58,6 +58,14 @@ def evaluate_source(item, kind, report, digest):
         return parse_charge(item["rawText"].encode(), report, digest)
     if not isinstance(item.get("source"), str) or not 1 <= len(item["source"].strip()) <= 500:
         raise ValueError("A Cube source description is required.")
+    if item.get("source_format") == "vasp-chgcar":
+        from .chgcar import parse_chgcar
+
+        raw = item["rawText"].encode()
+        if (item.get("kind") != "density" or item.get("units") != "e/angstrom^3"
+                or sha256(raw).hexdigest() != item.get("source_sha256")):
+            raise ValueError("Saved CHGCAR properties or source checksum do not match.")
+        return parse_chgcar(raw, report, item["filename"])
     grid = parse_cube(
         item["rawText"],
         kind=item.get("kind"),

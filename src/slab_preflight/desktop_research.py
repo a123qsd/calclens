@@ -12,7 +12,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import numpy as np
-from PySide6.QtCore import QEvent, QPointF, QRectF, QTimer, Signal
+from PySide6.QtCore import QEvent, QPointF, QRectF, QTimer, Signal, Slot
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QBoxLayout,
@@ -35,7 +35,7 @@ from PySide6.QtWidgets import (
 )
 
 from .desktop_devices import DeviceControls, format_execution
-from .density import MAX_CUBE_BYTES, cube_bytes, planar_average
+from .density import MAX_CUBE_BYTES, cube_bytes, integrate_profile_interval, planar_average
 from .density_records import (
     binding_digest,
     calculation_record,
@@ -45,6 +45,9 @@ from .density_records import (
     replay_difference,
     structure_for,
     validate_computation,
+)
+from .density_verification import (
+    verify_planar_record, verify_retained_difference, with_reproducibility,
 )
 from .desktop_sources import (
     evaluate_source,
@@ -57,16 +60,22 @@ from .native_fields import MAX_CHARGE_BYTES, bounded_read, isosurfaces
 from .project import validate_workspace_state
 from .recovery import atomic_write
 from .research import parse_log
+from .result_sources import output_record, read_output_record, result_entries, saved_output_records
 
 
 class ProfileChart(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.profile = None
+        self.quantity = "average"
         self.setMinimumHeight(155)
 
     def set_profile(self, value):
         self.profile = value
+        self.update()
+
+    def set_quantity(self, quantity):
+        self.quantity = quantity
         self.update()
 
     def paintEvent(self, event):
@@ -75,8 +84,13 @@ class ProfileChart(QWidget):
         painter.fillRect(self.rect(), QColor("#f6f9fa"))
         if not self.profile:
             return
-        x = np.asarray(self.profile["positions_angstrom"])
-        y = np.asarray(self.profile["average_e_per_angstrom3"])
+        cumulative = self.quantity == "cumulative" and "integration" in self.profile
+        if cumulative:
+            x = np.asarray(self.profile["integration"]["boundary_positions_angstrom"])
+            y = np.asarray(self.profile["integration"]["cumulative_e"])
+        else:
+            x = np.asarray(self.profile["positions_angstrom"])
+            y = np.asarray(self.profile["average_e_per_angstrom3"])
         if len(x) < 2 or len(y) != len(x):
             return
         xmin, xmax = float(x[0]), float(x[-1])
@@ -103,7 +117,7 @@ class ProfileChart(QWidget):
         painter.drawText(
             QPointF(max(rect.left() + 40, rect.right() - 55), self.height() - 8), f"{xmax:.3g} Å"
         )
-        painter.drawText(QPointF(rect.left(), 15), "⟨ρ⟩ (e/Å³)")
+        painter.drawText(QPointF(rect.left(), 15), "N(z) (e)" if cumulative else "⟨ρ⟩ (e/Å³)")
         line = QPainterPath(point(x[0], y[0]))
         for xx, yy in zip(x[1:], y[1:]):
             line.lineTo(point(xx, yy))
@@ -175,9 +189,12 @@ class ResearchPanel(QWidget):
         self._profile = None
         self._profile_record = None
         self._profile_binding = None
+        self._verification = None
+        self._verification_binding = None
         self._pairs = None
         self._pair_binding = None
         self._log = None
+        self._output_reports = {}
         self._series = None
         self._epoch = 0
         self._execution_epoch = 0
@@ -333,7 +350,7 @@ class ResearchPanel(QWidget):
             [
                 self.t("전자 자료", "Electronic fields"),
                 self.t("연산 장치·밀도 차이", "Compute devices and density difference"),
-                self.t("Gaussian 로그", "Gaussian output"),
+            self.t("Gaussian / VASP 출력", "Gaussian / VASP output"),
                 self.t("진공 간격 수렴", "Vacuum convergence"),
             ]
         )
@@ -347,14 +364,13 @@ class ResearchPanel(QWidget):
         )
         self.cancel_button.setEnabled(False)
         self._outer.addWidget(self.cancel_button)
-        self.window.busyChanged.connect(
-            lambda busy: None if busy else self.cancel_button.setEnabled(False)
-        )
+        self.window.busyChanged.connect(self._work_state_changed)
         layout = self._page()
         self._row(
             layout,
             self._button("전하 JSON 열기", "Open charge JSON", self.choose_charge),
             self._button("Cube 열기", "Open Cube", self.choose_cube),
+            self._button("CHGCAR 열기", "Open CHGCAR", self.choose_chgcar),
         )
         fields = QFormLayout()
         layout.addLayout(fields)
@@ -420,19 +436,50 @@ class ResearchPanel(QWidget):
         )
         self.chart = ProfileChart()
         calc.addWidget(self.chart)
+        self.profile_quantity = QComboBox()
+        self.profile_quantity.addItem(self.t("평면 평균 ⟨ρ⟩", "Plane average ⟨ρ⟩"), "average")
+        self.profile_quantity.addItem(self.t("누적 전자수 N(z)", "Cumulative electron count N(z)"), "cumulative")
+        self.profile_quantity.setEnabled(False)
+        self.profile_quantity.currentIndexChanged.connect(
+            lambda _: self.chart.set_quantity(self.profile_quantity.currentData())
+        )
+        calc.addWidget(self.profile_quantity)
         self.profile_info = QLabel()
         self.profile_info.setWordWrap(True)
         calc.addWidget(self.profile_info)
+        self.profile_cut = QDoubleSpinBox()
+        self.profile_cut.setDecimals(8)
+        self.profile_cut.setRange(-2e6, 2e6)
+        self.profile_cut.setSuffix(" Å")
+        self.profile_cut.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        self.profile_cut.setEnabled(False)
+        self.profile_cut.valueChanged.connect(lambda _: self._update_profile_integration())
+        integral_form = QFormLayout()
+        integral_form.addRow(self.t("적분 분할 평면", "Integration cut plane"), self.profile_cut)
+        calc.addLayout(integral_form)
+        self.profile_integral_info = QLabel()
+        self.profile_integral_info.setWordWrap(True)
+        calc.addWidget(self.profile_integral_info)
         self.profile_save = self._button("평균 CSV 저장", "Export profile CSV", self.export_profile)
         self.profile_record_save = self._button(
             "계산 기록 저장", "Export calculation record", self.export_profile_record
         )
         self.profile_save.setEnabled(False)
         self.profile_record_save.setEnabled(False)
+        self.profile_verify = self._button(
+            "현재 결과 CPU 재검증", "Verify current result on CPU", self.verify_profile
+        )
+        self.profile_verify.setEnabled(False)
+        self.profile_figure = self._button(
+            "프로파일 논문용 그림", "Export profile figure", self.export_profile_figure
+        )
+        self.profile_figure.setEnabled(False)
         self._row(
             calc,
             self.profile_save,
             self.profile_record_save,
+            self.profile_verify,
+            self.profile_figure,
         )
         self.archive_info = QLabel()
         self.archive_info.setWordWrap(True)
@@ -448,7 +495,28 @@ class ResearchPanel(QWidget):
         self.archive_export = self._button(
             "보관 계산 기록 저장", "Export retained calculation", self.export_retained_record
         )
-        self._row(calc, self.archive_details_button, self.archive_export)
+        self.archive_verify = self._button(
+            "보관 Δρ CPU 재검증", "Verify retained Δρ on CPU", self.verify_archive
+        )
+        self._row(calc, self.archive_details_button, self.archive_export, self.archive_verify)
+        self.verification_info = QLabel()
+        self.verification_info.setWordWrap(True)
+        calc.addWidget(self.verification_info)
+        self.verification_details = QPlainTextEdit()
+        self.verification_details.setReadOnly(True)
+        self.verification_details.setMaximumHeight(160)
+        self.verification_details.hide()
+        calc.addWidget(self.verification_details)
+        self.verification_details_button = self._button(
+            "검증 상세", "Verification details",
+            lambda: self.verification_details.setVisible(not self.verification_details.isVisible()),
+        )
+        self.verification_save = self._button(
+            "검증 보고서 저장", "Export verification report", self.export_verification
+        )
+        self.verification_details_button.setEnabled(False)
+        self.verification_save.setEnabled(False)
+        self._row(calc, self.verification_details_button, self.verification_save)
         self.archive_originals = {}
         for role in ("AB", "A", "B"):
             self.archive_originals[role] = self._button(
@@ -512,9 +580,19 @@ class ResearchPanel(QWidget):
         logs = self._page()
         self._row(
             logs,
-            self._button("Gaussian 로그 열기", "Open Gaussian output", self.choose_log),
-            self._button("기준 예제", "Reference example", self.example_log),
+            self._button("계산 출력 열기", "Open calculation output", self.choose_log),
+            self._button("Gaussian 예제", "Gaussian example", self.example_log),
+            self._button("VASP 예제", "VASP example", self.example_vasp_log),
         )
+        self.log_history = QComboBox()
+        self.log_history.setAccessibleName(self.t("보관된 계산 출력", "Retained calculation outputs"))
+        self.log_history.currentIndexChanged.connect(self._select_saved_log)
+        logs.addWidget(self.log_history)
+        self.log_geometry = QComboBox()
+        self.log_geometry.setAccessibleName(self.t("비교할 출력 구조", "Output geometry for comparison"))
+        logs.addWidget(self.log_geometry)
+        self.log_compare = self._button("출력 구조 비교", "Compare output geometry", self.compare_log_geometry)
+        logs.addWidget(self.log_compare)
         self.log_info = QPlainTextEdit()
         self.log_info.setReadOnly(True)
         logs.addWidget(self.log_info)
@@ -533,6 +611,11 @@ class ResearchPanel(QWidget):
         self.series_info.setReadOnly(True)
         conv.addWidget(self.series_info)
         conv.addWidget(self._button("수렴 결과 저장", "Export comparison", self.export_series))
+
+    @Slot(bool)
+    def _work_state_changed(self, busy):
+        if not busy:
+            self.cancel_button.setEnabled(False)
 
     def _mode_changed(self, index):
         self._fit_rows()
@@ -611,6 +694,21 @@ class ResearchPanel(QWidget):
         self.device_info.clear()
         self.profile_save.setEnabled(False)
         self.profile_record_save.setEnabled(False)
+        self.profile_verify.setEnabled(False)
+        self.profile_figure.setEnabled(False)
+        self.profile_quantity.setEnabled(False)
+        self.profile_cut.setEnabled(False)
+        self.profile_integral_info.clear()
+        self._clear_verification()
+
+    def _clear_verification(self):
+        self._verification = None
+        self._verification_binding = None
+        self.verification_info.clear()
+        self.verification_details.clear()
+        self.verification_details.hide()
+        self.verification_details_button.setEnabled(False)
+        self.verification_save.setEnabled(False)
 
     def _invalidate_density(self):
         if self._filling:
@@ -733,6 +831,8 @@ class ResearchPanel(QWidget):
                     raise ValueError("Invalid fragment source.")
         if "log" in native:
             read_saved_log(native["log"])
+        for record in saved_output_records(native):
+            read_output_record(record)
         if "series" in native:
             read_saved_series(native["series"])
         if "differences" in native:
@@ -801,6 +901,7 @@ class ResearchPanel(QWidget):
                 if record.get("schema_version", 1) == 1:
                     records[uid] = migrate_difference(record, entries[digest])
         self._log = read_saved_log(self.native["log"]) if "log" in self.native else None
+        self._output_reports = ({self._log["provenance"]["sha256"]: self._log} if self._log else {})
         self._series = read_saved_series(self.native["series"]) if "series" in self.native else None
         self._display_log()
         self._display_series()
@@ -849,7 +950,7 @@ class ResearchPanel(QWidget):
     @staticmethod
     def _source_key(digest, kind, item):
         return (digest, item["id"], sha256(item["rawText"].encode()).hexdigest(),
-                kind, item.get("kind"), item.get("units"))
+                kind, item.get("kind"), item.get("units"), item.get("source_format"))
 
     def set_entry(self, entry, language):
         self.lang = language
@@ -971,6 +1072,7 @@ class ResearchPanel(QWidget):
         enabled = bool(record and item)
         self.archive_details_button.setEnabled(enabled)
         self.archive_export.setEnabled(enabled)
+        self.archive_verify.setEnabled(enabled)
         for button in self.archive_originals.values():
             button.setEnabled(enabled)
         if not enabled:
@@ -979,7 +1081,7 @@ class ResearchPanel(QWidget):
             self.archive_details.hide()
             return
         self._update_archive_status(record, item)
-        details = calculation_record(record, item, self.entry)
+        details = with_reproducibility(calculation_record(record, item, self.entry))
         self.archive_details.setPlainText(json.dumps(details, ensure_ascii=False, indent=2))
 
     def _update_archive_status(self, record, item):
@@ -1012,7 +1114,7 @@ class ResearchPanel(QWidget):
     def export_retained_record(self):
         record, item = self._archive()
         if record and item:
-            self._save(json.dumps(calculation_record(record, item, self.entry),
+            self._save(json.dumps(with_reproducibility(calculation_record(record, item, self.entry)),
                                   ensure_ascii=False, indent=2).encode(),
                        "retained-difference.json", "JSON (*.json)")
 
@@ -1163,7 +1265,7 @@ class ResearchPanel(QWidget):
         old_aux, old_native = self.aux, self.native
         self.aux, self.native = deepcopy(old_aux), deepcopy(old_native)
         try:
-            if kind == "charge" or item["kind"] in ("density", "orbital"):
+            if kind == "charge" or (item["kind"] in ("density", "orbital") and "source_format" not in item):
                 blob = self.aux.setdefault(self._digest, _blank_aux())
                 blob["charges" if kind == "charge" else "volumes"].append(item)
             else:
@@ -1223,7 +1325,21 @@ class ResearchPanel(QWidget):
                 background=True,
             )
 
+    def choose_chgcar(self):
+        self._report()
+        path, _ = QFileDialog.getOpenFileName(self, self.t("VASP 총 전자밀도 열기", "Open VASP total density"),
+                                              "", "VASP (CHGCAR CHGCAR.* *.chgcar);;All files (*)")
+        if path:
+            self.import_chgcar(Path(path), background=True)
+
+    def import_chgcar(self, path, *, background=False):
+        return self._import_volume(path, "density", "e/angstrom^3", "VASP CHGCAR · first total-density block",
+                                   background, "vasp-chgcar")
+
     def import_cube(self, path, kind, units, source, *, background=False):
+        return self._import_volume(path, kind, units, source, background)
+
+    def _import_volume(self, path, kind, units, source, background, source_format=None):
         report = self._report()
         digest = self._digest
 
@@ -1239,6 +1355,8 @@ class ResearchPanel(QWidget):
                 "units": units,
                 "source": source,
             }
+            if source_format:
+                item.update(source_format=source_format, source_sha256=sha256(raw).hexdigest())
             return item, evaluate_source(item, "volume", report, digest)
 
         def attach(result):
@@ -1339,11 +1457,26 @@ class ResearchPanel(QWidget):
 
     def _show_profile(self, profile, record=None, binding=None):
         self._profile = profile
-        self._profile_record = record
+        self._profile_record = with_reproducibility(record) if record else None
         self._profile_binding = binding or self._binding("planar_average")
+        self._clear_verification()
         self.chart.set_profile(profile)
         self.profile_save.setEnabled(record is not None)
         self.profile_record_save.setEnabled(record is not None)
+        self.profile_verify.setEnabled(record is not None)
+        self.profile_figure.setEnabled(record is not None)
+        integration = profile.get("integration")
+        self.profile_quantity.setEnabled(bool(integration))
+        self.profile_cut.setEnabled(bool(integration))
+        self.chart.set_quantity(self.profile_quantity.currentData())
+        if integration:
+            edges = integration["boundary_positions_angstrom"]
+            blocked = self.profile_cut.blockSignals(True)
+            self.profile_cut.setRange(edges[0], edges[-1])
+            self.profile_cut.setSingleStep(profile["plane_step_angstrom"])
+            self.profile_cut.setValue((edges[0] + edges[-1]) / 2)
+            self.profile_cut.blockSignals(blocked)
+        self._update_profile_integration()
         dataset = (record or {}).get("dataset", {})
         self.profile_info.setText(
             f"{dataset.get('name', '')} · {profile['field_kind']} · {profile['units']}\n"
@@ -1351,6 +1484,97 @@ class ResearchPanel(QWidget):
             + f" · n = {profile['normal_unit_vector']}"
         )
         self.device_info.setText(format_execution(profile["execution"], self.lang))
+
+    def _update_profile_integration(self):
+        integration = (self._profile or {}).get("integration")
+        if not integration:
+            self.profile_integral_info.clear()
+            return
+        edges = integration["boundary_positions_angstrom"]
+        cut = min(edges[-1], max(edges[0], self.profile_cut.value()))
+        # The editor rounds its visible range. Its endpoints still represent the
+        # exact sampled boundaries, so selecting the minimum means zero slabs.
+        if self.profile_cut.value() == self.profile_cut.minimum():
+            cut = edges[0]
+        elif self.profile_cut.value() == self.profile_cut.maximum():
+            cut = edges[-1]
+        below = integrate_profile_interval(self._profile, edges[0], cut)
+        above = integrate_profile_interval(self._profile, cut, edges[-1])
+        self.profile_integral_info.setText(
+            self.t("전체 적분", "Total integral") + f" {self._profile['integral_e']:.7g} e\n"
+            + self.t("3D 양의 부분", "3D positive part")
+            + f" {integration['positive_voxel_integral_e']:.7g} e · "
+            + self.t("음의 부분", "negative part")
+            + f" {integration['negative_voxel_integral_e']:.7g} e\n"
+            + self.t("분할 평면 아래", "Below cut") + f" {below:.7g} e · "
+            + self.t("위", "above") + f" {above:.7g} e\n"
+            + self.t(
+                "각 표본 평면을 중심으로 한 일정 밀도 슬래브 적분입니다. 원자별 전하 이동량이 아닌 전자수입니다.",
+                "Constant-density slabs are centered on sampled planes. These are electron counts, not atom-partitioned charge transfer.",
+            )
+        )
+
+    def _show_verification(self, report):
+        self._verification = report
+        self._verification_binding = self._binding("density_verification")
+        errors = report["comparison"]["maximum_absolute_errors"]
+        self.verification_info.setText(
+            self.t("CPU 재검증 통과", "CPU replay verification passed")
+            + f" · {len(report['source_identity_and_checksums'])} "
+            + self.t("개 원본 SHA-256 식별", "source SHA-256 identities")
+            + f"\n{report['record_manifest_sha256']}\n"
+            + self.t("평균 밀도 최대 절대 오차 ", "Maximum mean-density error ")
+            + f"{errors['average_e_per_angstrom3']:.4g} e/Å³ · "
+            + self.t("전체 적분 오차 ", "total-integral error ")
+            + f"{errors['integral_e']:.4g} e\n"
+            + self.t("외부 전자구조 계산은 다시 실행하지 않습니다.",
+                     "External electronic-structure calculations are not rerun.")
+            + ("\n" + "\n".join(report["warnings"]) if report["warnings"] else "")
+        )
+        self.verification_details.setPlainText(json.dumps(report, ensure_ascii=False, indent=2))
+        self.verification_details_button.setEnabled(True)
+        self.verification_save.setEnabled(True)
+
+    def verify_profile(self):
+        if not self._current_profile():
+            return
+        self._clear_verification()
+        self._job(self._profile_verifier(), self._show_verification, key="research-verify",
+                  operation="density_verification")
+
+    def _profile_verifier(self):
+        """Capture immutable inputs before a background or export verification."""
+        record, entry = deepcopy(self._profile_record), deepcopy(self.entry)
+        item = deepcopy(self._source("volume", record["dataset"]["dataset_id"]))
+        bundle = None
+        if record["operation"] == "rho_AB-rho_A-rho_B":
+            bundle = deepcopy(self.native["differences"][self._digest][item["id"]])
+
+        def calculate():
+            if bundle is not None:
+                return verify_retained_difference(bundle, item, entry, record)
+            return verify_planar_record(record, item, entry)
+
+        return calculate
+
+    def verify_archive(self):
+        bundle, item = self._archive()
+        if not bundle or not item:
+            return
+        self._clear_verification()
+        bundle, item, entry = deepcopy(bundle), deepcopy(item), deepcopy(self.entry)
+        self._job(lambda: verify_retained_difference(bundle, item, entry),
+                  self._show_verification, key="research-verify", operation="density_verification")
+
+    def export_verification(self):
+        if not self._verification:
+            return
+        if self._verification_binding != self._binding("density_verification"):
+            self._clear_verification()
+            self._stale_notice()
+            return
+        self._save(json.dumps(self._verification, ensure_ascii=False, indent=2).encode(),
+                   "density-verification.json", "JSON (*.json)")
 
     def choose_fragment(self, key):
         path, _ = QFileDialog.getOpenFileName(
@@ -1583,18 +1807,27 @@ class ResearchPanel(QWidget):
                 "normal_position_angstrom",
                 "plane_mean_e_per_angstrom3",
                 "line_density_e_per_angstrom",
+                "slab_lower_angstrom", "slab_upper_angstrom", "slab_integral_e",
+                "cumulative_before_e", "cumulative_after_e", "integration_convention",
                 "dataset_id", "dataset_name", "source_filename", "source_sha256",
                 "structure_sha256", "field_kind", "field_units", "operation",
                 "grid_plane_axis", "normal_vector", "calculation_sha256",
             )
         )
-        for row in zip(
+        integration = self._profile.get("integration", {})
+        edges = integration.get("boundary_positions_angstrom", [])
+        cumulative = integration.get("cumulative_e", [])
+        counts = integration.get("plane_integral_e", [])
+        for index, row in enumerate(zip(
                 self._profile["positions_angstrom"],
                 self._profile["average_e_per_angstrom3"],
                 self._profile["line_density_e_per_angstrom"],
-        ):
+        )):
+            integrals = ([edges[index], edges[index + 1], counts[index], cumulative[index],
+                          cumulative[index + 1], integration["convention"]]
+                         if integration else [""] * 6)
             writer.writerow([
-                *row, dataset["dataset_id"], dataset["name"], dataset["filename"],
+                *row, *integrals, dataset["dataset_id"], dataset["name"], dataset["filename"],
                 dataset["source_sha256"], dataset["structure_sha256"],
                 self._profile["field_kind"], self._profile["units"],
                 self._profile_record["operation"], self._profile["axis"],
@@ -1620,27 +1853,90 @@ class ResearchPanel(QWidget):
                 "JSON (*.json)",
             )
 
+    def export_profile_figure(self, *, path=None, width_mm=85, dpi=300, transparent=False):
+        from .profile_figure import export_profile_figure
+        from .publication import FigureDialog
+
+        if not self._current_profile():
+            return False
+        record = deepcopy(self._profile_record)
+        binding = deepcopy(self._profile_binding)
+        manifest = record["reproducibility"]["manifest_sha256"]
+        quantity = self.profile_quantity.currentData()
+        if path is None:
+            dialog = FigureDialog(self.window, profile=True)
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return False
+            fmt = dialog.format_choice.currentText()
+            path, _ = QFileDialog.getSaveFileName(
+                self, dialog.windowTitle(), "density-profile." + fmt.lower(),
+                f"{fmt} (*.{fmt.lower()})",
+            )
+            if not path:
+                return False
+            if not Path(path).suffix:
+                path += "." + fmt.lower()
+            width_mm, dpi = dialog.width_choice.currentData(), dialog.dpi_choice.currentData()
+            transparent = fmt == "PNG" and dialog.transparent.isChecked()
+
+        def current():
+            return (self._current_profile() and self._profile_binding == binding
+                    and self._profile_record["reproducibility"]["manifest_sha256"] == manifest)
+
+        if not current():
+            self._stale_notice()
+            return False
+        try:
+            verification = self._verification
+            if (self._verification_binding != self._binding("density_verification")
+                    or not verification or verification.get("record_manifest_sha256") != manifest):
+                verification = self._profile_verifier()()
+            if not current():
+                self._stale_notice()
+                return False
+            self._show_verification(verification)
+            export_profile_figure(record["profile"], record, path, binding=binding,
+                                  verification=verification, quantity=quantity,
+                                  width_mm=width_mm, dpi=dpi, transparent=transparent)
+        except (OSError, ValueError, MemoryError) as error:
+            self.window.show_error(error)
+            return False
+        self.window.status_label.setText(self.t("프로파일 그림을 저장했습니다.", "Profile figure saved."))
+        return True
+
     def _log_from_path(self, path):
         data = bounded_read(path, 32 * 1024 * 1024)
-        record = {
-            "filename": path.name,
-            "sha256": sha256(data).hexdigest(),
-            "data": base64.b64encode(data).decode("ascii"),
-        }
+        record = output_record(data, path.name)
         return record, parse_log(data, source_name=path.name)
 
     def import_log(self, path):
+        path = Path(path)
         def done(result):
             record, report = result
-            self._retain("log", record)
+            if report["status"] == "unknown":
+                raise ValueError(self.t("지원되는 Gaussian 출력 또는 VASP OUTCAR가 아닙니다.",
+                                        "Not a recognized Gaussian output or VASP OUTCAR."))
+            proposed = dict(self.native)
+            records = saved_output_records(proposed)
+            if not any(item["sha256"] == record["sha256"] for item in records):
+                records.append(record)
+            proposed.update({"logs": records, "log": record})
+            saved_output_records(proposed)
+            state = self.portable_state(self.window.workspace.project.workspace_state)
+            state["native_research"] = proposed
+            validate_workspace_state(state)
+            self.native = proposed
             self._log = report
+            self._output_reports[record["sha256"]] = report
             self._display_log()
+            self.changed.emit()
 
         self._job(lambda: self._log_from_path(path), done, key="research-log")
 
     def choose_log(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Gaussian", "", "Gaussian (*.log *.out);;All files (*)"
+            self, self.t("계산 출력", "Calculation output"), "",
+            "Gaussian / VASP OUTCAR (*.log *.out OUTCAR OUTCAR.*);;All files (*)"
         )
         if path:
             self.import_log(Path(path))
@@ -1655,6 +1951,12 @@ class ResearchPanel(QWidget):
             raise ValueError("The Gaussian example is missing.")
         self.import_log(files[0])
 
+    def example_vasp_log(self):
+        path = self.window.root / "examples/research_cases/vasp_reference/OUTCAR_Ni_reference"
+        if not path.is_file():
+            raise ValueError("The VASP OUTCAR example is missing.")
+        self.import_log(path)
+
     def _retain(self, key, value):
         proposed = dict(self.native)
         proposed[key] = value
@@ -1665,6 +1967,18 @@ class ResearchPanel(QWidget):
         self.changed.emit()
 
     def _display_log(self):
+        self.log_history.blockSignals(True)
+        self.log_history.clear()
+        for record in saved_output_records(self.native):
+            self.log_history.addItem(record["filename"], record["sha256"])
+        if self._log:
+            self.log_history.setCurrentIndex(self.log_history.findData(self._log["provenance"]["sha256"]))
+        self.log_history.blockSignals(False)
+        self.log_geometry.clear()
+        if self._log:
+            for entry in result_entries(self._log):
+                self.log_geometry.addItem(entry["filename"], entry["id"])
+        self.log_compare.setEnabled(self.log_geometry.count() > 0)
         if not self._log:
             self.log_info.clear()
             return
@@ -1677,10 +1991,11 @@ class ResearchPanel(QWidget):
             f"SHA-256 {info['sha256']}",
         ]
         for step in report["steps"]:
+            step_program = step.get("program", program)
             lines.extend(
                 [
                     "",
-                    f"{self.t('계산', 'Job')} {step['index']} · {step['status']} · {step['line_start']}–{step['line_end']}",
+                    f"{self.t('계산', 'Job')} {step['index']} · {step_program.get('name')} {step_program.get('version') or ''} · {step['status']} · {step['line_start']}–{step['line_end']}",
                     step.get("route") or "",
                 ]
             )
@@ -1690,11 +2005,26 @@ class ResearchPanel(QWidget):
             lines.append(
                 f"SCF: {step['scf']['status']}  ·  {self.t('최적화', 'Optimization')}: {step['optimization']['status']}"
             )
-            energy = step.get("final_scf_energy")
+            energy = step.get("final_energy", step.get("final_scf_energy"))
             if energy:
                 lines.append(
-                    f"E(SCF) = {energy['value']:.12g} {energy['unit']}  ({self.t('원본 행', 'source line')} {energy.get('line')})"
+                    f"{energy['kind']} = {energy['value']:.12g} {energy['unit']}  ({self.t('원본 행', 'source line')} {energy.get('line')})"
                 )
+            for key, value in step.get("final_energies", {}).items():
+                if key != "free_energy_TOTEN":
+                    lines.append(f"{key} = {value['value']:.12g} {value['unit']} ({self.t('원본 행', 'source line')} {value['line']})")
+            geometry = step.get("final_geometry")
+            if geometry:
+                lines.append(self.t("출력 구조", "Output geometry") +
+                             f": {len(geometry['elements'])} atoms · Å · {geometry['source']} · "
+                             f"{geometry['line_start']}–{geometry['line_end']} · " +
+                             self.t("주기 셀" if any(geometry['periodic_axes']) else "분자 (셀 없음)",
+                                    "periodic cell" if any(geometry['periodic_axes']) else "molecule (no cell)"))
+                if len(geometry["elements"]) > 400:
+                    lines.append(self.t("표시·구조 비교는 400개 원자까지 지원합니다. 원본·전체 좌표는 보관합니다.",
+                                        "Native display/comparison supports up to 400 atoms; the original and all coordinates are retained."))
+            if step.get("settings"):
+                lines.append(json.dumps(step["settings"], ensure_ascii=False, sort_keys=True))
             modes = step["frequencies"]
             if modes["values"]:
                 frequencies = ", ".join(
@@ -1708,11 +2038,37 @@ class ResearchPanel(QWidget):
         lines += report.get("warnings", [])
         self.log_info.setPlainText("\n".join(str(v) for v in lines))
 
+    def _select_saved_log(self, index):
+        digest = self.log_history.itemData(index)
+        for record in saved_output_records(self.native):
+            if record["sha256"] == digest:
+                self._log = self._output_reports.get(digest) or read_output_record(record)
+                self._output_reports[digest] = self._log
+                self._retain("log", record)
+                self._display_log()
+                return
+
+    def output_entries(self):
+        entries = []
+        for record in saved_output_records(self.native):
+            digest = record["sha256"]
+            if digest not in self._output_reports:
+                self._output_reports[digest] = read_output_record(record)
+            entries.extend(result_entries(self._output_reports[digest]))
+        return entries
+
+    def compare_log_geometry(self):
+        identifier = self.log_geometry.currentData()
+        if identifier:
+            dialog = self.window.compare_structures()
+            if dialog is not None:
+                dialog.select_output(identifier, side=1)
+
     def export_log(self):
         if self._log:
             self._save(
                 json.dumps(self._log, ensure_ascii=False, indent=2).encode(),
-                "gaussian-report.json",
+                "calculation-report.json",
                 "JSON (*.json)",
             )
 
@@ -1720,7 +2076,7 @@ class ResearchPanel(QWidget):
         if self._log:
             raw = self.native["log"]
             self._save(
-                base64.b64decode(raw["data"]), Path(raw["filename"]).name, "Gaussian (*.log *.out)"
+                base64.b64decode(raw["data"]), Path(raw["filename"]).name, "Calculation output (*)"
             )
 
     def import_series(self, path):

@@ -7,6 +7,9 @@ import time
 
 
 started_ns = time.perf_counter_ns()
+# The native launcher translates this private status to exit 1 after logging it.
+# Both paths below have already given the user the diagnostic location.
+DIAGNOSTIC_SHOWN = 73
 try:
     from slab_preflight import startup
 
@@ -16,9 +19,9 @@ try:
     def launch():
         from slab_preflight.desktop_entry import main
 
-        return main()
+        return main(failure_code=DIAGNOSTIC_SHOWN)
 
-    result = startup.guarded_main(launch)
+    result = startup.guarded_main(launch, failure_code=DIAGNOSTIC_SHOWN)
 except Exception as error:
     # Package/source damage must still be diagnosable before any Qt imports.
     directory = Path(os.environ.get("LOCALAPPDATA", tempfile.gettempdir())) / "CalcLens" / "logs"
@@ -37,6 +40,6 @@ except Exception as error:
             f"CalcLens 앱 파일을 불러오지 못했습니다. ZIP 전체를 새 폴더에 다시 풀어 주세요.\n\n{path}",
             "CalcLens", 0x10,
         )
-    result = 1
+    result = DIAGNOSTIC_SHOWN
 
 raise SystemExit(result)

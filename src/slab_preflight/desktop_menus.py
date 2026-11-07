@@ -43,7 +43,11 @@ def settings_menu(window):
 
 def display_menu(window):
     t = window.text
-    menu = QMenu(window)
+    menu = QMenu(window.view)
+    fit_cell = menu.addAction(t("셀 전체 맞춤", "Fit entire cell"), lambda: window.view.fit_cell())
+    fit_atoms = menu.addAction(t("원자 맞춤", "Fit atoms"), lambda: window.view.fit_atoms())
+    fit_measure = menu.addAction(t("측정 대상 맞춤", "Fit measurement"), lambda: window.view.fit_measurement())
+    menu.addSeparator()
     rep = _choices(menu, t("원자 표현", "Representation"), [
         ("ball-stick", "공과 막대", "Ball and stick"), ("spacefill", "공간 채움", "Space filling"),
         ("stick", "막대", "Sticks"),
@@ -52,6 +56,9 @@ def display_menu(window):
         ("gradient", "그라데이션", "Gradient"), ("white", "흰색", "White"), ("dark", "어두움", "Dark"),
     ], "gradient", lambda key: window.view.set_background(key), t)
     def sync():
+        fit_cell.setEnabled(window.view.report is not None)
+        fit_atoms.setEnabled(window.view.report is not None)
+        fit_measure.setEnabled(window.view.selected_contact is not None)
         for submenu, value in [(rep, window.view.representation), (bg, window.view.background)]:
             for action in submenu.actions():
                 action.setChecked(action.data() == value)
