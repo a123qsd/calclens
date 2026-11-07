@@ -77,6 +77,14 @@ jobs:
           & $env:CALCLENS_NSIS '-V2' $probe
           if ($LASTEXITCODE -ne 0) { throw 'NSIS rejected the exact compiler flags used by the builder' }
           if (-not (Test-Path $probeExe -PathType Leaf)) { throw 'NSIS did not produce its probe executable' }
+      - name: Test Windows worker and narrow desktop regressions
+        shell: pwsh
+        env:
+          PYTHONPATH: src
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m pytest -q tests/test_worker_connection.py tests/test_desktop_benchmark.py tests/test_desktop_preferences.py::test_layout_narrow_windows_preserve_editable_controls_and_complete_hash
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build the default native folder ZIP
         shell: pwsh
         run: |
