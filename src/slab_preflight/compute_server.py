@@ -7,8 +7,11 @@ from __future__ import annotations
 
 import argparse
 import base64
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import hmac
+import http.client
+import socket
+import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import ipaddress
 import json
@@ -16,27 +19,58 @@ from pathlib import Path
 import ssl
 import time
 from typing import Any, Sequence
-from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
-from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener
 
 import numpy as np
 
 from .compute_devices import (ComputeError, MAX_GRID_POINTS, MAX_PAIR_VECTORS,
-                              _validate_arrays, _validate_vectors, compute_arrays, compute_norms)
+                              _validate_arrays, _validate_vectors, compute_arrays, compute_norms, probe_devices)
 
 MAX_REQUEST_BYTES = 34 * 1024 * 1024
 MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 PROTOCOL_VERSION = 1
 
 
+class RemoteCancellation:
+    """Interrupt client I/O; an already submitted bounded worker kernel may finish."""
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._cancelled = False
+        self._socket = None
+
+    def attach(self, sock):
+        with self._lock:
+            if self._cancelled:
+                raise ComputeError("Remote request cancelled.")
+            self._socket = sock
+
+    def cancel(self):
+        with self._lock:
+            self._cancelled = True
+            if self._socket is not None:
+                try:
+                    self._socket.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+
+    def detach(self):
+        with self._lock:
+            self._socket = None
+
+    def check(self):
+        with self._lock:
+            if self._cancelled:
+                raise ComputeError("Remote request cancelled.")
+
+
 @dataclass(frozen=True)
 class RemoteComputeConfig:
     url: str
-    token: str
+    token: str = field(repr=False)
     device: str = "auto"
     timeout_seconds: float = 45.0
     ca_file: str | None = None
+    cancellation: RemoteCancellation | None = field(default=None, repr=False, compare=False)
 
 
 def _loopback(host: str) -> bool:
@@ -88,55 +122,85 @@ def _decode_array(encoded: Any, shape: tuple[int, ...]) -> np.ndarray:
     return array
 
 
-class _NoRedirect(HTTPRedirectHandler):
-    def redirect_request(self, request: Request, *args: Any, **kwargs: Any) -> None:
-        raise ComputeError("Compute worker redirects are refused; configure the final trusted endpoint explicitly.")
+def _post(request_data, config, *, capabilities=False):
+    endpoint = _endpoint(config)
+    target = urlsplit(endpoint)
+    body = json.dumps(request_data, separators=(",", ":"), allow_nan=False).encode("utf-8")
+    if len(body) > MAX_REQUEST_BYTES:
+        raise ComputeError("Compute request exceeds the 34 MiB transfer limit.")
+    if target.scheme == "https":
+        connection = http.client.HTTPSConnection(target.hostname, target.port, timeout=config.timeout_seconds,
+                                                  context=ssl.create_default_context(cafile=config.ca_file))
+    else:
+        connection = http.client.HTTPConnection(target.hostname, target.port, timeout=config.timeout_seconds)
+    cancel = config.cancellation or RemoteCancellation()
+    deadline = time.monotonic() + config.timeout_seconds
+    timer = threading.Timer(config.timeout_seconds, cancel.cancel)
+    timer.daemon = True
+    timer.start()
+    try:
+        cancel.check()
+        connection.connect()
+        cancel.attach(connection.sock)
+        path = "/v1/capabilities" if capabilities else target.path
+        connection.request("POST", path, body, headers={"Authorization": "Bearer " + config.token,
+                           "Content-Type": "application/json", "Accept": "application/json"})
+        with connection.getresponse() as response:
+            if 300 <= response.status < 400:
+                raise ComputeError("Compute worker redirects are refused; configure the final trusted endpoint explicitly.")
+            if response.status != 200:
+                detail = ""
+                try:
+                    error = json.loads(response.read(4096))
+                    if isinstance(error.get("error"), str):
+                        detail = " " + error["error"][:2000].replace(config.token, "[redacted]")
+                except (ValueError, UnicodeDecodeError, AttributeError, RecursionError):
+                    pass
+                raise ComputeError(f"Compute worker refused the request (HTTP {response.status}).{detail}")
+            limit = 32 * 1024 if capabilities else MAX_RESPONSE_BYTES
+            content = response.read(limit + 1)
+            if len(content) > limit:
+                raise ComputeError("Compute worker response exceeds the transfer limit.")
+        cancel.check()
+    except (OSError, http.client.HTTPException, ComputeError) as error:
+        if time.monotonic() >= deadline or isinstance(error, TimeoutError):
+            raise ComputeError("Compute worker response deadline exceeded.") from error
+        cancel.check()
+        if isinstance(error, ComputeError):
+            raise
+        raise ComputeError(f"Compute worker connection failed: {error}") from error
+    finally:
+        timer.cancel()
+        cancel.detach()
+        connection.close()
+    try:
+        # Untrusted workers must never echo a local bearer credential into an archive.
+        result = json.loads(content)
+        if json.dumps(config.token, ensure_ascii=False)[1:-1] in json.dumps(result, ensure_ascii=False):
+            raise ComputeError("Compute worker included a credential in its reply.")
+    except (ValueError, UnicodeDecodeError, RecursionError) as error:
+        raise ComputeError("Compute worker returned invalid JSON or unsafe metadata.") from error
+    return result, endpoint, len(body), len(content)
+
+
+def remote_capabilities(config: RemoteComputeConfig) -> dict:
+    result, _, _, _ = _post({"protocol_version": PROTOCOL_VERSION}, config, capabilities=True)
+    if (not isinstance(result, dict) or result.get("protocol_version") != PROTOCOL_VERSION
+            or result.get("policy") not in {"auto", "cpu", "metal", "cuda"}
+            or not isinstance(result.get("devices"), list) or len(result["devices"]) != 3):
+        raise ComputeError("Worker returned an unsupported capabilities response.")
+    seen = set()
+    for item in result["devices"]:
+        if (not isinstance(item, dict) or item.get("id") not in {"cpu", "metal", "cuda"}
+                or item["id"] in seen or type(item.get("available")) is not bool):
+            raise ComputeError("Worker returned invalid device capability details.")
+        seen.add(item["id"])
+    return result
 
 
 def _exchange(request_data: dict[str, Any], config: RemoteComputeConfig
               ) -> tuple[dict[str, Any], dict[str, Any]]:
-    endpoint = _endpoint(config)
-    body = json.dumps(request_data, separators=(",", ":"), allow_nan=False).encode("utf-8")
-    if len(body) > MAX_REQUEST_BYTES:
-        raise ComputeError("Compute request exceeds the 34 MiB transfer limit.")
-    context = ssl.create_default_context(cafile=config.ca_file)
-    opener = build_opener(ProxyHandler({}), _NoRedirect(), HTTPSHandler(context=context))
-    request = Request(endpoint, data=body, method="POST", headers={
-        "Authorization": "Bearer " + config.token, "Content-Type": "application/json",
-        "Accept": "application/json"})
-    deadline = time.monotonic() + config.timeout_seconds
-    try:
-        with opener.open(request, timeout=config.timeout_seconds) as response:
-            if response.status != 200:
-                raise ComputeError(f"Compute worker returned HTTP {response.status}.")
-            chunks: list[bytes] = []
-            received = 0
-            while received <= MAX_RESPONSE_BYTES:
-                if time.monotonic() >= deadline:
-                    raise TimeoutError("Compute response deadline exceeded.")
-                chunk = response.read1(min(65536, MAX_RESPONSE_BYTES + 1 - received))
-                if not chunk:
-                    break
-                chunks.append(chunk)
-                received += len(chunk)
-            content = b"".join(chunks)
-    except HTTPError as error:
-        detail = ""
-        try:
-            explanation = json.loads(error.read(4096))
-            if isinstance(explanation, dict) and isinstance(explanation.get("error"), str):
-                detail = " " + explanation["error"][:2000].replace(config.token, "[redacted]")
-        except (ValueError, UnicodeDecodeError, RecursionError):
-            pass
-        raise ComputeError(f"Compute worker refused the request (HTTP {error.code}).{detail}") from error
-    except (URLError, TimeoutError, OSError) as error:
-        raise ComputeError(f"Compute worker connection failed: {error.reason if isinstance(error, URLError) else error}") from error
-    if len(content) > MAX_RESPONSE_BYTES:
-        raise ComputeError("Compute worker response exceeds the 16 MiB transfer limit.")
-    try:
-        result = json.loads(content)
-    except (ValueError, UnicodeDecodeError, RecursionError) as error:
-        raise ComputeError("Compute worker returned invalid JSON.") from error
+    result, endpoint, request_bytes, response_bytes = _post(request_data, config)
     if not isinstance(result, dict) or set(result) != {"protocol_version", "shape", "values", "averages", "execution"}:
         raise ComputeError("Compute worker returned an unsupported response schema.")
     if result["protocol_version"] != PROTOCOL_VERSION or result["shape"] != request_data["shape"]:
@@ -149,9 +213,10 @@ def _exchange(request_data: dict[str, Any], config: RemoteComputeConfig
     return result, {"device_name": str(execution.get("device_name", "worker")),
         "precision": execution.get("precision", "float64"),
         "implementation": "authenticated per-request remote worker",
-        "worker_effective_device": execution["effective_device"], "worker_execution": execution,
+        "worker_effective_device": execution["effective_device"], "requested_worker_device": config.device,
+        "worker_execution": execution,
         "worker_device_attestation": "reported by the authenticated worker; client independently checks numerical parity",
-        "endpoint": endpoint, "request_bytes": len(body), "response_bytes": len(content),
+        "endpoint": endpoint, "request_bytes": request_bytes, "response_bytes": response_bytes,
         "transfer_scope": "this request's float64 numerical arrays, shape, axis and requested worker device only"}
 
 
@@ -254,7 +319,7 @@ class _ComputeHandler(BaseHTTPRequestHandler):
         if not hmac.compare_digest(authorization.encode(), ("Bearer " + self.server.auth_token).encode()):
             self._send(401, {"error": "Authentication required."})
             return
-        if self.path != "/v1/compute" or self.headers.get("Origin") is not None:
+        if self.path not in {"/v1/compute", "/v1/capabilities"} or self.headers.get("Origin") is not None:
             self._send(404, {"error": "Unsupported compute endpoint or browser-origin request."})
             return
         if self.headers.get("Transfer-Encoding") is not None or self.headers.get_content_type() != "application/json":
@@ -265,10 +330,23 @@ class _ComputeHandler(BaseHTTPRequestHandler):
             if not 1 <= length <= MAX_REQUEST_BYTES:
                 self._send(413, {"error": "Compute request exceeds the bounded body limit."})
                 return
+            if self.path == "/v1/capabilities" and length > 128:
+                self._send(413, {"error": "Capabilities requests take only a protocol version."})
+                return
             data = self._read_body(length)
             if len(data) != length:
                 raise ComputeError("Compute body is incomplete.")
             request = json.loads(data)
+            if self.path == "/v1/capabilities":
+                if request != {"protocol_version": PROTOCOL_VERSION}:
+                    raise ComputeError("Capabilities requests take only a protocol version.")
+                devices = probe_devices()
+                policy = self.server.compute_device
+                for device in devices:
+                    if policy not in ("auto", device["id"]):
+                        device.update(available=False, reason="Disabled by this worker's device policy.")
+                self._send(200, {"protocol_version": PROTOCOL_VERSION, "policy": policy, "devices": devices})
+                return
             expected = {"protocol_version", "operation", "shape", "axis", "device", "arrays"}
             if not isinstance(request, dict) or set(request) != expected or request["protocol_version"] != PROTOCOL_VERSION:
                 raise ComputeError("Unsupported compute request schema.")
