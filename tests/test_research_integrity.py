@@ -117,6 +117,7 @@ def test_selecting_homo_clears_density_chart_and_disables_exports(window):
     assert panel.chart.profile is not None
     choose_homo(panel)
     assert panel.chart.profile is None and panel._profile is None
+    assert panel.device_info.text() == ""
     assert not panel.profile_save.isEnabled()
     assert not panel.profile_record_save.isEnabled()
     exported = []

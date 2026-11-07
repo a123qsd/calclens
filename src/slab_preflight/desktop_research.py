@@ -519,6 +519,7 @@ class ResearchPanel(QWidget):
         self._profile_binding = None
         self.chart.set_profile(None)
         self.profile_info.clear()
+        self.device_info.clear()
         self.profile_save.setEnabled(False)
         self.profile_record_save.setEnabled(False)
 
