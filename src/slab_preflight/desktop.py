@@ -17,67 +17,27 @@ import threading
 from typing import Callable
 
 import ase
-from PySide6.QtCore import QEvent, QObject, QRunnable, QThreadPool, QTimer, Qt, Signal, Slot
-from PySide6.QtGui import QAction, QFont, QIcon, QKeySequence
+from PySide6.QtCore import QEvent, QObject, QRunnable, QThreadPool, QTimer, Qt, Signal, Slot, QSize, QSignalBlocker
+from PySide6.QtGui import QAction, QIcon, QKeySequence, QTextOption, QKeyEvent
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
-    QFileDialog, QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit, QListWidget,
+    QFileDialog, QFormLayout, QFrame, QHBoxLayout, QLabel, QLayout, QLineEdit, QListWidget,
     QListWidgetItem, QMainWindow, QMessageBox, QPlainTextEdit, QProgressBar,
     QPushButton, QScrollArea, QSpinBox, QSplitter, QTabWidget,
-    QTextBrowser, QToolBar, QVBoxLayout, QWidget,
+    QTextBrowser, QToolBar, QToolButton, QVBoxLayout, QWidget, QSizePolicy,
 )
 
 from . import __version__
 from .core import analyze_cif
 from .desktop_compat import legacy_camera_state, legacy_draft
 from .desktop_view import StructureView
+from .desktop_preferences import DesktopPreferences
+from .desktop_theme import apply_theme, system_scheme_changed
+from .desktop_menus import display_menu, settings_menu
 from .project import ANALYSIS_REVISION, MAX_ARCHIVE_BYTES, MAX_FILE_BYTES, dumps_project_archive
 from .reporting import localized_error_message, localized_report, report_csv
 from .recovery import atomic_write
 from .web_api import APIError, Workspace
-
-
-THEME = """
-QMainWindow, QDialog { background: #f1f5f7; color: #244050; }
-QWidget { font-family: 'Arial', 'Apple SD Gothic Neo', 'Malgun Gothic'; font-size: 12px; }
-QToolBar { background: #ffffff; border: 0; border-bottom: 1px solid #dce5ea; spacing: 8px; padding: 12px; }
-QPushButton { border: 1px solid #d4dfe6; border-radius: 7px; padding: 8px 12px; background: #fff; color: #294959; }
-QPushButton:hover { background: #ecf4f5; border-color: #95b6bb; }
-QPushButton:pressed { background: #deebed; }
-QPushButton:disabled { color: #a7b2b8; background: #eef2f4; border-color: #e2e8ed; }
-QPushButton#primary { color: white; background: #286f74; border: 1px solid #286f74; font-weight: 600; }
-QPushButton#primary:hover { background: #205d62; }
-QPushButton#primary:disabled { background: #90acaf; border-color: #90acaf; }
-QFrame#sidebar { background: #203b4a; border-radius: 10px; }
-QFrame#sidebar QLabel { color: #d5e2e8; }
-QFrame#sidebar QLineEdit { background: #2c4857; color: white; border-color: #486171; }
-QListWidget#fileList { background: transparent; color: #d8e5ec; border: 0; outline: 0; padding: 4px; }
-QListWidget#fileList::item { padding: 14px 8px; border-radius: 6px; margin-bottom: 5px; }
-QListWidget#fileList::item:selected { background: #40636d; color: #ffffff; }
-QListWidget#fileList::item:hover { background: #2d4b5c; }
-QFrame#card { background: #ffffff; border: 1px solid #dce5ea; border-radius: 10px; }
-QLabel#eyebrow { color: #5c8a8d; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
-QLabel#heading { color: #233e4e; font-size: 24px; font-weight: 600; }
-QLabel#muted { color: #738894; font-size: 11px; }
-QLabel#metricValue { color: #2d5966; font-size: 21px; font-weight: 600; }
-QLabel#errorBanner { background: #fff0e9; color: #984a32; border-radius: 6px; padding: 10px; }
-QLabel#recoveryBanner { background: #e4f0ec; color: #35685a; border-radius: 6px; padding: 9px; }
-QTabWidget::pane { border: 1px solid #dce5ea; border-radius: 8px; background: white; }
-QTabBar::tab { background: #e7eef1; color: #6b818e; padding: 10px 14px; border: 0; }
-QTabBar::tab:selected { background: white; color: #286f74; font-weight: 600; }
-QLineEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox { background: #fff; border: 1px solid #d8e2e8; border-radius: 6px; padding: 7px; color: #244050; }
-QPlainTextEdit:focus, QLineEdit:focus { border: 1px solid #6ca0a3; }
-QCheckBox { color: #486574; spacing: 7px; padding: 3px; }
-QTableWidget { background: #ffffff; alternate-background-color: #f6f9fa; border: 1px solid #e1e9ed; gridline-color: #edf1f4; }
-QHeaderView::section { background: #edf3f5; color: #476472; border: 0; padding: 7px; }
-QTextBrowser { border: 0; background: #fff; padding: 5px; }
-QStatusBar { color: #718591; background: #f8fafb; }
-QProgressBar { max-height: 3px; border: 0; background: #dbe7e9; }
-QProgressBar::chunk { background: #5d9998; }
-QSplitter::handle { background: transparent; }
-QWidget#inspectorPage { background: white; }
-QScrollArea { border: 0; background: white; }
-"""
 
 
 class _JobSignals(QObject):
@@ -136,16 +96,25 @@ class MainWindow(QMainWindow):
     errorOccurred = Signal(str)
     busyChanged = Signal(bool)
 
-    def __init__(self, language="ko", *, workspace=None, recovery=None,
-                 research_factory=None, root=None, parent=None):
+    def __init__(self, language=None, *, workspace=None, recovery=None,
+                 research_factory=None, root=None, parent=None, defer_startup=False):
         super().__init__(parent)
-        self.language = language if language in ("ko", "en") else "ko"
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs, True)
+        self.preferences = DesktopPreferences()
+        self.language = language if language in ("ko", "en") else self.preferences.get("language")
+        self.local_devices = []
+        self._defer_startup = defer_startup
+        self._sidebar_requested = True
+        self._inspector_requested = True
+        self._compact_panel = "scene"
+        self._narrow = None
+        self._bench_input = False
         self.root = Path(root) if root else Path(__file__).resolve().parents[2]
         for icon in (self.root / "CalcLens.ico", self.root / "packaging/desktop/CalcLens.ico"):
             if icon.is_file():
                 self.setWindowIcon(QIcon(str(icon)))
                 break
-        self.workspace = workspace or Workspace(self.root, self.language)
+        self.workspace = workspace or Workspace(self.root, self.language, load_default=not defer_startup)
         self.snapshot = {}
         self.selected_entry = None
         self.project_path = None
@@ -164,6 +133,8 @@ class MainWindow(QMainWindow):
         self._pool.setMaxThreadCount(1)
         self._workspace_pool = QThreadPool(self)
         self._workspace_pool.setMaxThreadCount(1)
+        self._probe_pool = QThreadPool(self)
+        self._probe_pool.setMaxThreadCount(1)
         self._io_pool = QThreadPool(self)
         self._io_pool.setMaxThreadCount(1)
         self.recovery = None
@@ -186,12 +157,17 @@ class MainWindow(QMainWindow):
         self._backup_timer.setInterval(1400)
         self._backup_timer.timeout.connect(self._save_recovery)
         self.setObjectName("calcLensMainWindow")
-        self.setMinimumSize(1080, 720)
-        self.resize(1480, 950)
+        # Let resizeEvent select a compact panel before a wide layout can clamp the window.
+        self.layout().setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)
+        self.setMinimumSize(360, 260)
+        area = QApplication.primaryScreen().availableGeometry()
+        self.resize(min(1440, area.width()), min(900, area.height()))
         self.setAcceptDrops(True)
-        self.setStyleSheet(THEME)
+        apply_theme(self.preferences.get("theme"))
+        QApplication.styleHints().colorSchemeChanged.connect(self._platform_theme)
         self._build_ui(research_factory)
-        self._apply_snapshot(self.workspace.snapshot(include_workspace=True), restore=True)
+        if not defer_startup:
+            self._apply_snapshot(self.workspace.snapshot(include_workspace=True), restore=True)
         self._update_title()
         QTimer.singleShot(0, self._offer_recovery)
         if startup_recovery_error is not None:
@@ -214,8 +190,7 @@ class MainWindow(QMainWindow):
         self.toolbar.setMovable(False)
         self.addToolBar(self.toolbar)
         brand = QLabel("CalcLens")
-        brand.setFont(QFont("Arial", 21, QFont.Weight.DemiBold))
-        brand.setStyleSheet("color:#264553; font-size:23px; font-weight:600; padding:0 16px 0 3px;")
+        brand.setObjectName("brand")
         self.toolbar.addWidget(brand)
         self.open_button = self._button("CIF 열기", "Open CIF", self.choose_cifs, primary=True)
         self.project_open_button = self._button("작업 열기", "Open project", self.choose_project)
@@ -225,15 +200,22 @@ class MainWindow(QMainWindow):
             self.toolbar.addWidget(button)
         self.examples = QComboBox()
         self.examples.setObjectName("examplesCombo")
-        self.examples.setMinimumWidth(210)
-        self.toolbar.addSeparator()
-        self.toolbar.addWidget(self.examples)
+        self.examples.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self.example_button = self._button("예제 열기", "Load example", self._load_selected_example)
-        self.toolbar.addWidget(self.example_button)
+        self.settings_button = QToolButton()
+        self.settings_button.setText(self.text("설정", "Settings"))
+        self.settings_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.settings_menu = settings_menu(self)
+        self.settings_button.setMenu(self.settings_menu)
+        self.toolbar.addWidget(self.settings_button)
         spacer = QWidget()
         spacer.setSizePolicy(spacer.sizePolicy().horizontalPolicy().Expanding,
                              spacer.sizePolicy().verticalPolicy().Preferred)
         self.toolbar.addWidget(spacer)
+        self.files_toggle = self._button("파일 목록", "Files", self._toggle_sidebar)
+        self.inspector_toggle = self._button("검사 패널", "Inspector", self._toggle_inspector)
+        self.toolbar.addWidget(self.files_toggle)
+        self.toolbar.addWidget(self.inspector_toggle)
         self.language_combo = QComboBox()
         self.language_combo.addItem("한국어", "ko")
         self.language_combo.addItem("English", "en")
@@ -262,13 +244,15 @@ class MainWindow(QMainWindow):
         compare_action.setShortcut(f"{modifier}+Shift+C")
         compare_action.triggered.connect(self.compare_structures)
         self.menuBar().addAction(compare_action)
+        self.menuBar().addMenu(self.settings_menu)
         self.body = QWidget()
         outer = QVBoxLayout(self.body)
-        outer.setContentsMargins(18, 14, 18, 10)
+        outer.setContentsMargins(8, 6, 8, 4)
         outer.setSpacing(10)
         self.error_label = QLabel()
         self.error_label.setObjectName("errorBanner")
         self.error_label.setWordWrap(True)
+        self.error_label.setTextFormat(Qt.TextFormat.PlainText)
         self.error_label.hide()
         outer.addWidget(self.error_label)
         self.recovery_frame = QFrame()
@@ -287,13 +271,17 @@ class MainWindow(QMainWindow):
         self.progress.hide()
         outer.addWidget(self.progress)
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
-        self.splitter.setHandleWidth(12)
+        self.splitter.setHandleWidth(6)
         outer.addWidget(self.splitter, 1)
         self.setCentralWidget(self.body)
         self._build_sidebar()
         self._build_scene()
         self._build_inspector(research_factory)
-        self.splitter.setSizes([220, 720, 390])
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 1)
+        self.splitter.setStretchFactor(2, 0)
+        self.splitter.setSizes([195, 750, 335])
+        self._update_panels()
         self.status_label = QLabel()
         self.statusBar().addWidget(self.status_label, 1)
         self.time_label = QLabel()
@@ -303,7 +291,7 @@ class MainWindow(QMainWindow):
     def _build_sidebar(self):
         self.sidebar = QFrame()
         self.sidebar.setObjectName("sidebar")
-        self.sidebar.setMinimumWidth(190)
+        self.sidebar.setMinimumWidth(155)
         self.sidebar.setMaximumWidth(330)
         layout = QVBoxLayout(self.sidebar)
         layout.setContentsMargins(15, 20, 15, 15)
@@ -323,6 +311,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.file_list, 1)
         self.remove_button = self._button("선택 파일 제거", "Remove selected", self.remove_selected)
         layout.addWidget(self.remove_button)
+        layout.addWidget(self.examples)
+        layout.addWidget(self.example_button)
         hint = QLabel(self.text("CIF 파일을 이 창으로 끌어 놓을 수 있습니다.",
                                 "Drop CIF files into this window to add them."))
         hint.setWordWrap(True)
@@ -331,19 +321,18 @@ class MainWindow(QMainWindow):
         self.splitter.addWidget(self.sidebar)
 
     def _build_scene(self):
-        center = QWidget()
+        center = self.center = QWidget()
         layout = QVBoxLayout(center)
         layout.setContentsMargins(2, 0, 2, 0)
         header = QHBoxLayout()
         heading = QVBoxLayout()
-        eyebrow = QLabel(self.text("구조를 이해하는 작업 공간", "A CLOSER LOOK AT STRUCTURE"))
-        eyebrow.setObjectName("eyebrow")
-        heading.addWidget(eyebrow)
         self.structure_title = QLabel()
         self.structure_title.setObjectName("heading")
         self.structure_subtitle = QLabel()
         self.structure_subtitle.setObjectName("muted")
         heading.addWidget(self.structure_title)
+        self.structure_subtitle.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.structure_title.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         heading.addWidget(self.structure_subtitle)
         header.addLayout(heading, 1)
         self.png_button = self._button("이미지 저장", "Export PNG", self.export_png)
@@ -354,6 +343,7 @@ class MainWindow(QMainWindow):
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(1, 1, 1, 1)
         self.view = StructureView(language=self.language)
+        self.view.set_graphics_quality(self.preferences.get("quality"))
         self.view.atomPicked.connect(self._atom_picked)
         self.view.viewChanged.connect(self._view_changed)
         card_layout.addWidget(self.view, 1)
@@ -365,6 +355,16 @@ class MainWindow(QMainWindow):
             self.preset_combo.addItem(self.text(ko, en), value)
         self.preset_combo.currentIndexChanged.connect(lambda: self.view.reset_view(self.preset_combo.currentData()))
         tools.addWidget(self.preset_combo)
+        display = QToolButton()
+        display.setText(self.text("표시", "Display"))
+        display.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        display.setMenu(display_menu(self))
+        tools.addWidget(display)
+        tools.addStretch()
+        tools.addWidget(self._button("초기화", "Reset", self.view.reset_view))
+        card_layout.addLayout(tools)
+        toggles = QHBoxLayout()
+        toggles.setContentsMargins(8, 0, 8, 4)
         self.view_toggles = {}
         for key, ko, en, attribute in (
             ("cell", "셀", "Cell", "show_cell"), ("bonds", "연결선", "Guides", "show_bonds"),
@@ -374,12 +374,13 @@ class MainWindow(QMainWindow):
             checkbox.setChecked(getattr(self.view, attribute))
             checkbox.toggled.connect(lambda checked, attr=attribute: self._toggle_view(attr, checked))
             self.view_toggles[key] = checkbox
-            tools.addWidget(checkbox)
-        tools.addStretch()
-        tools.addWidget(self._button("초기화", "Reset", self.view.reset_view))
-        card_layout.addLayout(tools)
+            toggles.addWidget(checkbox)
+        toggles.addStretch()
+        card_layout.addLayout(toggles)
         layout.addWidget(card, 1)
-        metrics = QHBoxLayout()
+        self.metrics_widget = QWidget()
+        metrics = QHBoxLayout(self.metrics_widget)
+        metrics.setContentsMargins(0, 0, 0, 0)
         self.metric_labels = []
         for ko, en in (("최소 주기 거리", "Minimum periodic distance"),
                        ("원자핵 두께", "Nuclei thickness"), ("원자핵 간격", "Nuclei gap")):
@@ -388,16 +389,18 @@ class MainWindow(QMainWindow):
             metric_layout = QVBoxLayout(metric)
             name = QLabel(self.text(ko, en))
             name.setObjectName("muted")
+            name.setWordWrap(True)
             number = QLabel("—")
             number.setObjectName("metricValue")
             metric_layout.addWidget(name)
             metric_layout.addWidget(number)
             self.metric_labels.append(number)
             metrics.addWidget(metric)
-        layout.addLayout(metrics)
+        layout.addWidget(self.metrics_widget)
         footnote = QLabel(self.text(
             "입력 기하를 확인합니다. 안정성·화학 결합·계산 수렴을 판정하지 않습니다.",
             "Supplied geometry only. Stability, chemical bonds and convergence require separate evidence."))
+        self.scene_note = footnote
         footnote.setObjectName("muted")
         footnote.setWordWrap(True)
         layout.addWidget(footnote)
@@ -405,14 +408,20 @@ class MainWindow(QMainWindow):
 
     def _build_inspector(self, research_factory):
         self.tabs = QTabWidget()
-        self.tabs.setMinimumWidth(310)
-        self.tabs.setMaximumWidth(600)
+        self.tabs.setMinimumWidth(230)
         settings = QWidget()
         settings.setObjectName("inspectorPage")
         layout = QVBoxLayout(settings)
         layout.setContentsMargins(15, 18, 15, 15)
+        self.entry_status = QLabel()
+        self.entry_status.setWordWrap(True)
+        self.entry_status.setTextFormat(Qt.TextFormat.PlainText)
+        self.entry_status.setMinimumHeight(27)
+        self.entry_status.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
+        layout.addWidget(self.entry_status)
         form = QFormLayout()
-        form.setVerticalSpacing(12)
+        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+        form.setVerticalSpacing(6)
         self.axis_combo = QComboBox()
         self.axis_combo.setObjectName("normalAxis")
         self.axis_combo.addItems(["a", "b", "c"])
@@ -443,7 +452,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.prepare_button)
         divider = QFrame()
         divider.setFrameShape(QFrame.Shape.HLine)
-        divider.setStyleSheet("color:#e4eaee; margin:9px 0;")
+        divider.setFrameShadow(QFrame.Shadow.Plain)
         layout.addWidget(divider)
         label = QLabel(self.text("원자 사이 거리", "PAIR MEASUREMENT"))
         label.setObjectName("eyebrow")
@@ -498,8 +507,20 @@ class MainWindow(QMainWindow):
         self.hash_label.setObjectName("muted")
         self.hash_label.setWordWrap(True)
         self.hash_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        layout.addStretch()
         layout.addWidget(self.hash_label)
+        detail_button = self.details_button = self._button("출처 상세", "Source details", lambda checked: self.source_details.setVisible(checked))
+        detail_button.setCheckable(True)
+        detail_row = QHBoxLayout()
+        detail_row.addWidget(detail_button)
+        detail_row.addWidget(self._button("해시 복사", "Copy SHA256", self.copy_hash))
+        layout.addLayout(detail_row)
+        self.source_details = QPlainTextEdit()
+        self.source_details.setReadOnly(True)
+        self.source_details.setWordWrapMode(QTextOption.WrapMode.WrapAnywhere)
+        self.source_details.setMaximumHeight(150)
+        self.source_details.hide()
+        layout.addWidget(self.source_details)
+        layout.addStretch()
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setWidget(settings)
@@ -516,21 +537,108 @@ class MainWindow(QMainWindow):
         result_layout.addLayout(exports)
         self.tabs.addTab(result_panel, self.text("분석 결과", "Report"))
         self.research_panel = None
+        self._research_factory = research_factory
         if research_factory is not False:
-            if research_factory is None:
-                try:
-                    from .desktop_research import ResearchPanel
-                    research_factory = ResearchPanel
-                except ImportError:
-                    research_factory = None
-            if research_factory is not None:
-                self.research_panel = research_factory(self)
-                self.research_panel.changed.connect(self.mark_dirty)
-                self.tabs.addTab(self.research_panel, self.text("연구 도구", "Research"))
+            self._research_placeholder = QWidget()
+            self.tabs.addTab(self._research_placeholder, self.text("연구 도구", "Research"))
+            if not self._defer_startup:
+                self._ensure_research()
+            self.tabs.currentChanged.connect(self._tab_changed)
         self.splitter.addWidget(self.tabs)
         self.axis_combo.currentIndexChanged.connect(self._draft_changed)
         self.cutoff_spin.valueChanged.connect(self._draft_changed)
         self.note_edit.textChanged.connect(self._draft_changed)
+
+    def _ensure_research(self):
+        if self.research_panel is not None or self._research_factory is False:
+            return self.research_panel
+        factory = self._research_factory
+        if factory is None:
+            from .desktop_research import ResearchPanel
+            factory = ResearchPanel
+        panel = factory(self)
+        with QSignalBlocker(self.tabs):
+            index = self.tabs.indexOf(self._research_placeholder)
+            active = self.tabs.currentIndex()
+            self.tabs.removeTab(index)
+            self.tabs.insertTab(index, panel, self.text("연구 도구", "Research"))
+            self.tabs.setCurrentIndex(active)
+        self._research_placeholder.deleteLater()
+        self.research_panel = panel
+        panel.changed.connect(self.mark_dirty)
+        if self.snapshot and self._structure_key is not None:
+            panel.restore_state(self.workspace.project.workspace_state)
+            panel.set_entry(self.selected_entry, self.language)
+        from .startup import mark
+        mark("research_ready")
+        return panel
+
+    def _tab_changed(self, index):
+        if self.research_panel is None and index == 2:
+            self._ensure_research()
+
+    def open_compute_settings(self):
+        panel = self._ensure_research()
+        if panel:
+            self._inspector_requested = True
+            self._compact_panel = "inspector"
+            self._update_panels()
+            self.tabs.setCurrentWidget(panel)
+            panel.mode.setCurrentIndex(1)
+            panel.devices.ensure_local_probe()
+
+    def _platform_theme(self, scheme):
+        system_scheme_changed(self.preferences.get("theme"), scheme)
+
+    def change_preference(self, key, value):
+        self.preferences.set(key, value)
+        if key == "theme":
+            apply_theme(value)
+        if key == "quality":
+            for view in self.findChildren(StructureView):
+                view.set_graphics_quality(value)
+
+    def _toggle_sidebar(self):
+        if self.width() < 900:
+            self._compact_panel = "scene" if self._compact_panel == "files" else "files"
+        else:
+            self._sidebar_requested = not self.sidebar.isVisible()
+        self._update_panels()
+
+    def _toggle_inspector(self):
+        if self.width() < 900:
+            self._compact_panel = "scene" if self._compact_panel == "inspector" else "inspector"
+        else:
+            self._inspector_requested = not self.tabs.isVisible()
+        self._update_panels()
+
+    def _update_panels(self):
+        if not hasattr(self, "tabs") or not hasattr(self, "center"):
+            return
+        w, h = self.width(), self.height()
+        compact = w < 900
+        if not compact and self._narrow is not None and (w < 1160) != self._narrow:
+            self._sidebar_requested = w >= 1160
+        if self._narrow is None:
+            self._sidebar_requested = w >= 1160
+        self._narrow = w < 1160
+        self.sidebar.setVisible(self._compact_panel == "files" if compact else self._sidebar_requested)
+        self.center.setVisible(not compact or self._compact_panel == "scene")
+        self.tabs.setVisible(self._compact_panel == "inspector" if compact else self._inspector_requested)
+        self.tabs.setMaximumWidth(16777215 if compact else 560)
+        self.sidebar.setMaximumWidth(16777215 if compact else 290)
+        self.metrics_widget.setVisible(h >= 570)
+        self.scene_note.setVisible(h >= 470)
+        if hasattr(self, "time_label"):
+            self.time_label.setVisible(w >= 850)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_panels()
+
+    def copy_hash(self):
+        if self.selected_entry:
+            QApplication.clipboard().setText(self.selected_entry["sha256"])
 
     @property
     def is_busy(self):
@@ -557,7 +665,7 @@ class MainWindow(QMainWindow):
         job.signals.finished.connect(self._job_finished, Qt.ConnectionType.QueuedConnection)
         self._set_busy(True)
         pool = (self._workspace_pool if key in ("workspace_action", "refresh", "preparation")
-                else self._io_pool if key == "recovery" else self._pool)
+                else self._io_pool if key == "recovery" else self._probe_pool if key == "device-probe" else self._pool)
         pool.start(job)
         return token
 
@@ -590,7 +698,7 @@ class MainWindow(QMainWindow):
             return
         _, callback, failure = pending
         if success:
-            if key != "recovery":
+            if key == "workspace_action":
                 self.error_label.hide()
             if callback is not None:
                 try:
@@ -604,6 +712,7 @@ class MainWindow(QMainWindow):
 
     def _set_busy(self, busy):
         self.progress.setVisible(busy)
+        self.language_combo.setEnabled(not busy)
         mutation_busy = self.workspace_busy
         for widget in (self.file_list, self.open_button, self.project_open_button, self.save_button,
                        self.compare_button,
@@ -651,6 +760,7 @@ class MainWindow(QMainWindow):
                       self.text("검토 필요", "Needs review") if report["review_required"] else
                       self.text("기하 분석", "Geometry available"))
             item = QListWidgetItem(f"{entry['filename']}\n{status}")
+            item.setSizeHint(QSize(0, self.file_list.fontMetrics().lineSpacing() * 2 + 24))
             item.setData(Qt.ItemDataRole.UserRole, entry["id"])
             item.setToolTip(entry["filename"] + "\nSHA256 " + entry["sha256"])
             self.file_list.addItem(item)
@@ -731,7 +841,32 @@ class MainWindow(QMainWindow):
         self.note_edit.setPlainText(str(draft.get("note", entry["note"]))[:10000])
         self.review_check.setChecked(entry["review_current"])
         self.prepare_button.setEnabled(not entry.get("preparation") and not self.workspace_busy)
-        self.hash_label.setText("SHA256\n" + entry["sha256"])
+        digest = entry["sha256"]
+        self.hash_label.setText(f"SHA256  {digest[:12]}…{digest[-8:]}")
+        self.hash_label.setToolTip(digest)
+        details = [entry["filename"], f"SHA256 {digest}"]
+        if entry.get("preparation"):
+            details.append(json.dumps(entry["preparation"], indent=2, ensure_ascii=False))
+        self.source_details.setPlainText("\n".join(details))
+        if report is None:
+            message = entry["analysis"].get("error_ko" if self.language == "ko" else "error")
+            severity = "error"
+            label = self.text("지원하지 않는 구조", "Unsupported geometry")
+            if message:
+                label += " · " + str(message)
+        elif report.get("review_required") and not entry["review_current"]:
+            severity = "warning"
+            label = self.text("검토 필요", "Needs review")
+            warnings = localized_report(report, self.language)["issues"]
+            if warnings:
+                label += " · " + warnings[0]["message"]
+        else:
+            severity = "ok"
+            label = self.text("검토 완료", "Reviewed") if entry["review_current"] else self.text("기하 검사 정상", "Geometry checked")
+        self.entry_status.setText(label)
+        self.entry_status.setProperty("severity", severity)
+        self.entry_status.style().unpolish(self.entry_status)
+        self.entry_status.style().polish(self.entry_status)
         self.saved_measurements.clear()
         for selection in entry["measurements"]:
             mode = self.text("최단 주기", "Minimum image") if selection["mode"] == "minimum_image" else self.text("지정 이미지", "Specified images")
@@ -947,9 +1082,17 @@ class MainWindow(QMainWindow):
         """Validate original scientific sources before replacing the live project."""
         revision = self.workspace.revision
         preview = self.workspace.import_project(revision, data, preview=True)
-        if self.research_panel:
-            self.research_panel.validate_state(preview["project"]["workspace_state"], preview["entries"])
+        self._validate_sources(preview)
         return self.workspace.import_project(revision, data)
+
+    def _validate_sources(self, preview):
+        # Validation is a property of a document, even before its research tab opens.
+        if self.research_panel is not None:
+            validator = self.research_panel.validate_state
+        else:
+            from .desktop_research import ResearchPanel
+            validator = ResearchPanel.validate_state
+        validator(preview["project"]["workspace_state"], preview["entries"])
 
     def portable_state(self):
         self._remember_view()
@@ -972,6 +1115,7 @@ class MainWindow(QMainWindow):
 
     def create_comparison_dialog(self):
         from .desktop_compare import ComparisonDialog
+        self._ensure_research()
         dialog = ComparisonDialog(self)
         dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         dialog.changed.connect(self._comparison_changed)
@@ -1020,6 +1164,9 @@ class MainWindow(QMainWindow):
         try:
             project = self._portable_project()
             data = dumps_project_archive(project)
+            # Exercise the normal reopen checks on the exact bytes before replacing a prior file.
+            preview = self.workspace.import_project(self.workspace.revision, data, preview=True)
+            self._validate_sources(preview)
             atomic_write(target, data)
         except Exception as error:
             self.show_error(error)
@@ -1259,7 +1406,8 @@ class MainWindow(QMainWindow):
                 return False
             path = filename
         try:
-            self.view.export_png(path)
+            self.view.export_png(path, width=int(self.preferences.get("export_width")),
+                                 background=self.preferences.get("export_background"))
             self.status_label.setText(self.text("출처가 포함된 PNG를 저장했습니다.", "PNG exported with source annotations."))
             return True
         except (OSError, ValueError) as error:
@@ -1271,27 +1419,59 @@ class MainWindow(QMainWindow):
             return
         new_language = self.language_combo.currentData()
         if self.is_busy:
+            with QSignalBlocker(self.language_combo):
+                self.language_combo.setCurrentIndex(self.language_combo.findData(self.language))
             return
-        if self._comparison_dialog is not None:
+        tab = self.tabs.currentIndex()
+        panel = self.research_panel
+        mode = panel.mode.currentIndex() if panel else 0
+        device_session = panel.devices.session_state() if panel else None
+        live_results = panel.transient_results() if panel else None
+        research_scroll = panel.stack.currentWidget().verticalScrollBar().value() if panel else 0
+        filters = self.file_search.text()
+        inspector_scroll = self.tabs.widget(0).verticalScrollBar().value()
+        details_open = self.source_details.isVisible()
+        comparison_open = self._comparison_dialog and self._comparison_dialog.isVisible()
+        if comparison_open:
             self._comparison_dialog.close()
-        # Rebuild native controls while retaining workspace, drafts and view state.
+            self._comparison_dialog = None
         self._remember_view()
-        self.workspace.language = new_language
-        self.language = new_language
         state = self.portable_state()
-        self.workspace.project = replace(self.workspace.project, workspace_state=state)
+        factory = self._research_factory
+        self.language = new_language
+        self.preferences.set("language", new_language)
+        with self.workspace.lock:
+            self.workspace.project = replace(self.workspace.project, workspace_state=state)
+            self.workspace.language = new_language
         old = self.takeCentralWidget()
+        old.hide()
         self.removeToolBar(self.toolbar)
         self.toolbar.deleteLater()
         self.menuBar().clear()
-        self.statusBar().removeWidget(self.status_label)
-        self.statusBar().removeWidget(self.time_label)
-        factory = type(self.research_panel) if self.research_panel else False
+        for label in (self.status_label, self.time_label):
+            self.statusBar().removeWidget(label)
+            label.deleteLater()
         self._structure_key = None
         self._build_ui(factory)
+        if panel:
+            self._ensure_research()
         self._apply_snapshot(self.workspace.snapshot(include_workspace=True), restore=True)
+        self.file_search.setText(filters)
+        self.tabs.setCurrentIndex(tab)
+        self.tabs.widget(0).verticalScrollBar().setValue(inspector_scroll)
+        if details_open:
+            self.details_button.setChecked(True)
+            self.source_details.show()
+        if panel:
+            self.research_panel.devices.restore_session(device_session)
+            self.research_panel.mode.setCurrentIndex(mode)
+            self.research_panel.restore_transient_results(live_results)
+            self.research_panel.stack.currentWidget().verticalScrollBar().setValue(research_scroll)
         old.deleteLater()
-        self.mark_dirty()
+        if comparison_open:
+            self.compare_structures()
+        self._update_title()
+        self._refresh_status()
 
     def _confirm_unsaved(self):
         if self.is_busy:
@@ -1331,7 +1511,7 @@ class MainWindow(QMainWindow):
         if isinstance(error, APIError):
             message = error.message
         message = localized_error_message(message, self.language)
-        self.error_label.setText(message)
+        self.error_label.setText(self.text("오류 · ", "Error · ") + message)
         self.error_label.show()
         self.status_label.setText(message)
         self.errorOccurred.emit(message)
@@ -1342,13 +1522,24 @@ class MainWindow(QMainWindow):
 
     def _refresh_status(self):
         self.status_label.setText(self.text("저장하지 않은 변경 사항", "Unsaved changes") if self.dirty else
-                                 self.text("준비됨 · 파일은 이 컴퓨터에서 처리됩니다", "Ready · files stay on this computer"))
+                                 self.text("준비됨", "Ready"))
         timestamps = []
         if self._last_saved:
             timestamps.append(self.text("저장 ", "Saved ") + self._last_saved.strftime("%Y-%m-%d %H:%M:%S"))
         if self._last_recovery:
             timestamps.append(self.text("복구본 ", "Recovery ") + self._last_recovery.strftime("%Y-%m-%d %H:%M:%S"))
         self.time_label.setText("  ·  ".join(timestamps))
+
+    def keyPressEvent(self, event):
+        if self._bench_input and event.key() == Qt.Key.Key_F24:
+            from .startup import benchmark_requested, mark
+            self._bench_input = False
+            mark("first_input_response")
+            event.accept()
+            if benchmark_requested():
+                QTimer.singleShot(0, QApplication.instance().quit)
+            return
+        super().keyPressEvent(event)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls() and all(url.isLocalFile() for url in event.mimeData().urls()):
@@ -1369,9 +1560,11 @@ class MainWindow(QMainWindow):
         event.acceptProposedAction()
 
 
-def main(language="ko", root=None, argv=None) -> int:
+def main(language=None, root=None, argv=None) -> int:
     """Launch the actual native application and enter Qt's desktop event loop."""
+    from .startup import log_failure, mark
     arguments = list(sys.argv if argv is None else argv)
+    mark("qt_initialization_begin")
     app = QApplication.instance()
     owns_app = app is None
     if owns_app:
@@ -1379,21 +1572,36 @@ def main(language="ko", root=None, argv=None) -> int:
     app.setApplicationName("CalcLens")
     app.setOrganizationName("CalcLens")
     app.setApplicationVersion(__version__)
-    window = MainWindow(language=language, root=root)
+    mark("qt_initialization_complete")
+    window = MainWindow(language=language, root=root, defer_startup=True)
+    window.status_label.setText(window.text("기본 구조를 불러오는 중…", "Loading the initial structure…"))
     window.show()
+    app.processEvents()
+    mark("first_window")
     # Retain the window when embedding in an existing Qt test/application.
     app._calclens_window = window
     app._calclens_file_filter = _FileOpenFilter(window, app)
     app.installEventFilter(app._calclens_file_filter)
     paths = [Path(value) for value in arguments[1:]
              if not value.startswith("-") and Path(value).suffix.lower() in (".cif", ".zip", ".json")]
-    if paths:
-        if len(paths) == 1 and paths[0].suffix.lower() in (".zip", ".json"):
-            QTimer.singleShot(0, lambda: window.open_project(paths[0], confirm=False))
-        elif all(path.suffix.lower() == ".cif" for path in paths):
-            QTimer.singleShot(0, lambda: window.open_cifs(paths, mode="replace"))
-        else:
-            QTimer.singleShot(0, lambda: window.show_error("Open CIF files together, or one project archive."))
+    def initialized(snapshot):
+        window._apply_snapshot(snapshot, restore=True)
+        mark("default_analysis_complete")
+        window._refresh_status()
+        window._bench_input = True
+        app.postEvent(window, QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_F24, Qt.KeyboardModifier.NoModifier))
+        if paths:
+            if len(paths) == 1 and paths[0].suffix.lower() in (".zip", ".json"):
+                window.open_project(paths[0], confirm=False)
+            elif all(path.suffix.lower() == ".cif" for path in paths):
+                window.open_cifs(paths, mode="replace")
+            else:
+                window.show_error(window.text("CIF 파일 여러 개 또는 작업 파일 하나를 선택하세요.",
+                                              "Open CIF files together, or one project archive."))
+    def failed(error):
+        path = log_failure(error)
+        window.show_error(f"{error}\n{path}")
+    window.submit(window.workspace.load_initial_example, initialized, key="workspace_action", on_error=failed)
     return app.exec() if owns_app else 0
 
 
