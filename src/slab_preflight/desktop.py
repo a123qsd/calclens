@@ -508,7 +508,7 @@ class MainWindow(QMainWindow):
         self.hash_label.setWordWrap(True)
         self.hash_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         layout.addWidget(self.hash_label)
-        detail_button = self.details_button = self._button("출처 상세", "Source details", lambda checked: self.source_details.setVisible(checked))
+        detail_button = self.details_button = self._button("출처 상세", "Source details", self._toggle_source_details)
         detail_button.setCheckable(True)
         detail_row = QHBoxLayout()
         detail_row.addWidget(detail_button)
@@ -520,6 +520,9 @@ class MainWindow(QMainWindow):
         self.source_details.setMaximumHeight(150)
         self.source_details.hide()
         layout.addWidget(self.source_details)
+        self.original_button = self._button("원본 CIF 저장…", "Save original CIF…", self.save_original_cif)
+        self.original_button.hide()
+        layout.addWidget(self.original_button)
         layout.addStretch()
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -635,6 +638,59 @@ class MainWindow(QMainWindow):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._update_panels()
+
+    def _original_cif(self):
+        with self.workspace.lock:
+            entry = next((e for e in self.workspace.project.entries if self.selected_entry and
+                          e.id == self.selected_entry["id"]), None)
+            if entry is None:
+                return None
+            if entry.preparation:
+                raw = entry.preparation["source"]
+                return raw["filename"], base64.b64decode(raw["cif_base64"], validate=True)
+            return entry.filename, entry.data
+
+    def _toggle_source_details(self, checked):
+        self.source_details.setVisible(checked)
+        self.original_button.setVisible(checked)
+        if checked:
+            self._fill_source_details()
+
+    def _fill_source_details(self):
+        entry = self.selected_entry
+        if not entry:
+            self.source_details.clear()
+            return
+        details = [entry["filename"], f"SHA256 {entry['sha256']}"]
+        if entry.get("preparation"):
+            details.append(json.dumps(entry["preparation"], indent=2, ensure_ascii=False))
+        if self.details_button.isChecked():
+            original = self._original_cif()
+            if original:
+                name, content = original
+                try:
+                    cif = content.decode("utf-8-sig")
+                except UnicodeDecodeError:
+                    cif = content.decode("latin-1")
+                details.extend(["", name, cif])
+        self.source_details.setPlainText("\n".join(details))
+
+    def save_original_cif(self, checked=False, *, path=None):
+        original = self._original_cif()
+        if original is None:
+            return False
+        filename, content = original
+        if path is None:
+            path, _ = QFileDialog.getSaveFileName(self, self.text("원본 CIF 저장", "Save original CIF"),
+                                                  Path(filename).name, "CIF (*.cif)")
+        if not path:
+            return False
+        try:
+            atomic_write(Path(path), content)
+        except OSError as error:
+            self.show_error(error)
+            return False
+        return True
 
     def copy_hash(self):
         if self.selected_entry:
@@ -819,7 +875,20 @@ class MainWindow(QMainWindow):
         entry = self.selected_entry
         self._updating = True
         if entry is None:
+            self._structure_key = None
             self.view.set_structure(None)
+            if self.research_panel is not None:
+                self.research_panel.set_entry(None, self.language)
+            self.structure_title.setText(self.text("구조 없음", "No structure"))
+            self.structure_subtitle.clear()
+            self.entry_status.clear()
+            self.source_details.clear()
+            self.hash_label.clear()
+            self.report_text.clear()
+            self.note_edit.clear()
+            self.saved_measurements.clear()
+            for number in self.metric_labels:
+                number.setText("—")
             self._updating = False
             return
         report = entry["analysis"].get("report")
@@ -844,10 +913,7 @@ class MainWindow(QMainWindow):
         digest = entry["sha256"]
         self.hash_label.setText(f"SHA256  {digest[:12]}…{digest[-8:]}")
         self.hash_label.setToolTip(digest)
-        details = [entry["filename"], f"SHA256 {digest}"]
-        if entry.get("preparation"):
-            details.append(json.dumps(entry["preparation"], indent=2, ensure_ascii=False))
-        self.source_details.setPlainText("\n".join(details))
+        self._fill_source_details()
         if report is None:
             message = entry["analysis"].get("error_ko" if self.language == "ko" else "error")
             severity = "error"
@@ -1461,7 +1527,7 @@ class MainWindow(QMainWindow):
         self.tabs.widget(0).verticalScrollBar().setValue(inspector_scroll)
         if details_open:
             self.details_button.setChecked(True)
-            self.source_details.show()
+            self._toggle_source_details(True)
         if panel:
             self.research_panel.devices.restore_session(device_session)
             self.research_panel.mode.setCurrentIndex(mode)

@@ -72,6 +72,7 @@ def capture(directory, app):
                 save(dialog, "after-dark-comparison-en")
                 dialog.close()
                 picker = QFileDialog(w, "Export structure image")
+                picker.setDirectory(str(ROOT / "examples"))
                 picker.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
                 picker.setNameFilter("PNG (*.png)")
                 picker.selectFile("graphene.png")
@@ -87,6 +88,9 @@ def capture(directory, app):
             w.tabs.setCurrentIndex(0)
             w._compact_panel = "scene"
             for width, height in ((1920, 1080), (1366, 768), (1093, 614), (911, 512), (683, 384)):
+                screen = app.primaryScreen().availableGeometry()
+                if app.platformName() != "offscreen" and (width > screen.width() or height + 40 > screen.height()):
+                    continue
                 w.resize(width, height)
                 process(app, w)
                 assert w.size().width() == width and w.size().height() == height

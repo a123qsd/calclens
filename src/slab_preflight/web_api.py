@@ -378,22 +378,29 @@ class Workspace:
                 (item.id, item.data) for item in self.project.entries]:
             return project
         state = project.workspace_state
-        if not isinstance(state, dict) or state.get("schema_version") != 1:
+        if not isinstance(state, dict):
             return project
-        if any(not isinstance(state.get(key), dict) for key in ("auxiliary", "viewers", "drafts")):
-            return replace(project, workspace_state={})
-        sources = {hashlib.sha256(entry.data).hexdigest() for entry in project.entries}
         bindings = {entry.id: hashlib.sha256(entry.data).hexdigest() for entry in project.entries}
+        sources = set(bindings.values())
         viewer_keys = {f"{slot}:{entry_id}:{digest}" for entry_id, digest in bindings.items()
                        for slot in ("overview", "left", "right")}
-        updated = {
-            **state,
-            "auxiliary": {key: value for key, value in state["auxiliary"].items() if key in sources},
-            "viewers": {key: value for key, value in state["viewers"].items() if key in viewer_keys},
-            "drafts": {key: value for key, value in state["drafts"].items()
-                       if key in bindings and isinstance(value, dict)
-                       and value.get("sha256") == bindings[key]},
-        }
+        updated = dict(state)
+        if isinstance(state.get("auxiliary"), dict):
+            updated["auxiliary"] = {key: value for key, value in state["auxiliary"].items() if key in sources}
+        if isinstance(state.get("viewers"), dict):
+            updated["viewers"] = {key: value for key, value in state["viewers"].items() if key in viewer_keys}
+        if isinstance(state.get("drafts"), dict):
+            updated["drafts"] = {key: value for key, value in state["drafts"].items()
+                                 if key in bindings and isinstance(value, dict) and value.get("sha256") == bindings[key]}
+        # The native tab may never have been constructed. Prune exact source attachments
+        # in the document model so save/recovery work independently of visible widgets.
+        if isinstance(state.get("native_research"), dict):
+            research = dict(state["native_research"])
+            for group in ("signed", "selections", "differences", "drafts"):
+                if isinstance(research.get(group), dict):
+                    research[group] = {digest: value for digest, value in research[group].items()
+                                       if digest in sources}
+            updated["native_research"] = research
         if isinstance(state.get("comparison"), dict):
             comparison = state["comparison"]
             updated["comparison"] = {

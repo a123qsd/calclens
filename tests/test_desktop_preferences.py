@@ -172,3 +172,52 @@ def test_run_label_includes_actual_remote_selected_worker_parity_and_fallback():
                              "worker_execution": {"fallback_reasons": ["no CUDA driver"]}}, "en")
     for value in ("auto → cpu", "float64", "passed", "0.1250 s", "no CUDA driver"):
         assert value in text
+
+
+def test_lazy_research_tab_prunes_only_removed_structures_before_save(app, tmp_path):
+    win = MainWindow("en", root=ROOT, recovery=False, defer_startup=True)
+    win.show()
+    try:
+        win.open_project(ROOT / "examples/research_cases/h2_density/h2-density.calclens.zip", confirm=False)
+        drain(win, app)
+        hydrogen = win.selected_entry["id"]
+        digest = win.selected_entry["sha256"]
+        win.open_cifs([ROOT / "examples/hbn.cif"])
+        drain(win, app)
+        win.select_entry(hydrogen)
+        drain(win, app)
+        win.remove_selected()
+        drain(win, app)
+        assert win.research_panel is None
+        target = tmp_path / "remaining.calclens.zip"
+        assert win.save_project(path=target)
+        win.open_project(target, confirm=False)
+        drain(win, app)
+        assert win.selected_entry["filename"] == "hbn.cif"
+        state = win.workspace.project.workspace_state
+        assert digest not in state.get("auxiliary", {})
+        for key in ("signed", "selections", "differences", "drafts"):
+            assert digest not in state.get("native_research", {}).get(key, {})
+        win._ensure_research()
+        assert win.research_panel.entry["id"] == win.selected_entry["id"]
+    finally:
+        win.dirty = False
+        win.close()
+
+
+def test_original_cif_bytes_can_be_inspected_and_exported_with_unsupported_geometry(app, tmp_path):
+    win = MainWindow("en", root=ROOT, recovery=False)
+    win.show()
+    try:
+        source = ROOT / "examples/partial_occupancy.cif"
+        win.open_cifs([source], mode="replace")
+        drain(win, app)
+        assert win.selected_entry["analysis"]["report"] is None
+        win.details_button.click()
+        assert source.read_text().splitlines()[0] in win.source_details.toPlainText()
+        dest = tmp_path / "original.cif"
+        assert win.save_original_cif(path=dest)
+        assert dest.read_bytes() == source.read_bytes()
+    finally:
+        win.dirty = False
+        win.close()
