@@ -1,10 +1,10 @@
 # CalcLens
 
-**Desktop 0.9.0** opens CIFs in a native desktop program. The Windows executable and Apple Silicon app include automatic recovery, electronic fields, Apple Metal/CUDA or a remote worker, Gaussian output review and a real vacuum-convergence case. [Desktop guide](docs/DESKTOP.md)
+**Desktop 0.9.1** opens CIFs in a native desktop program. The Windows folder ZIP and Apple Silicon app include automatic recovery, electronic fields, Apple Metal/CUDA or a remote worker, Gaussian output review and a real vacuum-convergence case. Device availability depends on the computer and selected task. [Desktop guide](docs/DESKTOP.md)
 
-**Local review build.** Extract the Windows review ZIP into an empty folder and launch `CalcLens.exe` there. The links below point to the published 0.9.0 release. In the review build, **Settings** opens device selection, theme, interactive graphics and PNG options. The H₂ project keeps its original calculation axis when the structure axis changes. [Desktop guide](docs/DESKTOP.md) · [Viewer features](docs/native-graphics.md) · [Verification](docs/NATIVE_REVIEW.md)
+Extract the complete Windows ZIP into an empty folder and launch `CalcLens.exe` beside `runtime`. Keep the extracted folder together. **Settings** opens device selection, theme, interactive graphics and PNG options. The H₂ project keeps its original calculation axis when the structure axis changes. [Desktop guide](docs/DESKTOP.md) · [Viewer features](docs/native-graphics.md) · [Pre-release review record](docs/NATIVE_REVIEW.md)
 
-[Published 0.9.0 Windows EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [Release files](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+[Windows x64 folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-macOS-Apple-Silicon.dmg) · [Release files](https://github.com/a123qsd/calclens/releases/tag/v0.9.1)
 
 Created, led and maintained by [a123qsd](https://github.com/a123qsd).
 [Project origin and responsibilities](AUTHORS.md) · [Citation](CITATION.cff)
@@ -19,12 +19,12 @@ service is required.
 
 [Project home](https://github.com/a123qsd/calclens) · [한국어 안내](README.ko.md) · [English ZIP and installation](docs/DOWNLOADS.md#english) · [Methods and limits](docs/METHODS.md) · [Example provenance](docs/PROVENANCE.md) · [Development](docs/DEVELOPMENT.md) · [Validation record](docs/VALIDATION.md)
 
-**CalcLens v0.8.0** gives the selected structure a larger viewer and makes its
-filename the main heading. Compact horizontal navigation, visible file and save
-actions, a file strip and a numeric inspector keep the current work together.
-See the [0.8.0 release notes](docs/RELEASE-0.8.0.md).
+Version 0.9.1 retains research sources and calculation conditions when projects
+are reopened, checks the selected data before exporting research results, and
+provides a Windows folder ZIP that reuses its extracted runtime.
+See the [0.9.1 release notes](docs/RELEASE-0.9.1.md).
 
-Version 0.6.0 adds ball-and-stick, stick and space-filling views, element
+The optional browser viewer includes ball-and-stick, stick and space-filling views, element
 legends, metal-element highlighting, graphics quality, top/side views,
 orthographic projection, fullscreen, linked comparison cameras and 1600/3200-pixel
 PNG export. Display counts and label/connection caps are visible.
@@ -50,11 +50,11 @@ coordinate matching and units.
 
 ## Run locally
 
-The published 0.9.0 EXE starts directly. For this review, extract the full Windows ZIP and open the launcher inside. On an Apple Silicon Mac, open the DMG, drag CalcLens into Applications, and open the app. Both builds include Python. A graphene example opens on first launch.
+On Windows, extract the complete ZIP into a new folder and open `CalcLens.exe` beside `runtime`. Keep the extracted folder together, including when moving the app. On an Apple Silicon Mac, open the DMG, drag CalcLens into Applications, and open the app. Both builds include Python and Qt. A graphene example opens on first launch.
 
-[Published 0.9.0 Windows EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [Release files](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+[Windows x64 folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-macOS-Apple-Silicon.dmg) · [Release files](https://github.com/a123qsd/calclens/releases/tag/v0.9.1)
 
-[Source ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.9.0.zip) · [Installation guide](docs/DOWNLOADS.md#english)
+[Source ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.9.1.zip) · [SHA-256 checksums](https://github.com/a123qsd/calclens/releases/download/v0.9.1/SHA256SUMS.txt) · [Installation guide](docs/DOWNLOADS.md#english)
 
 To clone the source with Git instead, use the commands below. These installation
 examples use Python 3.12.
@@ -73,21 +73,22 @@ On Windows, create the environment with `py -3.12 -m venv .venv` and activate it
 in PowerShell with `.venv\Scripts\Activate.ps1`.
 Installing the packages initially requires an internet connection.
 
-The browser opens automatically; if needed, open the local address shown in the
-terminal. Use **Try sample** for an example or **Open files** for your CIFs.
-Start with graphene, then compare `graphene_duplicate.cif` to see how
-a duplicate site is reported. You can switch between English and Korean in the
-interface. Use `python run_app.py` to start with a ZIP's default language. Stop
-a source-launched server with `Ctrl+C` in its terminal after saving your project.
+The native application opens directly. Choose **Open CIF** or drag a CIF into
+the window. Start with graphene, then compare `graphene_duplicate.cif` to see
+how a duplicate site is reported. You can switch between English and Korean
+in the app. Use `python run_app.py` to restore the saved desktop language, or
+a source ZIP's default language. Save your project before closing.
 
 ## Molecular workspace
 
-The default screen uses React/TypeScript and a bundled 3Dmol.js viewer. Python
-still owns CIF parsing, geometric measurements and project storage. Select the
-current CIF in the file strip. The viewer occupies the main area, with nearby
-controls and a compact inspector for minimum periodic distance, nuclear-span
-thickness and candidate nuclear gap. These measurements do not represent SCF,
-optimization or frequency results.
+The default application uses Qt. See the [desktop guide](docs/DESKTOP.md) for
+its controls and recovery behavior. To open the optional React/TypeScript and
+3Dmol.js browser workspace, run `python run_app.py --web-ui`. The file-strip,
+tab and server controls described below apply to that browser workspace.
+Python owns CIF parsing, geometric measurements and project storage in both
+interfaces. The measurements include minimum periodic distance, nuclear-span
+thickness and candidate nuclear gap; they do not represent SCF, optimization
+or frequency results.
 After installing the optional `legacy-ui` extra, the earlier Streamlit screen
 remains available with `python run_app.py --legacy-ui`.
 
@@ -239,9 +240,13 @@ be the intended vacuum. Warnings catch some ambiguous cases using explicit
 heuristics; they do not detect every multilayer or bulk structure.
 Ambiguous results are marked for review.
 
-CalcLens inspects CIF geometry. Gaussian or ORCA logs, calculation execution,
-SCF convergence, optimization results, and vibrational frequencies are outside
-its scope. See [METHODS.md](docs/METHODS.md) for tolerances and equations.
+The geometry checks do not establish SCF convergence, successful optimization
+or vibrational stability. The desktop's separate research tools can review
+Gaussian output records and compute density differences and planar averages
+from supplied grids. They do not run Gaussian/ORCA or solve for an electronic
+structure; ORCA log analysis is outside this release.
+See [METHODS.md](docs/METHODS.md) for geometry tolerances and equations and
+[the desktop guide](docs/DESKTOP.md) for the research tools.
 
 ## Examples and verification
 

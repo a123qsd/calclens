@@ -1,10 +1,10 @@
 # CalcLens
 
-**0.9.0 데스크톱 안내** · Windows EXE 또는 Apple Silicon용 `CalcLens.app`을 열면 파일과 구조 뷰가 앱 안에 표시됩니다. 자동 복구, 전자 자료, Apple Metal·CUDA·원격 계산, Gaussian 로그 및 실제 수렴 예제를 사용할 수 있습니다. [데스크톱 실행·사용 안내](docs/DESKTOP.md)
+**0.9.1 데스크톱 안내** · Windows와 Apple Silicon Mac에서 CIF 파일과 구조를 앱 안에서 엽니다. 자동 복구, 전자 자료, Apple Metal·CUDA·원격 계산, Gaussian 로그 및 실제 수렴 예제를 사용할 수 있습니다. 사용 가능한 계산 장치는 컴퓨터와 선택한 작업에 따라 달라집니다. [데스크톱 실행·사용 안내](docs/DESKTOP.md)
 
-**검토용 수정 빌드.** Windows에서는 검토 ZIP 전체를 빈 폴더에 풀고 그 안의 `CalcLens.exe`를 실행하세요. 아래 링크는 기존 공개 0.9.0 배포본입니다. 수정 빌드는 주 분석 축을 바꿔도 H₂ 계산 당시의 축과 원본을 보관합니다. 상단 **설정**에서 계산 장치, 테마, 그래픽 품질과 PNG 출력을 선택할 수 있습니다. [사용 안내](docs/DESKTOP.md) · [뷰어 기능 비교](docs/native-graphics.md) · [검증 기록](docs/NATIVE_REVIEW.md)
+Windows에서는 ZIP 전체를 빈 폴더에 풀고 `runtime` 옆의 `CalcLens.exe`를 실행하세요. 폴더 전체를 함께 보관해야 합니다. 주 분석 축을 바꿔도 H₂ 계산 당시의 축과 원본을 보관합니다. 상단 **설정**에서 계산 장치, 테마, 그래픽 품질과 PNG 출력을 선택할 수 있습니다. [사용 안내](docs/DESKTOP.md) · [뷰어 기능 비교](docs/native-graphics.md) · [출시 전 검토 기록](docs/NATIVE_REVIEW.md)
 
-[공개 0.9.0 Windows EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+[Windows x64 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.1)
 
 창안·기획·개발 총괄 및 유지관리: [a123qsd](https://github.com/a123qsd).
 [프로젝트 출처와 역할](AUTHORS.md) · [인용 정보](CITATION.cff)
@@ -17,11 +17,11 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 
 [Project home](https://github.com/a123qsd/calclens) · [English guide](README.en.md) · [한국어 ZIP 받기·설치](docs/DOWNLOADS.md#한국어) · [계산 방법과 한계](docs/METHODS.md) · [예제 출처](docs/PROVENANCE.md) · [개발 안내](docs/DEVELOPMENT.md) · [검증 기록](docs/VALIDATION.md)
 
-**CalcLens v0.8.0**은 선택한 파일명을 화면 제목으로 표시하고 구조 뷰어를 넓혔습니다.
-가로 메뉴, 파일 열기·작업 저장, 파일 선택 줄과 간결한 수치 패널을 현재 구조 주변에
-배치했습니다. 자세한 내용은 [0.8.0 변경 사항](docs/RELEASE-0.8.0.md)을 참고하세요.
+0.9.1은 작업을 다시 열 때 연구 원본과 계산 조건을 보관하고, 연구 결과를 내보내기 전에
+선택한 자료가 일치하는지 확인합니다. Windows 폴더 ZIP은 한 번 푼 런타임을 다시 사용합니다.
+자세한 내용은 [0.9.1 변경 사항](docs/RELEASE-0.9.1.md)을 참고하세요.
 
-0.6.0의 뷰어에는 구·막대/막대/공간 채움, 원소 범례와 금속 원소 강조,
+선택적으로 실행하는 브라우저 뷰어에는 구·막대/막대/공간 채움, 원소 범례와 금속 원소 강조,
 그래픽 품질, 위·옆 시점과 정사영, 전체 화면, 비교 시점 동기화 및
 1600/3200픽셀 PNG 저장이 포함됩니다. 표시 원자 수와 라벨·연결 제한도 확인할 수 있습니다.
 
@@ -44,11 +44,11 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 
 ## 빠르게 실행하기
 
-공개 0.9.0 Windows EXE는 바로 실행할 수 있습니다. 이번 수정 빌드는 ZIP 전체를 풀고 그 안의 실행 파일을 여세요. Apple Silicon Mac에서는 DMG를 열고 CalcLens를 응용 프로그램 폴더로 옮긴 뒤 실행하세요. 두 배포판 모두 Python을 포함합니다. 앱을 열면 기본 그래핀 예제가 표시됩니다.
+Windows에서는 ZIP 전체를 새 폴더에 풀고 `runtime` 옆의 `CalcLens.exe`를 실행하세요. 앱을 옮길 때도 폴더 전체를 함께 옮겨야 합니다. Apple Silicon Mac에서는 DMG를 열고 CalcLens를 응용 프로그램 폴더로 옮긴 뒤 실행하세요. 두 배포판 모두 Python과 Qt를 포함합니다. 앱을 열면 기본 그래핀 예제가 표시됩니다.
 
-[공개 0.9.0 Windows EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+[Windows x64 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.1)
 
-[소스 ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.9.0.zip) · [다운로드·설치 안내](docs/DOWNLOADS.md#한국어)
+[소스 ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.9.1.zip) · [SHA-256 파일 검증](https://github.com/a123qsd/calclens/releases/download/v0.9.1/SHA256SUMS.txt) · [다운로드·설치 안내](docs/DOWNLOADS.md#한국어)
 
 Git으로 소스를 내려받는 경우에는 다음 명령을 실행합니다.
 설치 명령 예시는 Python 3.12를 사용합니다.
@@ -67,19 +67,19 @@ Windows에서는 가상환경을 `py -3.12 -m venv .venv`로 만들고,
 PowerShell에서 `.venv\Scripts\Activate.ps1`로 활성화합니다.
 처음 패키지를 설치할 때는 인터넷 연결이 필요합니다.
 
-브라우저가 자동으로 열리지 않으면 터미널에 표시된 로컬 주소를 여세요.
-**예제 불러오기**로 예제를 열거나 **파일 열기**로 CIF 파일을 넣습니다.
+네이티브 앱이 바로 열립니다. **CIF 열기**로 파일을 선택하거나 CIF를 창으로 끌어 놓으세요.
 그래핀 예제로 화면을 익힌 뒤 `graphene_duplicate.cif`를 열면 중복 원자를
-어떻게 표시하는지 비교할 수 있습니다. 화면에서 한국어와 영어를 전환할 수 있습니다.
-ZIP의 기본 언어로 실행하려면 `python run_app.py`를 사용하세요. 소스에서 실행한
-서버는 작업을 저장한 뒤 실행 터미널에서 `Ctrl+C`로 종료합니다.
+어떻게 표시하는지 비교할 수 있습니다. 앱에서 한국어와 영어를 전환할 수 있습니다.
+`python run_app.py`는 저장한 데스크톱 언어 또는 소스 ZIP의 기본 언어로 실행합니다.
+종료하기 전에 작업을 저장하세요.
 
 ## 입체 구조 작업공간
 
-기본 화면은 React·TypeScript와 함께 포함된 3Dmol.js 뷰어를 사용합니다.
-CIF 해석, 기하 계산과 프로젝트 저장은 기존 Python이 담당합니다. 파일 선택 줄에서
-현재 CIF를 고르면 넓은 영역에 구조를 표시합니다. 주변의 조작 버튼과 간결한 수치
-패널에서 최소 주기 거리, 핵 중심 두께, 후보 핵 간격을 확인합니다.
+기본 앱은 Qt를 사용합니다. 조작 방법과 복구 기능은 [데스크톱 안내](docs/DESKTOP.md)에 있습니다.
+React·TypeScript와 3Dmol.js를 사용하는 브라우저 작업공간은
+`python run_app.py --web-ui`로 열 수 있습니다. 아래의 파일 선택 줄·탭·서버 설명은
+이 브라우저 화면에 해당합니다. 두 화면 모두 CIF 해석, 기하 계산과 프로젝트 저장은 Python이
+담당합니다. 최소 주기 거리, 핵 중심 두께와 후보 핵 간격은 기하 측정값이며
 SCF·최적화·진동수 분석 결과가 아닙니다. 선택 의존성 `legacy-ui`를 설치하면 이전 Streamlit 화면도
 `python run_app.py --legacy-ui`로 열 수 있습니다.
 
@@ -212,9 +212,11 @@ P1 이외의 대칭, 부분·혼합 점유, 변조·초공간·복합 결정 구
 경험적 규칙이며, 모든 다층·벌크 구조를 찾아내지는 못합니다.
 모호한 결과는 ‘검토 필요’로 읽어야 합니다.
 
-CalcLens는 CIF 기하 검사 도구입니다. Gaussian·ORCA 로그, 계산 실행,
-SCF 수렴·구조 최적화·진동수 결과 분석은 지원하지 않습니다.
-세부 허용 오차와 계산식은 [METHODS.md](docs/METHODS.md)에 있습니다.
+기하 검사만으로 SCF 수렴, 최적화 완료나 진동 안정성을 판정하지 않습니다.
+데스크톱의 별도 연구 도구에서 Gaussian 출력 기록을 검토하고, 제공된 격자로
+밀도 차이와 평면 평균을 계산할 수 있습니다. Gaussian·ORCA 실행과 전자구조 계산,
+ORCA 로그 분석은 지원하지 않습니다. 기하 검사의 허용 오차와 계산식은
+[METHODS.md](docs/METHODS.md), 연구 도구는 [데스크톱 안내](docs/DESKTOP.md)에 있습니다.
 
 ## 예제와 검증
 

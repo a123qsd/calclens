@@ -1,8 +1,8 @@
-# CalcLens 데스크톱 0.9.0 / CalcLens Desktop
+# CalcLens 데스크톱 0.9.1 / CalcLens Desktop
 
-Windows 검토 빌드는 ZIP 전체를 빈 폴더에 푼 뒤 `runtime` 옆의 `CalcLens.exe`를 실행합니다. Apple Silicon Mac은 검토용 DMG를 열어 앱을 응용 프로그램 폴더로 옮깁니다. 첫 창에서 그래핀을 불러온 뒤 CIF 또는 저장한 프로젝트를 열 수 있습니다. [Windows 빌드와 시작 진단](../packaging/desktop/windows-portable-build.md)
+Windows에서는 ZIP 전체를 빈 폴더에 푼 뒤 `runtime` 옆의 `CalcLens.exe`를 실행합니다. 폴더 전체를 함께 보관하고, 새 버전은 별도 폴더에 푸세요. Apple Silicon Mac은 DMG를 열어 앱을 응용 프로그램 폴더로 옮깁니다. 첫 창에서 그래핀을 불러온 뒤 CIF 또는 저장한 프로젝트를 열 수 있습니다. [다운로드와 파일 검증](DOWNLOADS.md) · [Windows 빌드와 시작 진단](../packaging/desktop/windows-portable-build.md)
 
-The Windows review launcher uses the adjacent runtime. On Apple Silicon drag the app from the review DMG into Applications. Open CIF files or a saved project in the native Qt window. The public 0.9.0 packages are available in the [release archive](https://github.com/a123qsd/calclens/releases/tag/v0.9.0).
+Extract the complete Windows ZIP and open `CalcLens.exe` beside its `runtime` folder. Keep these files together and extract upgrades into a new folder. On Apple Silicon, drag the app from the DMG into Applications. Open CIF files or a saved project in the native Qt window. [Windows x64 folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-macOS-Apple-Silicon.dmg) · [SHA-256 checksums](https://github.com/a123qsd/calclens/releases/download/v0.9.1/SHA256SUMS.txt)
 
 ## 화면과 환경 설정
 

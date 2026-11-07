@@ -6,7 +6,7 @@ This naming difference does not indicate a second application.
 
 ## Local workflow
 
-The source tree is v0.9.0. [Native startup and packaging](DESKTOP.md) use QtWidgets and direct Python engine calls. Release package names and installation instructions
+The source tree is v0.9.1. [Native startup and packaging](DESKTOP.md) use QtWidgets and direct Python engine calls. Release package names and installation instructions
 are listed in [DOWNLOADS.md](DOWNLOADS.md).
 The [0.8.0 release notes](RELEASE-0.8.0.md) describe the workspace layout update;
 [DESIGN.md](../DESIGN.md) records its presentation rules.
@@ -38,7 +38,7 @@ npm run build
 npm test
 cd ..
 python -m pip install --no-deps --no-build-isolation .
-python run_app.py --language en
+python run_app.py --web-ui --language en
 ```
 
 The build writes `src/slab_preflight/web_assets/`, including dependency notices.
@@ -48,7 +48,7 @@ selects the optional previous Streamlit interface (`.[legacy-ui]`).
 `requirements-legacy.lock` also supports the legacy UI tests. Both interfaces use the same Python
 calculation and project code; the command-line report interface is unchanged.
 
-The default server binds only to `127.0.0.1`. One server owns one in-memory
+The optional browser server binds only to `127.0.0.1`. One server owns one in-memory
 workspace, shared by its tabs. Mutations require its Origin, Host, random token
 and expected revision. A stale tab gets HTTP 409 and reloads the current state
 without replaying its edit. Closing the server discards unsaved work; download
@@ -185,9 +185,13 @@ fields are synthetic format fixtures. The research-workspace suite separately
 uses the [actual water calculation](ELECTRONIC_CASE.md) for multi-dataset import,
 comparison, saved projects and PNG export.
 
-The Windows release workflow builds and checks each locale in both one-file and
-folder forms. It verifies the extracted folder ZIP before collecting release
-assets. The harness checks the launch manager, readiness, diagnostics and shutdown,
+The native Windows workflow builds a folder ZIP, extracts it once, runs its
+launcher through the native smoke, and records startup milestones. These steps
+describe the workflow; passing results require the matching run's evidence.
+See [Windows packaging and diagnostics](../packaging/desktop/windows-portable-build.md).
+
+The optional PyInstaller browser workflow builds each locale in one-file and
+folder forms when explicitly requested. Its harness checks the launch manager, readiness, diagnostics and shutdown,
 then exercises bilingual upload, project round-trip, saved measurements, reports
 and unsupported inputs through `scripts/smoke_workspace.py` against the packaged
 executable. It then runs the real-data research-workspace suite against the same
@@ -195,7 +199,18 @@ frozen server, including electronic ZIP restoration and P1 preparation, before
 verifying manager shutdown. See [VALIDATION.md](VALIDATION.md) for observed results; the presence
 of workflow steps does not establish that their remote jobs have passed.
 
-## Source release packages
+## Desktop release packages
+
+The 0.9.1 release provides `CalcLens-0.9.1-Windows-x64-folder.zip`,
+`CalcLens-0.9.1-macOS-Apple-Silicon.dmg` and `SHA256SUMS.txt` on the
+[release page](https://github.com/a123qsd/calclens/releases/tag/v0.9.1).
+Both desktop packages include Python and Qt and allow language selection in
+the app. Keep the complete extracted Windows folder together. The Windows
+launcher is unsigned; the Mac app is ad-hoc signed without Apple notarization.
+See [DOWNLOADS.md](DOWNLOADS.md) for downloads and installation and the
+[Windows guide](../packaging/windows/README.en.md) for ZIP verification.
+
+## Additional source packages and earlier browser releases
 
 After testing and committing the complete release, run:
 
@@ -212,15 +227,16 @@ The committed browser assets are included, so using a source package does not
 require Node.js or a frontend build.
 See [DOWNLOADS.md](DOWNLOADS.md) for setup instructions.
 
-Windows release assets are `CalcLens-0.8.0-windows-x64-ko.exe`,
+The earlier v0.8.0 Windows release assets were `CalcLens-0.8.0-windows-x64-ko.exe`,
 `CalcLens-0.8.0-windows-x64-en.exe`, matching `-folder.zip` archives,
 `CalcLens-0.8.0-windows-support.zip` and `WINDOWS-SHA256SUMS.txt`. The support
 archive records the dependency versions and source commit and includes the
 CalcLens source and required third-party notices and source materials.
 Executable build metadata and support manifests identify their own build commit;
 check those records when comparing them with separately built source archives.
-The EXEs are unsigned. See the [Windows guide](../packaging/windows/README.en.md)
-for usage and rebuilding.
+Those EXEs are unsigned. See the
+[v0.8.0 Windows guide](https://github.com/a123qsd/calclens/blob/v0.8.0/packaging/windows/README.en.md)
+for that browser distribution.
 
 The `v0.8.0` release contains the four default Windows downloads: two locales,
 each with an EXE and folder ZIP. The `v0.8.0-resources` release contains source

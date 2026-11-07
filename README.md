@@ -1,14 +1,14 @@
 # CalcLens
 
-**CalcLens Desktop 0.9.0** opens a native Qt desktop application. CIF inspection, 3D rotation, comparison, project recovery and research tools run inside the application. The desktop can compute density differences and planar averages locally or with an explicitly selected worker. [Desktop guide / 데스크톱 사용 안내](docs/DESKTOP.md)
+**CalcLens Desktop 0.9.1** opens a native Qt desktop application. CIF inspection, 3D rotation, comparison, project recovery and research tools run inside the application. The desktop can compute density differences and planar averages locally or with an explicitly selected worker. [Desktop guide / 데스크톱 사용 안내](docs/DESKTOP.md)
 
-**CalcLens 데스크톱 0.9.0**은 실행 파일 안에서 구조를 열고 검사하는 네이티브 프로그램입니다. 실제 H₂ 밀도 차이와 h-BN 진공 수렴 예제가 포함되어 있습니다. 두 운영체제 모두 앱 안에서 한국어와 영어를 선택할 수 있습니다.
+**CalcLens 데스크톱 0.9.1**은 앱 안에서 구조를 열고 검사하는 네이티브 프로그램입니다. 실제 H₂ 밀도 차이와 h-BN 진공 수렴 예제가 포함되어 있습니다. 두 운영체제 모두 앱 안에서 한국어와 영어를 선택할 수 있습니다.
 
-**검토용 수정 빌드 / Review build.** Windows용 검토 ZIP은 한 폴더에 모두 푼 뒤 그 안의 `CalcLens.exe`를 실행하세요. H₂ 밀도 차이는 계산 당시의 축·법선·원본으로 다시 열립니다. 상단 **설정**에서 계산 장치, 테마, 화면 그래픽 품질과 PNG 출력을 바꿀 수 있습니다.
+Windows용 ZIP은 한 폴더에 모두 푼 뒤 `runtime` 옆의 `CalcLens.exe`를 실행하세요. 폴더 전체를 함께 보관해야 합니다. H₂ 밀도 차이는 계산 당시의 축·법선·원본으로 다시 열립니다. 상단 **설정**에서 계산 장치, 테마, 화면 그래픽 품질과 PNG 출력을 바꿀 수 있습니다.
 
-Extract the whole Windows review ZIP once and start `CalcLens.exe` inside it. The review build retains density calculations when the structure axis changes and checks active dataset identity before exporting results. [Native desktop guide](docs/DESKTOP.md) · [Desktop and web graphics](docs/native-graphics.md) · [Review and verification](docs/NATIVE_REVIEW.md)
+Extract the whole Windows ZIP once and start `CalcLens.exe` beside its `runtime` folder. Keep the extracted folder together. Saved density calculations retain their original axis when the structure axis changes, and exports check the active dataset identity. [Native desktop guide](docs/DESKTOP.md) · [Desktop and web graphics](docs/native-graphics.md) · [Pre-release review record / 출시 전 검토 기록](docs/NATIVE_REVIEW.md)
 
-[공개 0.9.0 Windows EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+[Windows x64 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.1)
 
 Created, led and maintained by [a123qsd](https://github.com/a123qsd).
 [Project origin and responsibilities](AUTHORS.md) · [Citation](CITATION.cff)
@@ -27,7 +27,7 @@ CalcLens가 이 값을 계산하지는 않습니다. 보조 자료, 파일별 �
 같은 CIF에 여러 자료를 연결하고 공통 전하 색상 범위로 비교할 수 있습니다. 형식과 제한은
 [보조 자료 안내](docs/VIEWER_DATA.md)를 참고하세요.
 
-[0.8.0 release notes / 변경 사항](docs/RELEASE-0.8.0.md) ·
+[0.9.1 release notes / 변경 사항](docs/RELEASE-0.9.1.md) ·
 [Workspace guide / 작업 안내](docs/WORKSPACE_SAVE.md) · [Real electronic-data case / 실제 계산 사례](docs/ELECTRONIC_CASE.md)
 
 **Inspect a 2D material CIF before setting up a calculation.**
@@ -50,13 +50,13 @@ JSON/CSV exports and comparisons of up to 20 CIF files with settings for each fi
 
 ## Download / 다운로드
 
-For the local review build, extract the Windows ZIP and open `CalcLens.exe` beside its runtime folder. On Apple Silicon open the review DMG and drag CalcLens into Applications. Both packages include Python and Qt.
+On Windows, extract the complete ZIP into a new folder and open `CalcLens.exe` beside its `runtime` folder. On Apple Silicon, open the DMG and drag CalcLens into Applications. Both packages include Python and Qt.
 
-검토용 Windows ZIP은 전체를 풀어야 합니다. Apple Silicon Mac에서는 검토용 DMG를 열고 CalcLens를 응용 프로그램 폴더로 옮기세요. 로컬 작업은 인터넷 연결 없이 실행할 수 있습니다.
+Windows ZIP은 전체를 새 폴더에 풀어야 합니다. Apple Silicon Mac에서는 DMG를 열고 CalcLens를 응용 프로그램 폴더로 옮기세요. 로컬 작업은 인터넷 연결 없이 실행할 수 있습니다.
 
-[공개 0.9.0 Windows EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+[Windows x64 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-Windows-x64-folder.zip) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.1)
 
-[Source ZIP / 소스 ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.9.0.zip) · [SHA-256 checksums / 파일 검증](https://github.com/a123qsd/calclens/releases/download/v0.9.0/SHA256SUMS.txt) · [Installation guide / 설치 안내](docs/DOWNLOADS.md)
+[Source ZIP / 소스 ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.9.1.zip) · [SHA-256 checksums / 파일 검증](https://github.com/a123qsd/calclens/releases/download/v0.9.1/SHA256SUMS.txt) · [Installation guide / 설치 안내](docs/DOWNLOADS.md)
 
 ## Save and continue work / 작업 저장하고 이어가기
 
@@ -88,15 +88,19 @@ See the [English guide](README.en.md#pair-measurements-and-saved-work) for detai
 
 Direct analysis requires one explicit, fully occupied P1 CIF structure, up to 400 sites
 and 2 MiB. Comparing files does not combine their structures. The chosen normal
-axis must be perpendicular to the other two cell vectors. Gaussian/ORCA logs
-and calculation execution are outside this release.
+axis must be perpendicular to the other two cell vectors. Gaussian output review
+is available in the research tools; ORCA log analysis and running Gaussian/ORCA
+calculations are outside this release. Density differences and planar averages
+operate on supplied grids, without solving for an electronic structure.
 The separate [P1 preparation step](docs/WORKSPACE_SAVE.md#p1-preparation) can expand
 supported fully occupied, ordered non-P1 sources after a preview.
 
 직접 분석에는 원자 위치가 명시된 완전 점유 P1 CIF 구조 1개가 필요하며, 파일당 최대 400개
 원자·2 MiB까지 지원합니다. 비교할 파일들은 각각 검사합니다.
 선택한 수직 방향은 나머지 두 셀 벡터에 수직이어야 합니다.
-Gaussian·ORCA 로그 분석과 계산 실행은 지원하지 않습니다.
+연구 도구에서 Gaussian 출력을 검토할 수 있습니다. ORCA 로그 분석과 Gaussian·ORCA
+계산 실행은 지원하지 않습니다. 밀도 차이와 평면 평균은 제공된 격자에서 계산하며,
+전자구조를 새로 계산하지 않습니다.
 지원 가능한 완전 점유·무질서 없는 비P1 원본은 별도의 **P1 구조 준비**에서
 대칭 전개 결과를 확인한 뒤 적용할 수 있습니다.
 

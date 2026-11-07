@@ -1,5 +1,8 @@
 # Portable Windows desktop build
 
+The 0.9.1 Windows release is the [x64 folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.9.1/CalcLens-0.9.1-Windows-x64-folder.zip).
+Check the downloaded ZIP against [SHA256SUMS.txt](https://github.com/a123qsd/calclens/releases/download/v0.9.1/SHA256SUMS.txt).
+
 `scripts/build_portable_windows.py` assembles the Windows application from
 the official CPython 3.13.17 embedded archive and repository hash-locked
 Windows AMD64 wheels. Dependency discovery reads the selected wheels'
@@ -25,7 +28,7 @@ Build with the normal development Python environment and NSIS:
 ```sh
 NSISDIR=/path/to/nsis/share/nsis python scripts/build_portable_windows.py \
   --cache /path/to/builder-owned-cache \
-  --output /path/to/CalcLens-0.9.0-Windows-x64-folder.zip \
+  --output /path/to/CalcLens-0.9.1-Windows-x64-folder.zip \
   --makensis /path/to/nsis/bin/makensis
 ```
 
@@ -105,7 +108,7 @@ smoke creates a real Qt MainWindow, checks a CIF, tests save/readback, verifies
 that no browser/socket listener is started, and writes JSON plus a screenshot:
 
 ```text
-CalcLens-0.9.0-Windows-x64.exe --language en --native-smoke C:\test\result.json
+C:\CalcLens\CalcLens.exe --language en --native-smoke C:\test\result.json
 ```
 
 Use a new disposable Wine prefix. Qt 6.12 expects ICU services supplied by
