@@ -10,7 +10,7 @@ import base64
 from hashlib import sha256
 from email.parser import BytesParser
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import shutil
 import stat
@@ -152,9 +152,11 @@ def extract_archive(path, destination, wheel=False):
     with zipfile.ZipFile(path) as archive:
         seen = set()
         for entry in archive.infolist():
-            parts = Path(entry.filename).parts
-            if ('..' in parts or Path(entry.filename).is_absolute() or '\\' in entry.filename
-                    or ':' in entry.filename or stat.S_ISLNK(entry.external_attr >> 16)):
+            name = entry.orig_filename
+            member = PurePosixPath(name)
+            parts = member.parts
+            if (not parts or member.is_absolute() or '..' in parts or '\\' in name
+                    or ':' in name or '\0' in name or stat.S_ISLNK(entry.external_attr >> 16)):
                 raise ValueError('Unsafe archive member.')
             if entry.is_dir():
                 continue

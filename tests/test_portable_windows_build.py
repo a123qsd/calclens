@@ -28,7 +28,10 @@ def wheel(tmp_path, name='example-1.0-cp313-cp313-win_amd64.whl', entries=None):
     path = tmp_path/name
     with zipfile.ZipFile(path,'w') as archive:
         for key,value in (entries or {'example.py':b'value = 1\n'}).items():
-            archive.writestr(key,value)
+            info = zipfile.ZipInfo(key)
+            # Keep malformed names verbatim even when the test runs on Windows.
+            info.filename = key
+            archive.writestr(info,value)
     return path
 
 
@@ -169,7 +172,8 @@ def test_generated_launcher_wires_approved_icon_and_isolated_runtime_with_manife
     monkeypatch.setattr(BUILD.subprocess,'run',lambda *a,**k:output.write_bytes(fake_pe(0x14c)))
     result=BUILD.package(tmp_path,runtime,output,compiler)
     text=(tmp_path/'CalcLens-native.nsi').read_text(encoding='utf-8-sig')
-    assert f'Icon "{runtime}/CalcLens.ico"' in text
+    icon_path = runtime / 'CalcLens.ico'
+    assert f'Icon "{icon_path}"' in text
     assert '-I -B' in text and 'ExecWait' in text
     assert result['launcher_pe_architecture']=='I386'
     assert result['runtime']['runtime_architecture']=='AMD64'

@@ -66,7 +66,7 @@ def _artifact(root: Path, record: Any, *, limit: int) -> tuple[bytes, dict[str, 
     relative = Path(record["path"])
     # Windows syntax is rejected on every host, as are parent components,
     # symlinks escaping the selected bundle, and absolute paths.
-    if (relative.is_absolute() or not relative.parts or ".." in relative.parts
+    if (relative.anchor or not relative.parts or ".." in relative.parts
             or "\\" in record["path"] or ":" in record["path"]):
         raise ResearchError("Artifact paths must stay inside the selected series bundle.")
     try:
