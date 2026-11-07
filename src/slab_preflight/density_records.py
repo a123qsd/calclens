@@ -5,6 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from hashlib import sha256
 import json
+import re
 
 import numpy as np
 
@@ -91,6 +92,9 @@ def _inputs(bundle, entry):
                 or calculation.get("source_scalar_units") != bundle["units"]
                 or calculation.get("output_scalar_units") != "e/angstrom^3"):
             raise ValueError("Retained calculation identity or conditions are inconsistent.")
+        if (calculation.get("structure_normal_axis") is None
+                and calculation.get("migration_note") != LEGACY_NORMAL_NOTE):
+            raise ValueError("A retained calculation cannot omit its original slab-axis declaration.")
         normal = calculation.get("normal_vector")
         if normal is None:
             raise ValueError("Retained calculation is missing its original plane normal.")
@@ -155,16 +159,18 @@ def calculation_record(bundle, item, entry, result=None):
     return computation
 
 
-def validate_computation(bundle, replay):
+def validate_computation(bundle, replay, field=None):
     """Check stored results against CPU replay without rewriting historical execution."""
     if bundle.get("schema_version", 1) == 1:
         return
     saved = bundle.get("computation")
-    if not isinstance(saved, dict) or saved.get("schema_version") != 1:
+    if (not isinstance(saved, dict) or type(saved.get("schema_version")) is not int
+            or saved["schema_version"] != 1):
         raise ValueError("Missing or unsupported retained computation schema.")
     execution = saved.get("execution")
     if (not isinstance(execution, dict) or execution.get("effective_device") not in
-            ("cpu", "metal", "cuda", "remote") or not execution.get("precision")
+            ("cpu", "metal", "cuda", "remote") or execution.get("precision") not in
+            ("float32", "float64")
             or execution.get("includes_cpu_parity_check") is not True
             or not isinstance(execution.get("parity"), dict)
             or execution["parity"].get("passed") is not True):
@@ -177,13 +183,24 @@ def validate_computation(bundle, replay):
     expected_grid = replay.grid.metadata()
     for key in ("shape", "origin_angstrom", "voxel_vectors_angstrom", "atom_numbers",
                 "atom_positions_angstrom", "kind", "units", "original_units",
-                "atom_record_charges"):
+                "atom_record_charges", "source_name"):
         if grid.get(key) != expected_grid[key]:
             raise ValueError("Retained computation grid differs from the original inputs.")
+    digest = grid.get("source_sha256")
+    if not isinstance(digest, str) or not re.fullmatch("[0-9a-f]{64}", digest):
+        raise ValueError("Missing retained derived-array SHA-256.")
+    migrated = bundle.get("calculation", {}).get("migration_note") == LEGACY_NORMAL_NOTE
+    if field is not None and not migrated:
+        expected_digest = sha256(json.dumps(saved["provenance"], sort_keys=True).encode()
+                                 + np.asarray(field.values, dtype="<f8").tobytes()).hexdigest()
+        if digest != expected_digest:
+            raise ValueError("Retained computation identity differs from the actual result Cube.")
+    elif (migrated or execution["effective_device"] == "cpu") and digest != replay.grid.source_sha256:
+        raise ValueError("Retained CPU computation identity differs from replay.")
     profile = saved.get("profile")
     if not isinstance(profile, dict) or profile.get("execution") != execution:
         raise ValueError("Invalid retained plane-average execution record.")
-    for key in ("field_kind", "axis", "units", "normal_unit_vector"):
+    for key in ("field_kind", "axis", "units", "normal_unit_vector", "quadrature", "limitations"):
         if profile.get(key) != replay.profile[key]:
             raise ValueError("Retained profile conditions differ from the original calculation.")
     for key in ("positions_angstrom", "average_e_per_angstrom3", "line_density_e_per_angstrom",

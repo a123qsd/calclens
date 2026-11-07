@@ -15,6 +15,7 @@ import numpy as np
 from PySide6.QtCore import QPointF, QRectF, Signal
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
+    QBoxLayout,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -22,21 +23,29 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
-    QHBoxLayout,
     QLabel,
     QLineEdit,
-    QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
     QStackedWidget,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
-from .compute_devices import probe_devices
-from .compute_server import RemoteComputeConfig
-from .density import MAX_CUBE_BYTES, cube_bytes, density_difference, parse_cube, planar_average
+from .desktop_devices import DeviceControls, format_execution
+from .density import MAX_CUBE_BYTES, cube_bytes, planar_average
+from .density_records import (
+    binding_digest,
+    calculation_record,
+    dataset_identity,
+    freeze_difference_inputs,
+    migrate_difference,
+    replay_difference,
+    structure_for,
+    validate_computation,
+)
 from .desktop_sources import (
     evaluate_source,
     pack_series,
@@ -44,7 +53,7 @@ from .desktop_sources import (
     read_saved_series,
     sources_for,
 )
-from .native_fields import MAX_CHARGE_BYTES, bounded_read, isosurfaces, match_cube
+from .native_fields import MAX_CHARGE_BYTES, bounded_read, isosurfaces
 from .project import validate_workspace_state
 from .recovery import atomic_write
 from .research import parse_log
@@ -87,6 +96,7 @@ class ProfileChart(QWidget):
         painter.setPen(QPen(QColor("#a0adb5"), 1))
         painter.drawLine(point(xmin, 0), point(xmax, 0))
         painter.drawLine(point(xmin, ymin), point(xmin, ymax))
+        painter.setPen(QColor("#334155"))
         painter.drawText(QPointF(3, rect.top() + 4), f"{ymax:.3g}")
         painter.drawText(QPointF(3, rect.bottom()), f"{ymin:.3g}")
         painter.drawText(QPointF(rect.left(), self.height() - 8), f"{xmin:.3g} Å")
@@ -163,17 +173,30 @@ class ResearchPanel(QWidget):
         self._legacy_viewers = {}
         self._digest = ""
         self._profile = None
+        self._profile_record = None
+        self._profile_binding = None
         self._pairs = None
+        self._pair_binding = None
         self._log = None
         self._series = None
         self._epoch = 0
+        self._execution_epoch = 0
+        self._density_epoch = 0
         self._fragments = {}
         self._filling = False
         self._signature = None
         self._surface_request = 0
+        self._job_keys = set()
         self.setObjectName("nativeResearchPanel")
+        self._action_rows = []
         self._outer = QVBoxLayout(self)
         self._build()
+        for form in self.findChildren(QFormLayout):
+            form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+        for combo in (self.mode, self.charge, self.volume):
+            combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+            combo.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        self._fit_rows()
 
     def t(self, ko, en):
         return ko if self.lang == "ko" else en
@@ -200,10 +223,23 @@ class ResearchPanel(QWidget):
         return layout
 
     def _row(self, layout, *widgets):
-        row = QHBoxLayout()
+        row = QBoxLayout(QBoxLayout.Direction.TopToBottom)
         for w in widgets:
             row.addWidget(w)
+        self._action_rows.append((row, widgets))
         layout.addLayout(row)
+
+    def _fit_rows(self):
+        width = max(1, self.width() - 54)
+        for row, widgets in self._action_rows:
+            needed = sum(w.sizeHint().width() for w in widgets) + 8 * (len(widgets) - 1)
+            direction = QBoxLayout.Direction.LeftToRight if needed <= width else QBoxLayout.Direction.TopToBottom
+            if direction != row.direction():
+                row.setDirection(direction)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._fit_rows()
 
     def _build(self):
         self.mode = QComboBox()
@@ -220,6 +256,7 @@ class ResearchPanel(QWidget):
         self.stack = QStackedWidget()
         self._outer.addWidget(self.stack)
         self.mode.currentIndexChanged.connect(self.stack.setCurrentIndex)
+        self.mode.currentIndexChanged.connect(self._mode_changed)
         self.cancel_button = self._button(
             "결과 적용 취소", "Cancel pending result", self._cancel_result
         )
@@ -269,34 +306,10 @@ class ResearchPanel(QWidget):
         self.volume.currentIndexChanged.connect(lambda _: self._safe(self._change_volume))
         layout.addStretch()
         calc = self._page()
-        form = QFormLayout()
-        calc.addLayout(form)
-        self.device = QComboBox()
-        for label, key in [
-            (self.t("자동", "Automatic"), "auto"),
-            ("CPU", "cpu"),
-            ("Apple Metal", "metal"),
-            ("NVIDIA CUDA", "cuda"),
-            (self.t("원격 워커", "Remote worker"), "remote"),
-        ]:
-            self.device.addItem(label, key)
-        form.addRow(self.t("계산 장치", "Compute device"), self.device)
-        self.remote_box = QWidget()
-        remote = QFormLayout(self.remote_box)
-        self.url = QLineEdit()
-        self.url.setPlaceholderText("https://host:8768")
-        self.token = QLineEdit()
-        self.token.setEchoMode(QLineEdit.EchoMode.Password)
-        self.ca_file = QLineEdit()
-        self.ca_file.setPlaceholderText(self.t("선택 사항", "Optional"))
-        remote.addRow("URL", self.url)
-        remote.addRow(self.t("접속 토큰", "Token"), self.token)
-        remote.addRow(self.t("CA 인증서 경로", "CA file"), self.ca_file)
-        calc.addWidget(self.remote_box)
-        self.remote_box.hide()
-        self.device.currentIndexChanged.connect(
-            lambda _: self.remote_box.setVisible(self.device.currentData() == "remote")
-        )
+        self.devices = DeviceControls(self, calc)
+        self.device = self.devices.device
+        self.url, self.token, self.ca_file = self.devices.url, self.devices.token, self.devices.ca_file
+        self.remote_box = self.devices.remote_box
         self._row(
             calc,
             self._button("장치 확인", "Check devices", self.check_devices),
@@ -319,11 +332,41 @@ class ResearchPanel(QWidget):
         )
         self.chart = ProfileChart()
         calc.addWidget(self.chart)
+        self.profile_info = QLabel()
+        self.profile_info.setWordWrap(True)
+        calc.addWidget(self.profile_info)
+        self.profile_save = self._button("평균 CSV 저장", "Export profile CSV", self.export_profile)
+        self.profile_record_save = self._button(
+            "계산 기록 저장", "Export calculation record", self.export_profile_record
+        )
+        self.profile_save.setEnabled(False)
+        self.profile_record_save.setEnabled(False)
         self._row(
             calc,
-            self._button("평균 CSV 저장", "Export profile CSV", self.export_profile),
-            self._button("계산 기록 저장", "Export calculation record", self.export_profile_record),
+            self.profile_save,
+            self.profile_record_save,
         )
+        self.archive_info = QLabel()
+        self.archive_info.setWordWrap(True)
+        calc.addWidget(self.archive_info)
+        self.archive_details = QPlainTextEdit()
+        self.archive_details.setReadOnly(True)
+        self.archive_details.setMaximumHeight(145)
+        self.archive_details.hide()
+        calc.addWidget(self.archive_details)
+        self.archive_details_button = self._button(
+            "보관 계산 상세", "Retained calculation details", self._toggle_archive_details
+        )
+        self.archive_export = self._button(
+            "보관 계산 기록 저장", "Export retained calculation", self.export_retained_record
+        )
+        self._row(calc, self.archive_details_button, self.archive_export)
+        self.archive_originals = {}
+        for role in ("AB", "A", "B"):
+            self.archive_originals[role] = self._button(
+                f"{role} 원본 저장", f"Save original {role}", lambda r=role: self.export_fragment(r)
+            )
+        self._row(calc, *self.archive_originals.values())
         self.frag_labels = {}
         for key in ("AB", "A", "B"):
             lab = QLabel("—")
@@ -355,7 +398,7 @@ class ResearchPanel(QWidget):
         self.frozen = QCheckBox(
             self.t(
                 "A와 B는 AB의 원자 배치를 고정해 계산함",
-                "Fragments computed at the frozen AB geometry",
+                "Fragments computed at the\nfrozen AB geometry",
             )
         )
         calc.addWidget(self.frozen)
@@ -365,6 +408,12 @@ class ResearchPanel(QWidget):
         self.frag_units.currentIndexChanged.connect(lambda *_: self._safe(self._store_draft))
         self.frozen.toggled.connect(lambda *_: self._safe(self._store_draft))
         self.axis.currentIndexChanged.connect(lambda *_: self._safe(self._store_draft))
+        self.device.currentIndexChanged.connect(lambda *_: self._invalidate_execution())
+        for control in (self.devices.location, self.devices.worker_device):
+            control.currentIndexChanged.connect(lambda *_: self._invalidate_execution())
+        for control in (self.url, self.token, self.ca_file):
+            control.textChanged.connect(lambda *_: self._invalidate_execution())
+        self.devices.timeout.valueChanged.connect(lambda *_: self._invalidate_execution())
         calc.addWidget(
             self._button(
                 "H₂ 실제 계산 예제 열기", "Open H₂ calculation example", self.example_difference
@@ -397,25 +446,116 @@ class ResearchPanel(QWidget):
         conv.addWidget(self.series_info)
         conv.addWidget(self._button("수렴 결과 저장", "Export comparison", self.export_series))
 
+    def _mode_changed(self, index):
+        if index == 1 and hasattr(self, "devices"):
+            self.devices.ensure_local_probe()
+
     def _cancel_result(self):
         self._epoch += 1
-        result = self.window.cancel_job("research-compute")
+        self.devices.cancel_remote_calculations()
+        invalidated = sum(self.window.cancel_job(key)["invalidated"] for key in self._job_keys)
         self.cancel_button.setEnabled(False)
-        if result["invalidated"]:
+        if invalidated:
             self.window.statusBar().showMessage(
                 self.t("결과 적용을 취소했습니다.", "Pending result canceled."), 4000
             )
 
-    def _job(self, fn, after):
+    def _job(self, fn, after, *, key="research-compute", operation=None):
         epoch = self._epoch
         digest = self._digest
+        execution_epoch = self._execution_epoch
+        density_epoch = self._density_epoch
+        binding = self._binding(operation) if operation else None
+        self._job_keys.add(key)
 
         def apply(result):
-            if epoch == self._epoch and digest == self._digest:
+            if (epoch == self._epoch and digest == self._digest
+                    and (operation is None or (binding == self._binding(operation)
+                                               and execution_epoch == self._execution_epoch))
+                    and (operation not in ("planar_average", "rho_AB-rho_A-rho_B")
+                         or density_epoch == self._density_epoch)):
                 self._safe(lambda: after(result))
+            else:
+                self._stale_notice()
 
         self.cancel_button.setEnabled(True)
-        self.window.submit(fn, apply, key="research-compute")
+        self.window.submit(fn, apply, key=key)
+
+    def _stale_notice(self):
+        self.window.statusBar().showMessage(
+            self.t("입력이 바뀌어 이전 계산 결과를 적용하지 않았습니다.",
+                   "Inputs changed; the previous calculation result was not applied."), 6000
+        )
+
+    def _binding(self, operation):
+        entry = self.entry or {}
+        analysis = entry.get("analysis", {})
+        report = analysis.get("report") or {}
+        volume = self._source("volume", self.volume.currentData())
+        normal_axis = report.get("normal_axis_index")
+        return {
+            "operation": operation, "structure_sha256": self._digest,
+            "entry_id": entry.get("id"), "structure_normal_axis": entry.get("normal_axis"),
+            "short_distance": entry.get("short_distance"),
+            "normal_vector": report.get("cell", [None] * 3)[normal_axis] if normal_axis is not None else None,
+            "dataset": dataset_identity(volume, self._digest) if volume else None,
+            "grid_plane_axis": self.axis.currentIndex(),
+            "sources": {role: {"filename": item["filename"],
+                               "sha256": sha256(item["raw"].encode()).hexdigest()}
+                        for role, item in self._fragments.items()},
+            "a_indices": self.a_indices.text(), "b_indices": self.b_indices.text(),
+            "method": self.method.text(), "conditions": self.conditions.text(),
+            "source_units": self.frag_units.currentText(), "frozen": self.frozen.isChecked(),
+            "requested_device": self.device.currentData(),
+            "execution_location": self.devices.location.currentData(),
+            "worker_device": self.devices.worker_device.currentData(),
+            "remote_url": self.url.text().strip(), "remote_ca": self.ca_file.text().strip(),
+            "remote_timeout": self.devices.timeout.value(),
+        }
+
+    def _clear_profile(self):
+        self._profile = None
+        self._profile_record = None
+        self._profile_binding = None
+        self.chart.set_profile(None)
+        self.profile_info.clear()
+        self.profile_save.setEnabled(False)
+        self.profile_record_save.setEnabled(False)
+
+    def _invalidate_density(self):
+        if self._filling:
+            return
+        self._density_epoch += 1
+        self._clear_profile()
+        invalidated = sum(self.window.cancel_job(key)["invalidated"]
+                          for key in ("research-average", "research-difference"))
+        if invalidated:
+            self._stale_notice()
+
+    def _invalidate_execution(self):
+        self._execution_epoch += 1
+        self._invalidate_density()
+        self._pairs = None
+        self._pair_binding = None
+        self.pair_save.setEnabled(False)
+        self.window.cancel_job("research-pairs")
+
+    def transient_results(self):
+        return deepcopy({"profile": self._profile, "record": self._profile_record,
+                         "profile_binding": self._profile_binding, "pairs": self._pairs,
+                         "pair_binding": self._pair_binding})
+
+    def restore_transient_results(self, snapshot):
+        if not isinstance(snapshot, dict):
+            return
+        binding = snapshot.get("profile_binding")
+        if isinstance(binding, dict) and binding == self._binding(binding.get("operation")):
+            self._show_profile(deepcopy(snapshot["profile"]), deepcopy(snapshot.get("record")), binding)
+        binding = snapshot.get("pair_binding")
+        if isinstance(binding, dict) and binding == self._binding("minimum_image_pair_distances"):
+            self._pairs = deepcopy(snapshot.get("pairs"))
+            self._pair_binding = binding
+            self.pair_save.setEnabled(self._pairs is not None)
 
     @staticmethod
     def validate_state(state, entries):
@@ -519,10 +659,14 @@ class ResearchPanel(QWidget):
                         or bundle.get("result_id") != uid
                     ):
                         raise ValueError("Missing retained density-difference file.")
+                    if "result_sha256" in bundle and bundle["result_sha256"] != sha256(
+                            imported[uid]["rawText"].encode()).hexdigest():
+                        raise ValueError("Retained density-difference result checksum mismatch.")
                     replay = ResearchPanel._replay_difference(bundle, entries[digest])
                     field = evaluate_source(
-                        imported[uid], "volume", entries[digest]["analysis"]["report"], digest
+                        imported[uid], "volume", structure_for(entries[digest]), digest
                     )
+                    validate_computation(bundle, replay, field)
                     if (
                         field.kind != "difference_density"
                         or field.shape != replay.grid.shape
@@ -553,14 +697,19 @@ class ResearchPanel(QWidget):
         self._signature = None
         self._cache.clear()
         self._fragments = {}
-        self._profile = None
+        self._clear_profile()
         self._pairs = None
-        self.chart.set_profile(None)
+        self._pair_binding = None
         self.pair_save.setEnabled(False)
         self._legacy_viewers = deepcopy(state.get("viewers", {}))
         self.aux = deepcopy(state.get("auxiliary", {}))
         self.native = deepcopy(state.get("native_research", {}))
         self.native.setdefault("schema_version", 1)
+        entries = {entry["sha256"]: entry for entry in self.window.snapshot.get("entries", [])}
+        for digest, records in self.native.get("differences", {}).items():
+            for uid, record in list(records.items()):
+                if record.get("schema_version", 1) == 1:
+                    records[uid] = migrate_difference(record, entries[digest])
         self._log = read_saved_log(self.native["log"]) if "log" in self.native else None
         self._series = read_saved_series(self.native["series"]) if "series" in self.native else None
         self._display_log()
@@ -600,12 +749,17 @@ class ResearchPanel(QWidget):
         return next((item for tag, item in self._list() if tag == kind and item["id"] == uid), None)
 
     def _decode(self, kind, item):
-        key = (self._digest, item["id"])
+        key = self._source_key(self._digest, kind, item)
         cached = self._cache.get(key)
         if cached is None:
             cached = evaluate_source(item, kind, self._report(), self._digest)
             self._cache[key] = cached
         return cached
+
+    @staticmethod
+    def _source_key(digest, kind, item):
+        return (digest, item["id"], sha256(item["rawText"].encode()).hexdigest(),
+                kind, item.get("kind"), item.get("units"))
 
     def set_entry(self, entry, language):
         self.lang = language
@@ -619,9 +773,10 @@ class ResearchPanel(QWidget):
         self._digest = digest
         if different:
             self._epoch += 1
-            self._profile = None
-            self.chart.set_profile(None)
+            self._surface_request += 1
+            self._clear_profile()
             self._pairs = None
+            self._pair_binding = None
             self.pair_save.setEnabled(False)
             self._fragments = {}
             for lab in self.frag_labels.values():
@@ -631,6 +786,7 @@ class ResearchPanel(QWidget):
         if different and digest:
             self._restore_draft()
         self._fill_fields()
+        self._update_archive_info()
         if different:
             self._safe(lambda: self._apply_charge())
             choice = self._selection()
@@ -712,6 +868,55 @@ class ResearchPanel(QWidget):
         if item:
             facts.append(f"{item['filename']} · {item['kind']} · {item['source']}")
         self.field_info.setText("\n\n".join(facts))
+        self._update_archive_info()
+
+    def _archive(self):
+        uid = self.volume.currentData()
+        record = self.native.get("differences", {}).get(self._digest, {}).get(uid)
+        item = self._source("volume", uid)
+        return record, item
+
+    def _update_archive_info(self):
+        record, item = self._archive()
+        enabled = bool(record and item)
+        self.archive_details_button.setEnabled(enabled)
+        self.archive_export.setEnabled(enabled)
+        for button in self.archive_originals.values():
+            button.setEnabled(enabled)
+        if not enabled:
+            self.archive_info.clear()
+            self.archive_details.clear()
+            self.archive_details.hide()
+            return
+        calculation = record.get("calculation", {})
+        recorded_axis = calculation.get("structure_normal_axis")
+        current_axis = (self.entry or {}).get("normal_axis")
+        status = self.t("보관 계산", "Retained calculation")
+        if recorded_axis is None:
+            status += self.t(" · 이전 형식: 원래 법선 방향 미기록", " · legacy: original slab-normal orientation not recorded")
+        elif recorded_axis != current_axis:
+            status += self.t(" · 현재 분석 축과 다름", " · differs from the current analysis axis")
+        status += f"\n{item['filename']} · {item['kind']} · e/angstrom^3 · "
+        status += self.t("계산 평면 축 ", "computed grid plane axis ") + "abc"[record["axis"]]
+        self.archive_info.setText(status)
+        details = calculation_record(record, item, self.entry)
+        self.archive_details.setPlainText(json.dumps(details, ensure_ascii=False, indent=2))
+
+    def _toggle_archive_details(self):
+        self.archive_details.setVisible(not self.archive_details.isVisible())
+
+    def export_retained_record(self):
+        record, item = self._archive()
+        if record and item:
+            self._save(json.dumps(calculation_record(record, item, self.entry),
+                                  ensure_ascii=False, indent=2).encode(),
+                       "retained-difference.json", "JSON (*.json)")
+
+    def export_fragment(self, role):
+        record, item = self._archive()
+        if record and item:
+            source = record["sources"][role]
+            self._save(source["raw"].encode(), Path(source["filename"]).name, "Cube (*.cube *.cub)")
 
     def dataset_choices(self, entry):
         out = {"charges": [], "volumes": []}
@@ -724,7 +929,7 @@ class ResearchPanel(QWidget):
         return out
 
     def _for_entry(self, entry, kind, item):
-        key = (entry["sha256"], item["id"])
+        key = self._source_key(entry["sha256"], kind, item)
         result = self._cache.get(key)
         if result is None:
             structure = entry["analysis"].get("report") or entry["analysis"].get(
@@ -735,6 +940,19 @@ class ResearchPanel(QWidget):
             result = evaluate_source(item, kind, structure, entry["sha256"])
             self._cache[key] = result
         return result
+
+    def _field_metadata(self, entry, item, grid=None, charge=None):
+        metadata = dataset_identity(item, entry["sha256"], grid)
+        if charge:
+            metadata.update(charge)
+        record = self.native.get("differences", {}).get(entry["sha256"], {}).get(item["id"])
+        if record:
+            metadata["calculation"] = deepcopy(record["calculation"])
+            computation = record.get("computation", {})
+            metadata["provenance"] = deepcopy(computation.get("provenance", {}))
+            metadata["execution"] = deepcopy(computation.get("execution", {}))
+            metadata["derived_array_sha256"] = computation.get("grid", {}).get("source_sha256")
+        return metadata
 
     def volume_units(self, entry, volume_id):
         for kind, item in sources_for(self.aux, self.native.get("signed", {}), entry["sha256"]):
@@ -767,7 +985,7 @@ class ResearchPanel(QWidget):
             if tag != "charge":
                 raise ValueError("Expected a charge dataset.")
             vals, meta = self._for_entry(entry, tag, item)
-            meta = dict(meta)
+            meta = self._field_metadata(entry, item, charge=meta)
             if shared_extent is not None:
                 meta["color_extent"] = shared_extent
             view.set_charges(vals, meta)
@@ -779,6 +997,7 @@ class ResearchPanel(QWidget):
             raise ValueError("Expected a volume dataset.")
         grid = self._for_entry(entry, tag, item)
         digest = entry["sha256"]
+        metadata = {**self._field_metadata(entry, item, grid), "isovalue": level}
 
         def draw(mesh):
             if (
@@ -788,14 +1007,7 @@ class ResearchPanel(QWidget):
             ):
                 view.set_surfaces(
                     mesh,
-                    {
-                        "name": item["name"],
-                        "kind": grid.kind,
-                        "isovalue": level,
-                        "units": grid.units,
-                        "source": item["source"],
-                        "source_sha256": grid.source_sha256,
-                    },
+                    metadata,
                 )
 
         self.window.submit(
@@ -813,7 +1025,7 @@ class ResearchPanel(QWidget):
         item = self._source("charge", self.charge.currentData())
         if item:
             values, meta = self._decode("charge", item)
-            meta = dict(meta)
+            meta = self._field_metadata(self.entry, item, charge=meta)
             if self.common.isChecked():
                 magnitudes = []
                 for tag, other in self._list():
@@ -831,6 +1043,7 @@ class ResearchPanel(QWidget):
         if self._filling:
             return
         self._surface_request += 1
+        self._invalidate_density()
         self._selection().update(volume=self.volume.currentData(), surface=False)
         self.window.view.set_surfaces(None)
         self._refresh_field_info()
@@ -859,8 +1072,9 @@ class ResearchPanel(QWidget):
         except Exception:
             self.aux, self.native = old_aux, old_native
             raise
-        self._cache[(self._digest, item["id"])] = checked
+        self._cache[self._source_key(self._digest, kind, item)] = checked
         if kind == "volume":
+            self._invalidate_density()
             self._surface_request += 1
             self._selection()["surface"] = False
             self.window.view.set_surfaces(None)
@@ -921,7 +1135,7 @@ class ResearchPanel(QWidget):
             self._add(result[0], "volume", checked=result[1])
 
         if background:
-            self._job(read, attach)
+            self._job(read, attach, key="research-import")
         else:
             attach(read())
 
@@ -932,6 +1146,7 @@ class ResearchPanel(QWidget):
         grid = self._decode("volume", item)
         level = self.level.value()
         opacity = self.opacity.value()
+        metadata = {**self._field_metadata(self.entry, item, grid), "isovalue": level}
 
         self._surface_request += 1
         request = self._surface_request
@@ -941,20 +1156,13 @@ class ResearchPanel(QWidget):
                 return
             self.window.view.set_surfaces(
                 surfaces,
-                {
-                    "name": item["name"],
-                    "kind": grid.kind,
-                    "isovalue": level,
-                    "units": grid.units,
-                    "source": item["source"],
-                    "source_sha256": grid.source_sha256,
-                },
+                    metadata,
             )
             if save:
                 self._selection().update(surface=True, level=level, opacity=opacity)
                 self.changed.emit()
 
-        self._job(lambda: isosurfaces(grid, level, opacity), draw)
+        self._job(lambda: isosurfaces(grid, level, opacity), draw, key="research-surface")
 
     def hide_surface(self):
         self._surface_request += 1
@@ -963,44 +1171,18 @@ class ResearchPanel(QWidget):
         self.changed.emit()
 
     def _compute(self):
-        device = self.device.currentData()
-        remote = None
-        if device == "remote":
-            url = self.url.text().strip()
-            token = self.token.text()
-            if not url or not token:
-                raise ValueError(
-                    self.t("워커 주소와 토큰을 입력하세요.", "Enter the worker URL and token.")
-                )
-            answer = QMessageBox.question(
-                self,
-                self.t("원격 계산", "Remote computation"),
-                self.t(
-                    "이 워커에 계산에 필요한 수치 배열을 전송할까요?",
-                    "Send this calculation’s numeric arrays to the worker?",
-                )
-                + "\n"
-                + url,
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
-            )
-            if answer != QMessageBox.StandardButton.Yes:
-                return None
-            remote = RemoteComputeConfig(url, token, ca_file=self.ca_file.text().strip() or None)
-        return device, remote
+        return self.devices.execution_choice()
 
     def check_devices(self):
-        def show(result):
-            self.device_info.setText(
-                "\n".join(
-                    f"{r['id']}: {r.get('device_name') or r.get('reason') or '—'}" for r in result
-                )
-            )
-
-        self._job(probe_devices, show)
+        self.devices.check_local()
 
     def _normal(self):
-        report = self._report()
+        report = self.entry["analysis"].get("report") if self.entry else None
+        if not report:
+            raise ValueError(self.t(
+                "현재 분석 법선은 지원되지 않습니다. 보관한 원본과 계산 기록은 확인할 수 있습니다.",
+                "The current analysis normal is unsupported. Retained originals and records remain available.",
+            ))
         axis = report.get("normal_axis_index")
         return report["cell"][axis] if axis is not None else None
 
@@ -1017,20 +1199,43 @@ class ResearchPanel(QWidget):
         normal = self._normal()
         choice = self._compute()
         if choice:
+            def done(profile):
+                record = {
+                    "schema_version": 1, "operation": "planar_average",
+                    "dataset": dataset_identity(item, self._digest, grid),
+                    "grid": grid.metadata(), "profile": deepcopy(profile),
+                    "execution": deepcopy(profile["execution"]),
+                    "calculation": {
+                        "structure_sha256": self._digest,
+                        "structure_normal_axis": self.entry["normal_axis"],
+                        "grid_plane_axis": axis, "normal_vector": normal,
+                        "source_scalar_units": grid.original_units,
+                        "output_scalar_units": grid.units,
+                    },
+                }
+                self._show_profile(profile, record, self._binding("planar_average"))
+
             self._job(
                 lambda: planar_average(
                     grid, axis=axis, normal=normal, device=choice[0], remote=choice[1]
                 ),
-                self._show_profile,
+                done, key="research-average", operation="planar_average",
             )
 
-    def _show_profile(self, profile):
+    def _show_profile(self, profile, record=None, binding=None):
         self._profile = profile
+        self._profile_record = record
+        self._profile_binding = binding or self._binding("planar_average")
         self.chart.set_profile(profile)
-        run = profile["execution"]
-        self.device_info.setText(
-            f"{run.get('effective_device', run.get('effective_backend', ''))} · {run.get('device_name', '')} · {run.get('precision', '')}\n{run.get('fallback_reason') or ''}"
+        self.profile_save.setEnabled(record is not None)
+        self.profile_record_save.setEnabled(record is not None)
+        dataset = (record or {}).get("dataset", {})
+        self.profile_info.setText(
+            f"{dataset.get('name', '')} · {profile['field_kind']} · {profile['units']}\n"
+            + self.t("계산 평면 축 ", "Computed grid plane axis ") + "abc"[profile["axis"]]
+            + f" · n = {profile['normal_unit_vector']}"
         )
+        self.device_info.setText(format_execution(profile["execution"], self.lang))
 
     def choose_fragment(self, key):
         path, _ = QFileDialog.getOpenFileName(
@@ -1053,6 +1258,7 @@ class ResearchPanel(QWidget):
     def _store_draft(self, *, verify_size=False):
         if self._filling or not self._digest:
             return
+        self._invalidate_density()
         draft = {
             "a": self.a_indices.text(),
             "b": self.b_indices.text(),
@@ -1063,8 +1269,13 @@ class ResearchPanel(QWidget):
             "axis": self.axis.currentIndex(),
         }
         records = self.native.get("differences", {}).get(self._digest, {})
+        def source_ids(sources):
+            return {key: (source["filename"], sha256(source["raw"].encode()).hexdigest())
+                    for key, source in sources.items()}
+
+        originals = source_ids(self._fragments)
         reference = next(
-            (uid for uid, record in records.items() if record.get("sources") == self._fragments),
+            (uid for uid, record in records.items() if source_ids(record["sources"]) == originals),
             None,
         )
         if reference is None:
@@ -1120,36 +1331,7 @@ class ResearchPanel(QWidget):
 
     @staticmethod
     def _replay_difference(bundle, entry, device="cpu", remote=None):
-        if not isinstance(bundle.get("sources"), dict) or set(bundle["sources"]) != {
-            "AB",
-            "A",
-            "B",
-        }:
-            raise ValueError("Missing density-difference originals.")
-        grids = []
-        for k in ("AB", "A", "B"):
-            raw = bundle["sources"][k]
-            grids.append(
-                parse_cube(
-                    raw["raw"], kind="density", units=bundle["units"], source_name=raw["filename"]
-                )
-            )
-        report = entry["analysis"].get("report")
-        if not report:
-            raise ValueError("A supported slab CIF is required for this difference.")
-        match_cube(grids[0], report)
-        return density_difference(
-            *grids,
-            a_indices=bundle["a_indices"],
-            b_indices=bundle["b_indices"],
-            method=bundle["method"],
-            reference_conditions=bundle["conditions"],
-            frozen_geometry=bundle["frozen"],
-            axis=bundle["axis"],
-            normal=report["cell"][report["normal_axis_index"]],
-            device=device,
-            remote=remote,
-        )
+        return replay_difference(bundle, entry, device, remote)
 
     def difference(self):
         self._report()
@@ -1170,24 +1352,35 @@ class ResearchPanel(QWidget):
             "frozen": self.frozen.isChecked(),
             "axis": self.axis.currentIndex(),
         }
-        entry = self.entry
+        entry = deepcopy(self.entry)
+        bundle = freeze_difference_inputs(bundle, entry)
 
         def applied(result):
-            text = cube_bytes(result.grid).decode("utf-8")
+            uid = uuid4().hex
+            text = cube_bytes(result.grid, metadata={
+                "dataset_id": uid, "filename": "difference.cube",
+                "structure_sha256": self._digest, "grid_plane_axis": bundle["axis"],
+                "normal_vector": bundle["calculation"]["normal_vector"],
+                "operation": "rho_AB-rho_A-rho_B",
+            }).decode("utf-8")
             item = {
-                "id": uuid4().hex,
+                "id": uid,
                 "name": "Δρ (AB − A − B)",
                 "filename": "difference.cube",
                 "kind": "difference_density",
                 "units": result.grid.units,
                 "rawText": text,
-                "source": bundle["method"] + " · " + bundle["conditions"],
+                "source": (bundle["method"] + " · " + bundle["conditions"])[:500],
             }
             bundle["result_id"] = item["id"]
+            bundle["computation"] = deepcopy(result.to_dict())
+            bundle["result_sha256"] = sha256(text.encode()).hexdigest()
             self._add(item, "volume", bundle)
-            self._show_profile(result.profile)
+            self._show_profile(result.profile, calculation_record(bundle, item, entry),
+                               self._binding("rho_AB-rho_A-rho_B"))
 
-        self._job(lambda: self._replay_difference(bundle, entry, choice[0], choice[1]), applied)
+        self._job(lambda: self._replay_difference(bundle, entry, choice[0], choice[1]), applied,
+                  key="research-difference", operation="rho_AB-rho_A-rho_B")
 
     def calculate_pairs(self):
         from .compute_devices import minimum_image_pair_distances
@@ -1201,10 +1394,11 @@ class ResearchPanel(QWidget):
 
         def done(result):
             self._pairs = result
+            self._pair_binding = self._binding("minimum_image_pair_distances")
             self.pair_save.setEnabled(True)
             run = result["execution"]
             self.device_info.setText(
-                f"{run.get('effective_device', '')} · {run.get('device_name', '')} · {result['pair_count']} "
+                format_execution(run, self.lang) + f"\n{result['pair_count']} "
                 + self.t("원자쌍", "pairs")
             )
 
@@ -1212,7 +1406,7 @@ class ResearchPanel(QWidget):
             lambda: minimum_image_pair_distances(
                 report["positions"], report["cell"], device=choice[0], remote=choice[1]
             ),
-            done,
+            done, key="research-pairs", operation="minimum_image_pair_distances",
         )
 
     def _save(self, data, name, filter):
@@ -1222,6 +1416,12 @@ class ResearchPanel(QWidget):
 
     def export_pairs(self):
         if not self._pairs:
+            return
+        if self._pair_binding != self._binding("minimum_image_pair_distances"):
+            self._pairs = None
+            self._pair_binding = None
+            self.pair_save.setEnabled(False)
+            self._stale_notice()
             return
         stream = io.StringIO()
         writer = csv.writer(stream)
@@ -1235,6 +1435,7 @@ class ResearchPanel(QWidget):
                 "ase_distance_angstrom",
                 "device_distance_angstrom",
                 "effective_device",
+                "structure_sha256", "operation", "structure_normal_axis", "field_units",
             )
         )
         for pair in self._pairs["pairs"]:
@@ -1246,13 +1447,17 @@ class ResearchPanel(QWidget):
                     pair["distance_angstrom"],
                     pair["device_distance_angstrom"],
                     self._pairs["execution"]["effective_device"],
+                    self._pair_binding["structure_sha256"], "minimum_image_pair_distances",
+                    self._pair_binding["structure_normal_axis"], "angstrom",
                 ]
             )
         self._save(stream.getvalue().encode("utf-8-sig"), "pair-distances.csv", "CSV (*.csv)")
 
     def export_profile(self):
-        if not self._profile:
+        if not self._current_profile():
             return
+        dataset = self._profile_record["dataset"]
+        calculation = self._profile_record["calculation"]
         stream = io.StringIO()
         writer = csv.writer(stream)
         writer.writerow(
@@ -1260,21 +1465,39 @@ class ResearchPanel(QWidget):
                 "normal_position_angstrom",
                 "plane_mean_e_per_angstrom3",
                 "line_density_e_per_angstrom",
+                "dataset_id", "dataset_name", "source_filename", "source_sha256",
+                "structure_sha256", "field_kind", "field_units", "operation",
+                "grid_plane_axis", "normal_vector", "calculation_sha256",
             )
         )
-        writer.writerows(
-            zip(
+        for row in zip(
                 self._profile["positions_angstrom"],
                 self._profile["average_e_per_angstrom3"],
                 self._profile["line_density_e_per_angstrom"],
-            )
-        )
+        ):
+            writer.writerow([
+                *row, dataset["dataset_id"], dataset["name"], dataset["filename"],
+                dataset["source_sha256"], dataset["structure_sha256"],
+                self._profile["field_kind"], self._profile["units"],
+                self._profile_record["operation"], self._profile["axis"],
+                json.dumps(calculation["normal_vector"]),
+                binding_digest({"dataset": dataset, "calculation": calculation}),
+            ])
         self._save(stream.getvalue().encode("utf-8-sig"), "plane-average.csv", "CSV (*.csv)")
 
+    def _current_profile(self):
+        if not self._profile or not self._profile_record or not self._profile_binding:
+            return False
+        if self._profile_binding != self._binding(self._profile_binding["operation"]):
+            self._clear_profile()
+            self._stale_notice()
+            return False
+        return True
+
     def export_profile_record(self):
-        if self._profile:
+        if self._current_profile():
             self._save(
-                json.dumps(self._profile, indent=2, ensure_ascii=False).encode(),
+                json.dumps(self._profile_record, indent=2, ensure_ascii=False).encode(),
                 "plane-average.json",
                 "JSON (*.json)",
             )
@@ -1295,7 +1518,7 @@ class ResearchPanel(QWidget):
             self._log = report
             self._display_log()
 
-        self._job(lambda: self._log_from_path(path), done)
+        self._job(lambda: self._log_from_path(path), done, key="research-log")
 
     def choose_log(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -1389,7 +1612,7 @@ class ResearchPanel(QWidget):
             self._series = report
             self._display_series()
 
-        self._job(lambda: pack_series(path), done)
+        self._job(lambda: pack_series(path), done, key="research-series")
 
     def choose_series(self):
         path, _ = QFileDialog.getOpenFileName(
