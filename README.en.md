@@ -2,7 +2,9 @@
 
 **Desktop 0.9.0** opens CIFs in a native desktop program. The Windows executable and Apple Silicon app include automatic recovery, electronic fields, Apple Metal/CUDA or a remote worker, Gaussian output review and a real vacuum-convergence case. [Desktop guide](docs/DESKTOP.md)
 
-[Windows x64 EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [Release files](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+**Local review build.** Extract the Windows review ZIP into an empty folder and launch `CalcLens.exe` there. The links below point to the published 0.9.0 release. In the review build, **Settings** opens device selection, theme, interactive graphics and PNG options. The H₂ project keeps its original calculation axis when the structure axis changes. [Desktop guide](docs/DESKTOP.md) · [Viewer features](docs/native-graphics.md) · [Verification](docs/NATIVE_REVIEW.md)
+
+[Published 0.9.0 Windows EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [Release files](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
 
 Created, led and maintained by [a123qsd](https://github.com/a123qsd).
 [Project origin and responsibilities](AUTHORS.md) · [Citation](CITATION.cff)
@@ -48,9 +50,9 @@ coordinate matching and units.
 
 ## Run locally
 
-On Windows x64, download and double-click the EXE. On an Apple Silicon Mac, open the DMG, drag CalcLens into Applications, and open the app. Both builds include Python. A graphene example opens on first launch.
+The published 0.9.0 EXE starts directly. For this review, extract the full Windows ZIP and open the launcher inside. On an Apple Silicon Mac, open the DMG, drag CalcLens into Applications, and open the app. Both builds include Python. A graphene example opens on first launch.
 
-[Windows x64 EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [Release files](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+[Published 0.9.0 Windows EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [Release files](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
 
 [Source ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.9.0.zip) · [Installation guide](docs/DOWNLOADS.md#english)
 

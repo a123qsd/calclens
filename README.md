@@ -4,24 +4,17 @@
 
 **CalcLens 데스크톱 0.9.0**은 실행 파일 안에서 구조를 열고 검사하는 네이티브 프로그램입니다. 실제 H₂ 밀도 차이와 h-BN 진공 수렴 예제가 포함되어 있습니다. 두 운영체제 모두 앱 안에서 한국어와 영어를 선택할 수 있습니다.
 
-[Windows x64 EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+**검토용 수정 빌드 / Review build.** Windows용 검토 ZIP은 한 폴더에 모두 푼 뒤 그 안의 `CalcLens.exe`를 실행하세요. H₂ 밀도 차이는 계산 당시의 축·법선·원본으로 다시 열립니다. 상단 **설정**에서 계산 장치, 테마, 화면 그래픽 품질과 PNG 출력을 바꿀 수 있습니다.
+
+Extract the whole Windows review ZIP once and start `CalcLens.exe` inside it. The review build retains density calculations when the structure axis changes and checks active dataset identity before exporting results. [Native desktop guide](docs/DESKTOP.md) · [Desktop and web graphics](docs/native-graphics.md) · [Review and verification](docs/NATIVE_REVIEW.md)
+
+[공개 0.9.0 Windows EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
 
 Created, led and maintained by [a123qsd](https://github.com/a123qsd).
 [Project origin and responsibilities](AUTHORS.md) · [Citation](CITATION.cff)
 
 창안·기획·개발 총괄 및 유지관리: [a123qsd](https://github.com/a123qsd).
 [프로젝트 출처와 역할](AUTHORS.md) · [인용 정보](CITATION.cff)
-
-**CalcLens v0.8.0** gives the selected structure a larger viewer and makes its
-filename the main heading. Compact horizontal navigation, visible file and save
-actions, a file strip and a numeric inspector keep the current work together.
-Project ZIPs, review history, pair measurements, electronic datasets, P1
-preparation, linked cameras and PNG export remain available.
-
-**CalcLens v0.8.0**은 선택한 파일명을 화면 제목으로 표시하고 구조 뷰어를 넓혔습니다.
-가로 메뉴, 파일 열기·작업 저장, 파일 선택 줄과 간결한 수치 패널을 현재 구조 주변에
-배치했습니다. 작업 ZIP, 검토 이력, 원자쌍 측정, 전자 자료, P1 준비, 시점 동기화와
-PNG 저장 기능도 계속 사용할 수 있습니다.
 
 Externally supplied charge JSON and density/orbital Cube files can be displayed
 for a matching CIF. CalcLens does not calculate those quantities. Imported viewer
@@ -50,35 +43,34 @@ JSON/CSV exports and comparisons of up to 20 CIF files with settings for each fi
 빈 간격을 확인합니다. 화면·사용 안내·결과 설명을 한국어와 영어로 제공하며,
 예제와 JSON·CSV 내보내기, 파일마다 조건을 정하는 최대 20개 CIF 비교를 지원합니다.
 
-![CalcLens molecular workspace / 입체 구조 작업공간](docs/assets/calclens-native-0.9.0-ko.png)
+![CalcLens molecular workspace / 입체 구조 작업공간](docs/assets/calclens-native-review-ko.png)
 
 [Earlier Streamlit demo / 이전 Streamlit 화면 영상](docs/assets/calclens-demo.webm) ·
 [Public graphite case / 공개 흑연 사례](docs/CASE_STUDY.md)
 
 ## Download / 다운로드
 
-Download the EXE on Windows, or open the DMG on an Apple Silicon Mac and drag CalcLens into Applications. Both builds include the desktop runtime and work offline.
+For the local review build, extract the Windows ZIP and open `CalcLens.exe` beside its runtime folder. On Apple Silicon open the review DMG and drag CalcLens into Applications. Both packages include Python and Qt.
 
-Windows에서는 EXE를 두 번 클릭하세요. Apple Silicon Mac에서는 DMG를 열고 CalcLens를 응용 프로그램 폴더로 옮기세요. 설치 후 인터넷 연결 없이 사용할 수 있습니다.
+검토용 Windows ZIP은 전체를 풀어야 합니다. Apple Silicon Mac에서는 검토용 DMG를 열고 CalcLens를 응용 프로그램 폴더로 옮기세요. 로컬 작업은 인터넷 연결 없이 실행할 수 있습니다.
 
-[Windows x64 EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+[공개 0.9.0 Windows EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
 
 [Source ZIP / 소스 ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.9.0.zip) · [SHA-256 checksums / 파일 검증](https://github.com/a123qsd/calclens/releases/download/v0.9.0/SHA256SUMS.txt) · [Installation guide / 설치 안내](docs/DOWNLOADS.md)
 
 ## Save and continue work / 작업 저장하고 이어가기
 
-Use **Save project** to download a `.calclens.zip` containing the original CIFs,
+Use **Save project** to write a `.calclens.zip` containing the original CIFs,
 per-file settings, notes, review history, pair selections, drafts, electronic files
 and viewer state. Older `.calclens.json` projects remain readable. Use
 **Open project** to continue later; measurements are recalculated from the originals.
-Save before stopping the server, because unsaved work stays in memory.
+The native desktop writes a per-session recovery copy while you edit.
 See the [English guide](README.en.md#pair-measurements-and-saved-work) for details.
 
 **작업 저장**으로 원본 CIF, 파일별 조건, 메모, 검토 이력과 원자쌍 선택을
 전자 자료·초안·뷰어 설정과 함께 `.calclens.zip`에 저장합니다.
 **작업 열기**에서는 이전 `.calclens.json`도 읽을 수 있습니다.
-측정값은 원본에서 다시 계산합니다. 저장하지 않은 작업은 메모리에만 있으므로
-서버를 종료하기 전에 저장하세요.
+측정값은 원본에서 다시 계산합니다. 편집 중에는 자동 복구본도 기록합니다.
 자세한 내용은 [한국어 안내](README.ko.md#원자-거리와-작업-저장)를 확인하세요.
 
 ## What it checks / 검사 범위

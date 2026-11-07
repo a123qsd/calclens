@@ -1,10 +1,12 @@
 # CalcLens 데스크톱 0.9.0 / CalcLens Desktop
 
-Windows x64에서는 `CalcLens-0.9.0-Windows-x64.exe`를 두 번 클릭합니다. Apple Silicon Mac에서는 DMG를 열고 `CalcLens.app`을 응용 프로그램 폴더에 옮긴 다음 실행합니다. 앱을 시작하면 그래핀 구조와 기하 검사 결과가 보입니다. 파일 선택, 구조 회전, 원자 선택, 거리 측정, 대칭 전개, 비교, 그림 출력은 데스크톱 창 안에서 이루어집니다. 창은 QtWidgets로 그리며 같은 프로세스의 Python 엔진이 계산합니다.
+Windows 검토 빌드는 ZIP 전체를 빈 폴더에 푼 뒤 `runtime` 옆의 `CalcLens.exe`를 실행합니다. Apple Silicon Mac은 검토용 DMG를 열어 앱을 응용 프로그램 폴더로 옮깁니다. 첫 창에서 그래핀을 불러온 뒤 CIF 또는 저장한 프로젝트를 열 수 있습니다. [Windows 빌드와 시작 진단](../packaging/desktop/windows-portable-build.md)
 
-Double-click the Windows x64 executable or open the Apple Silicon application. The initial graphene structure opens in a native Qt window. Drag one or more CIFs into it, select a file, and rotate the structure with the mouse. Use the comparison action to inspect two structures or datasets. The default desktop application works offline.
+The Windows review launcher uses the adjacent runtime. On Apple Silicon drag the app from the review DMG into Applications. Open CIF files or a saved project in the native Qt window. The public 0.9.0 packages are available in the [release archive](https://github.com/a123qsd/calclens/releases/tag/v0.9.0).
 
-[Windows x64 EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+## 화면과 환경 설정
+
+상단 **설정**에서 시스템·라이트·다크 테마, 화면 그래픽 품질, PNG 너비와 배경을 고릅니다. 언어와 장치 선호는 이 컴퓨터에 저장합니다. 좁은 창에서는 **파일 목록**과 **검사 패널**로 구조 화면을 전환합니다. 오른쪽 **출처 상세**에서 원본 CIF와 전체 SHA-256을 확인하고 복사할 수 있습니다. **원본 CIF 저장**은 원래 바이트를 그대로 내보냅니다. [그래픽 품질과 웹 뷰어 비교](native-graphics.md)
 
 ## 작업 저장과 복구
 
@@ -12,9 +14,11 @@ Double-click the Windows x64 executable or open the Apple Silicon application. T
 
 Recovery files live under `%LOCALAPPDATA%/CalcLens/Recovery` on Windows and `~/Library/Application Support/CalcLens/Recovery` on macOS. CalcLens writes each session's backup atomically and retains a previous generation. The project ZIP remains the portable way to carry work to another computer. Opening an archive validates its original data before replacing the current project.
 
+보관한 H₂ Δρ는 원본 AB/A/B, 1부터 시작하는 조각 원자 번호, 격자·단위, 계산 축·법선, 공통 방법·조건 및 실행 기록과 함께 열립니다. 현재 검사 축이 다르면 연구 화면에서 이를 표시합니다. 당시 법선이나 실행 정보를 기록하지 않은 옛 자료는 재구성 가능한 조건과 CPU 재검산을 구분해 표시합니다. 자료나 조건을 바꾸면 그 선택에 맞지 않는 그래프와 내보내기 버튼은 비워집니다.
+
 ## 계산 장치 선택
 
-**연구 도구 → 연산 장치·밀도 차이**에서 장치를 확인하고 CPU, Apple Metal, NVIDIA CUDA 또는 원격 워커를 선택합니다. 이 선택은 전자 격자 차이, 평면 평균, 주기적 원자쌍 거리의 벡터 길이 계산에 적용됩니다. 기하 보고서의 판정에는 배정밀도 CPU 결과를 사용합니다. 자동 선택은 해당 작업의 전송·계산·검산 시간을 포함해 장치를 비교합니다. 실행 결과에는 사용한 장치와 정밀도가 표시됩니다.
+**설정 → 계산 장치와 원격 워커**에서 실행 위치와 장치를 선택합니다. 장치 확인은 작은 격자·거리 계산으로 가용성을 검사합니다. 연결할 워커의 URL, 토큰, 제한 시간을 입력한 뒤 **워커 연결 확인**을 누르면 워커 정책에 따라 쓸 수 있는 장치가 표시됩니다. 이 선택은 전자 격자 차이, 평면 평균, 주기적 원자쌍 거리의 벡터 길이 계산에 적용됩니다. 기하 보고서의 판정에는 배정밀도 CPU 결과를 사용합니다. 자동 선택은 해당 작업의 전송·계산·검산 시간을 포함해 장치를 비교합니다. 실행 결과에는 사용한 장치와 정밀도가 표시됩니다.
 
 원격 워커에는 사용자가 선택한 수치 배열만 보냅니다. 워커 주소와 토큰을 입력한 뒤 전송할 때 확인합니다. 토큰은 프로젝트에 저장하지 않습니다. 큰 작업에서 결과 적용을 취소하면 이후 계산 결과가 열린 프로젝트에 반영되지 않습니다. 워커에서 시작한 계산은 끝까지 실행될 수 있습니다. 워커 실행, TLS 설정과 장치별 검증 범위는 [계산 안내](COMPUTE.md)에 있습니다.
 
@@ -29,4 +33,4 @@ Recovery files live under `%LOCALAPPDATA%/CalcLens/Recovery` on Windows and `~/L
 
 Use Python 3.12 or 3.13. From a checkout install `python -m pip install --require-hashes -r requirements.lock`, then `python -m pip install --no-deps --no-build-isolation .`. Launch `python run_app.py` or `calclens-desktop`. `python run_app.py --web-ui` opens the optional earlier browser interface. The command-line geometry tool remains `calclens input.cif --json report.json`.
 
-The x64 Windows portable build embeds CPython and Windows wheels from the recorded hashes. `scripts/build_portable_windows.py` assembles the executable using NSIS. The Windows PyInstaller workflow also supports an interactive native build. `scripts/build_native_macos.py` builds the Apple Silicon bundle with its Qt runtime and Metal helper. Research data, validation fixtures, original software notices, and example source licenses accompany the distributions.
+The Windows x64 builder verifies the embedded CPython archive and selected wheels against their hashes. `scripts/build_portable_windows.py` packages the small NSIS launcher and runtime together in a folder ZIP. The Windows PyInstaller workflow also supports an interactive native build. `scripts/build_native_macos.py` builds the Apple Silicon bundle with its Qt runtime and Metal helper. Research data, validation fixtures, original software notices, and example source licenses accompany the distributions.

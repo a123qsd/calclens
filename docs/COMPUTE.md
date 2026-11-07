@@ -97,6 +97,12 @@ can integrate to a value different from the system's expected electron count.
 복셀의 수직 간격, 면적을 함께 반영합니다. 적분은 복셀 부피를 곱한 수치 합이며,
 원자별 전하 분할이나 전자 수 수렴 검증을 대신하지 않습니다.
 
+## Native project records and worker connections
+
+In the native app, **Settings → Compute devices and workers** separates the run location from the selected device. The local probe executes a small density and distance workload. **Test worker connection** authenticates to the selected CalcLens worker and asks for its configured policy and tested devices. A connection test sends a protocol version; project data is sent only after confirming a calculation. Tokens stay in the current window. A timeout or cancellation interrupts the client connection; a computation already running on the worker can finish.
+
+A derived density record retains the three input filenames and hashes, fragment mapping, original axes, slab normal, grid basis and origin, units, method, conditions, frozen-geometry declaration, result identity, execution device and CPU parity. The frontend checks the identity of the selected dataset and settings before presenting or exporting a profile. A legacy archive that omitted its original slab-normal direction or execution device records the reconstruction and CPU replay explicitly.
+
 ## Devices and numerical checks
 
 `probe_devices()` / `detect_compute_devices()` runs small real difference,

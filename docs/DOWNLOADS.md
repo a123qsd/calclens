@@ -1,5 +1,9 @@
 # CalcLens Desktop 0.9.0
 
+**검토 빌드**는 전달받은 Windows ZIP 전체를 별도 폴더에 풀고 `CalcLens.exe`로 시작합니다. 아래 표의 파일은 기존 공개 0.9.0 배포본입니다. [검토 빌드 사용 안내](DESKTOP.md)
+
+**Review build.** Extract the provided Windows ZIP into its own folder and run the included `CalcLens.exe`. The tables below link to the published 0.9.0 distribution. [Review build guide](DESKTOP.md)
+
 ## 한국어
 
 | 운영체제 | 파일 | 실행 방법 |

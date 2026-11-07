@@ -2,7 +2,9 @@
 
 **0.9.0 데스크톱 안내** · Windows EXE 또는 Apple Silicon용 `CalcLens.app`을 열면 파일과 구조 뷰가 앱 안에 표시됩니다. 자동 복구, 전자 자료, Apple Metal·CUDA·원격 계산, Gaussian 로그 및 실제 수렴 예제를 사용할 수 있습니다. [데스크톱 실행·사용 안내](docs/DESKTOP.md)
 
-[Windows x64 EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+**검토용 수정 빌드.** Windows에서는 검토 ZIP 전체를 빈 폴더에 풀고 그 안의 `CalcLens.exe`를 실행하세요. 아래 링크는 기존 공개 0.9.0 배포본입니다. 수정 빌드는 주 분석 축을 바꿔도 H₂ 계산 당시의 축과 원본을 보관합니다. 상단 **설정**에서 계산 장치, 테마, 그래픽 품질과 PNG 출력을 선택할 수 있습니다. [사용 안내](docs/DESKTOP.md) · [뷰어 기능 비교](docs/native-graphics.md) · [검증 기록](docs/NATIVE_REVIEW.md)
+
+[공개 0.9.0 Windows EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
 
 창안·기획·개발 총괄 및 유지관리: [a123qsd](https://github.com/a123qsd).
 [프로젝트 출처와 역할](AUTHORS.md) · [인용 정보](CITATION.cff)
@@ -31,7 +33,7 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 [새 작업 안내](docs/WORKSPACE_SAVE.md)와 [실제 H2O 계산 사례](docs/ELECTRONIC_CASE.md)를 참고하세요.
 파일 형식·좌표 및 단위 조건은 [보조 자료 안내](docs/VIEWER_DATA.md)를 참고하세요.
 
-![CalcLens 입체 구조 작업공간](docs/assets/calclens-native-0.9.0-ko.png)
+![CalcLens 입체 구조 작업공간](docs/assets/calclens-native-review-ko.png)
 
 [이전 Streamlit 화면 사용 영상](docs/assets/calclens-demo.webm) ·
 [공개 흑연 구조 검사 사례](docs/CASE_STUDY.md)
@@ -42,9 +44,9 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 
 ## 빠르게 실행하기
 
-Windows x64에서는 EXE를 두 번 클릭하세요. Apple Silicon Mac에서는 DMG를 열고 CalcLens를 응용 프로그램 폴더로 옮긴 뒤 실행하세요. 두 배포판 모두 Python을 포함합니다. 앱을 열면 기본 그래핀 예제가 표시됩니다.
+공개 0.9.0 Windows EXE는 바로 실행할 수 있습니다. 이번 수정 빌드는 ZIP 전체를 풀고 그 안의 실행 파일을 여세요. Apple Silicon Mac에서는 DMG를 열고 CalcLens를 응용 프로그램 폴더로 옮긴 뒤 실행하세요. 두 배포판 모두 Python을 포함합니다. 앱을 열면 기본 그래핀 예제가 표시됩니다.
 
-[Windows x64 EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+[공개 0.9.0 Windows EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
 
 [소스 ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.9.0.zip) · [다운로드·설치 안내](docs/DOWNLOADS.md#한국어)
 
