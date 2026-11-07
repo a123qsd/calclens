@@ -15,6 +15,11 @@ jobs:
       QT_QPA_PLATFORM: 'offscreen'
     steps:
       - uses: actions/checkout@v4
+      - name: Install native Qt display libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libegl1 libgl1 libopengl0 libxkbcommon0
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
