@@ -199,6 +199,9 @@ def test_folder_launcher_never_extracts_runtime_and_archive_keeps_complete_layou
     assert '$EXEDIR\\runtime\\pythonw.exe' in text
     assert 'ExecWait' in text and 'RequestExecutionLevel user' in text
     assert 'runtime_finished:' in text and 'StrCmp $1 0 finished' in text
+    assert 'launcher-$4.log' in text and 'Python exited with code $1.' in text
+    assert 'python313.zip' in text and 'FileWrite $5' in text
+    assert 'FileWrite $5 "$0' not in text
     with zipfile.ZipFile(output) as archive:
         prefix='CalcLens-0.9.0-Windows-x64/'
         assert archive.read(prefix+'CalcLens.exe')==fake_pe(0x14c)

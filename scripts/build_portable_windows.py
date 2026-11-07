@@ -302,8 +302,22 @@ SilentInstall silent
 AutoCloseWindow true
 !include FileFunc.nsh
 Section
-{extraction}  IfFileExists "{location}\\pythonw.exe" runtime_present runtime_missing
+  CreateDirectory "$LOCALAPPDATA\\CalcLens\\logs"
+  System::Call 'kernel32::GetCurrentProcessId() i.r4'
+  ClearErrors
+  FileOpen $5 "$LOCALAPPDATA\\CalcLens\\logs\\launcher-$4.log" w
+  IfErrors 0 log_opened
+    CreateDirectory "$TEMP\\CalcLens-logs"
+    FileOpen $5 "$TEMP\\CalcLens-logs\\launcher-$4.log" w
+  log_opened:
+    FileWrite $5 "CalcLens launcher started. Runtime format: {distribution}.$\\r$\\n"
+{extraction}  IfFileExists "{location}\\pythonw.exe" 0 runtime_missing
+  IfFileExists "{location}\\python313.dll" 0 runtime_missing
+  IfFileExists "{location}\\python313.zip" 0 runtime_missing
+  IfFileExists "{location}\\desktop_start.py" runtime_present runtime_missing
   runtime_missing:
+    FileWrite $5 "A required runtime file is missing. Extract the complete ZIP.$\\r$\\n"
+    FileClose $5
     MessageBox MB_ICONSTOP "CalcLens runtime is missing. Extract the entire ZIP before running CalcLens.exe.$\\r$\\nZIP 전체를 먼저 풀어 주세요."
     SetErrorLevel 1
     Quit
@@ -313,13 +327,16 @@ Section
   ExecWait '"{location}\\pythonw.exe" -I -B "{location}\\desktop_start.py" $0' $1
   IfErrors runtime_failed runtime_finished
   runtime_failed:
+    FileWrite $5 "Windows could not create the Python process.$\\r$\\n"
     MessageBox MB_ICONSTOP "CalcLens could not start Python. Extract the entire ZIP to a new folder.$\\r$\\nPython을 시작하지 못했습니다. ZIP 전체를 새 폴더에 다시 풀어 주세요."
     StrCpy $1 1
     Goto finished
   runtime_finished:
+    FileWrite $5 "Python exited with code $1.$\\r$\\n"
     StrCmp $1 0 finished
-    MessageBox MB_ICONSTOP "CalcLens stopped with an error. Diagnostics: $LOCALAPPDATA\\CalcLens\\logs$\\r$\\n앱이 오류로 종료했습니다. 위 진단 폴더를 확인해 주세요."
+    MessageBox MB_ICONSTOP "CalcLens stopped with error $1. Extract the complete ZIP to a new folder if runtime files are damaged.$\\r$\\nDiagnostics: $LOCALAPPDATA\\CalcLens\\logs (fallback: $TEMP\\CalcLens-logs)$\\r$\\n앱이 오류로 종료했습니다. 진단 폴더를 확인해 주세요."
   finished:
+    FileClose $5
   SetErrorLevel $1
 SectionEnd
 ''',encoding='utf-8-sig')

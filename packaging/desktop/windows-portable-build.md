@@ -72,7 +72,10 @@ temporary-folder fallback if that directory cannot be created. Logs contain
 error classes, frame locations and startup phases, without project contents,
 command-line arguments, exception argument values or remote tokens. Startup
 errors show a Windows error dialog even if Qt cannot initialize. The launcher
-also reports failure to start Python or an unexpected nonzero process exit.
+also writes its own process/exit-status log before Python starts, checks the
+required interpreter/standard-library/bootstrap files, and reports failure to
+start Python or an unexpected nonzero exit. This covers interpreter failures
+that cannot execute Python's diagnostic handler.
 
 Run repeated measurements on the same Windows device and desktop settings:
 
@@ -89,7 +92,10 @@ from readiness. For an old EXE without instrumentation, `--legacy-smoke`
 measures the complete native smoke only; that total cannot be presented as a
 first-window or first-input timing. Use `--runner /path/to/wine` for explicitly
 labelled Wine compatibility measurements. Wine timings do not establish
-Windows-machine performance or Windows GPU behavior.
+Windows-machine performance or Windows GPU behavior. The parent also observes
+trace updates every 25 ms; those receipt times are upper bounds affected by
+host scheduling. The input milestone is a posted Qt F24 probe after default
+analysis, not a physical keyboard or mouse hardware measurement.
 
 ## Isolated Wine validation
 
