@@ -204,15 +204,27 @@ def _selection(item: PairSelection) -> dict:
 class Workspace:
     """One locked project and one bounded analysis cache per desktop server."""
 
-    def __init__(self, root: Path, language: str = "ko"):
+    def __init__(self, root: Path, language: str = "ko", *, load_default: bool = True):
         self.root = Path(root).resolve()
         self.language = _language(language)
         self.token = secrets.token_urlsafe(32)
         self.revision = 0
         self.lock = threading.RLock()
         self.cache: dict = {}
-        self.project = self._example_project("graphene.cif")
+        self.project = self._example_project("graphene.cif") if load_default else Project([])
         self._validated_workspace: tuple[dict, int] = (self.project.workspace_state, 2)
+
+    def load_initial_example(self) -> dict:
+        """Fill an empty desktop workspace and analyze it away from the UI thread.
+
+        Do not replace a project opened while initialization was queued. The
+        default server and direct/test construction keep their previous behavior.
+        """
+        with self.lock:
+            if not self.project.entries and self.revision == 0:
+                self.project = self._example_project("graphene.cif")
+                self._validated_workspace = (self.project.workspace_state, 2)
+            return self.snapshot(include_workspace=True)
 
     def _example_data(self, name: str) -> bytes:
         if name not in EXAMPLE_NAMES:
@@ -238,6 +250,8 @@ class Workspace:
     def _results(self, project: Project | None = None) -> list[dict]:
         detached = project is not None
         project = self.project if project is None else project
+        if not project.entries:
+            return []
         return cached_batch([
             BatchInput(item.filename, item.data, item.normal_axis, item.short_distance)
             for item in project.entries

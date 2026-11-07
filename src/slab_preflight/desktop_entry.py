@@ -8,6 +8,8 @@ from pathlib import Path
 import platform
 import sys
 
+from . import startup
+
 
 def resource_root() -> Path:
     here = Path(__file__).resolve()
@@ -143,23 +145,37 @@ def smoke(path: Path, root: Path, language: str) -> int:
     return 0 if record["status"] == "passed" else 1
 
 
-def main(argv=None):
+def _main(argv=None, *, root=None):
     args = list(sys.argv[1:] if argv is None else argv)
     if args[:1] == ["--worker"]:
         from .compute_server import main as worker_main
 
         return worker_main(args[1:])
     parser = argparse.ArgumentParser(description="CalcLens native desktop")
-    parser.add_argument("--language", choices=("ko", "en"), default="ko")
+    parser.add_argument("--language", choices=("ko", "en"), default=None)
     parser.add_argument("--native-smoke", type=Path, metavar="RESULT.json")
+    timing = parser.add_mutually_exclusive_group()
+    timing.add_argument("--startup-trace", type=Path, metavar="TRACE.json",
+                        help="Record actual startup milestones without closing the app.")
+    timing.add_argument("--startup-benchmark", type=Path, metavar="TRACE.json",
+                        help="Record startup and close only after the first input response.")
     parser.add_argument("files", nargs="*")
     options = parser.parse_args(args)
-    root = resource_root()
+    startup.configure(options.startup_trace or options.startup_benchmark,
+                      benchmark=options.startup_benchmark is not None)
+    root = Path(root) if root is not None else resource_root()
     if options.native_smoke:
-        return smoke(options.native_smoke, root, options.language)
-    from .desktop import main as desktop_main
+        return smoke(options.native_smoke, root, options.language or "ko")
+    with startup.trace_span("qt_import"):
+        import PySide6.QtWidgets  # noqa: F401 -- separately measured before scientific imports
+    with startup.trace_span("scientific_import"):
+        from .desktop import main as desktop_main
 
     return desktop_main(language=options.language, root=root, argv=["CalcLens", *options.files])
+
+
+def main(argv=None, *, root=None):
+    return startup.guarded_main(lambda: _main(argv, root=root))
 
 
 if __name__ == "__main__":

@@ -59,8 +59,12 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
     if not (args.web_ui or args.legacy_ui or args.no_browser or args.port is not None):
         if (root / "src").is_dir():
             sys.path.insert(0, str(root / "src"))
-        from slab_preflight.desktop import main as native_main
-        return native_main(language=language, root=root, argv=["CalcLens", *args.files])
+        from slab_preflight.desktop_entry import main as native_main
+        # An explicit/package language takes priority; otherwise native QSettings
+        # restores the user's last language instead of resetting it on each run.
+        chosen = args.language or (language if (root / "DEFAULT_LANGUAGE.txt").is_file() else None)
+        flags = ["--language", chosen] if chosen else []
+        return native_main([*flags, *args.files], root=root)
     if args.files:
         parser.error("Open file paths using the native desktop mode.")
     args.port = args.port or 8501
