@@ -33,6 +33,7 @@ def configure(path=None, *, benchmark=False, started_ns=None):
     """Enable a trace explicitly. The parent clock is same-host monotonic time."""
     global _output, _benchmark, _started_ns, _parent_ns
     with _lock:
+        _stages.clear()
         _output = Path(path) if path is not None else None
         _benchmark = bool(benchmark)
         if started_ns is not None:
@@ -41,7 +42,8 @@ def configure(path=None, *, benchmark=False, started_ns=None):
         _parent_ns = int(parent) if parent.isdecimal() else None
         if _parent_ns is not None and not 0 <= _started_ns - _parent_ns < 3_600_000_000_000:
             _parent_ns = None
-        mark("python_entry")
+        _stages["python_entry"] = _started_ns
+        _write_trace()
 
 
 def benchmark_requested():

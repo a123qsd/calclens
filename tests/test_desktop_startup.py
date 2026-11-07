@@ -58,8 +58,15 @@ def test_parent_timing_and_unpack_are_separate_phases(startup, tmp_path, monkeyp
     record = startup.trace_record()
     assert record["parent_to_python_ms"] == 200
     assert record["runtime_unpack_ms"] == 42
-    assert record["milestones_ms"]["python_entry"] == 300
-    assert record["launch_to_ms"]["python_entry"] == 500
+    assert record["milestones_ms"]["python_entry"] == 0
+    assert record["launch_to_ms"]["python_entry"] == 200
+
+
+def test_reconfiguration_starts_new_milestones_in_embedded_process(startup, tmp_path):
+    startup.configure(tmp_path / "first.json")
+    startup.mark("first_window")
+    startup.configure(tmp_path / "second.json")
+    assert "first_window" not in startup.trace_record()["milestones_ms"]
 
 
 def test_safe_failure_log_never_stores_exception_values_or_remote_token(tmp_path):
