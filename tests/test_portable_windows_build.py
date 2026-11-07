@@ -4,6 +4,7 @@ import importlib.util
 import json
 from pathlib import Path
 import struct
+import tomllib
 import zipfile
 
 import pytest
@@ -203,7 +204,8 @@ def test_folder_launcher_never_extracts_runtime_and_archive_keeps_complete_layou
     assert 'python313.zip' in text and 'FileWrite $5' in text
     assert 'FileWrite $5 "$0' not in text
     with zipfile.ZipFile(output) as archive:
-        prefix='CalcLens-0.9.0-Windows-x64/'
+        version=tomllib.loads((ROOT/'pyproject.toml').read_text())['project']['version']
+        prefix=f'CalcLens-{version}-Windows-x64/'
         assert archive.read(prefix+'CalcLens.exe')==fake_pe(0x14c)
         assert archive.read(prefix+'runtime/pythonw.exe')==fake_pe()
         build=json.loads(archive.read(prefix+'runtime/DESKTOP-BUILD.json'))

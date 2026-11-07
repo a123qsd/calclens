@@ -29,7 +29,9 @@ class Block(importlib.abc.MetaPathFinder):
 sys.meta_path.insert(0, Block())
 import slab_preflight
 from slab_preflight import startup
-assert slab_preflight.__version__ == '0.9.0'
+import tomllib
+from pathlib import Path
+assert slab_preflight.__version__ == tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
 assert startup.trace_record()['ready'] is False
 """
     subprocess.run([sys.executable, "-c", program], check=True, cwd=ROOT)
