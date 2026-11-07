@@ -205,9 +205,8 @@ def _post(request_data, config, *, capabilities=False):
         connection = http.client.HTTPConnection(target.hostname, target.port, timeout=config.timeout_seconds)
     cancel = config.cancellation or RemoteCancellation()
     deadline = time.monotonic() + config.timeout_seconds
-    timer = threading.Timer(config.timeout_seconds, cancel.cancel)
-    timer.daemon = True
-    timer.start()
+    # The transport checks the monotonic deadline itself. A separate Timer can
+    # wake early on Windows and must not mark a timeout as a user cancellation.
     try:
         cancel.check()
         connection.connect()
@@ -232,6 +231,9 @@ def _post(request_data, config, *, capabilities=False):
             content = response.read(limit + 1)
             if len(content) > limit:
                 raise ComputeError("Compute worker response exceeds the transfer limit.")
+        # A complete body may already be buffered, without another transport poll.
+        if time.monotonic() >= deadline:
+            raise TimeoutError("Compute worker response deadline exceeded.")
         cancel.check()
     except (OSError, http.client.HTTPException, ComputeError) as error:
         if time.monotonic() >= deadline or isinstance(error, TimeoutError):
@@ -241,7 +243,6 @@ def _post(request_data, config, *, capabilities=False):
             raise
         raise ComputeError(f"Compute worker connection failed: {error}") from error
     finally:
-        timer.cancel()
         cancel.detach()
         connection.close()
     try:

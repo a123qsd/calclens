@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+import http.client
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import secrets
 import socket
@@ -90,3 +91,62 @@ def test_timeout_and_cancel_interrupt_a_worker_that_never_answers(
         finally:
             release.set()
             thread.join(timeout=3)
+
+
+def test_deadline_does_not_become_user_cancellation_if_a_timer_wakes_early(monkeypatch):
+    class EarlyTimer:
+        def __init__(self, interval, callback):
+            self.callback = callback
+
+        def start(self):
+            self.callback()  # The monotonic response deadline has not elapsed.
+
+        def cancel(self):
+            pass
+
+    monkeypatch.setattr(threading, "Timer", EarlyTimer)
+    release = threading.Event()
+
+    class Stalled(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            release.wait(6)
+
+        def log_message(self, *_):
+            pass
+
+    with serving(HTTPServer(("127.0.0.1", 0), Stalled)) as port:
+        cancel = RemoteCancellation()
+        config = RemoteComputeConfig(f"http://127.0.0.1:{port}", "c" * 40,
+                                     timeout_seconds=1, cancellation=cancel)
+        start = time.monotonic()
+        try:
+            with pytest.raises(ComputeError, match="deadline"):
+                remote_capabilities(config)
+            assert 1 <= time.monotonic() - start < 3
+            cancel.check()  # Only the user may set the user-cancellation state.
+        finally:
+            release.set()
+
+
+def test_buffered_response_still_checks_the_total_deadline(monkeypatch):
+    clock = [0.0]
+    original_read = http.client.HTTPResponse.read
+
+    def delayed_read(response, *args):
+        body = original_read(response, *args)
+        clock[0] = 2.0  # The buffered body is consumed after the one-second deadline.
+        return body
+
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(http.client.HTTPResponse, "read", delayed_read)
+    monkeypatch.setattr("slab_preflight.compute_server.probe_devices", lambda: [
+        {"id": name, "available": True} for name in ("cpu", "metal", "cuda")
+    ])
+    cancel = RemoteCancellation()
+    with serving(make_server(token="c" * 40, device="cpu")) as port:
+        config = RemoteComputeConfig(f"http://127.0.0.1:{port}", "c" * 40,
+                                     timeout_seconds=1, cancellation=cancel)
+        with pytest.raises(ComputeError, match="deadline"):
+            remote_capabilities(config)
+        cancel.check()
