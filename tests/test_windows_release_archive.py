@@ -39,7 +39,14 @@ def bundle(tmp_path, *, code_version=VERSION, extras=None):
         for name, data in files.items():
             stream.writestr(TOP + "/runtime/" + name, data)
         for name, data in (extras or {}).items():
-            stream.writestr(name, data)
+            if isinstance(name, str):
+                info = zipfile.ZipInfo(name)
+                # Windows ZipInfo normalizes its native separator. Preserve the
+                # malformed bytes so every host actually tests the same archive.
+                info.filename = name
+            else:
+                info = name
+            stream.writestr(info, data)
     sidecar = archive.with_suffix(".zip.manifest.json")
     sidecar.write_text(json.dumps({
         "schema_version": 2, "application_version": VERSION, "distribution": "folder",
