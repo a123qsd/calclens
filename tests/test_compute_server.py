@@ -104,6 +104,8 @@ def test_oversized_declared_request_is_refused_without_waiting_for_a_body():
 def test_worker_redirect_is_rejected_before_any_destination_contact():
     class Redirect(BaseHTTPRequestHandler):
         def do_POST(self):
+            # Consume the POST so Winsock can deliver the redirect before closing.
+            self.rfile.read(int(self.headers["Content-Length"]))
             self.send_response(307)
             self.send_header("Location", "https://example.invalid/not-contacted")
             self.end_headers()
