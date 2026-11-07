@@ -109,7 +109,7 @@ class DensityComputation:
     provenance: dict[str, Any]
 
     def to_dict(self, *, include_values: bool = False) -> dict[str, Any]:
-        result = {"grid": self.grid.metadata(), "profile": self.profile,
+        result = {"schema_version": 1, "grid": self.grid.metadata(), "profile": self.profile,
                   "execution": self.execution, "provenance": self.provenance}
         if include_values:
             result["grid"]["values"] = self.grid.values.ravel().tolist()
@@ -344,6 +344,8 @@ def density_difference(ab: CubeGrid, a: CubeGrid, b: CubeGrid, *,
         "common_reference_conditions_declared": reference_conditions.strip(),
         "frozen_geometry_confirmed": True, "a_indices_one_based": indices[0],
         "b_indices_one_based": indices[1], "sources": [grid.metadata() for grid in (ab, a, b)],
+        "grid_plane_axis": axis, "normal_unit_vector": geometry["normal"],
+        "output_scalar_units": "e/angstrom^3",
         "grid_tolerance_angstrom": GRID_TOLERANCE_ANGSTROM,
         "frozen_position_tolerance_angstrom": FROZEN_POSITION_TOLERANCE_ANGSTROM,
         "declaration_limit": "Matching declarations and nuclei do not prove identical electronic settings or electron reference states.",
@@ -357,11 +359,14 @@ def density_difference(ab: CubeGrid, a: CubeGrid, b: CubeGrid, *,
     return DensityComputation(grid, _profile(grid, averages, geometry, execution), execution, provenance)
 
 
-def cube_bytes(grid: CubeGrid) -> bytes:
+def cube_bytes(grid: CubeGrid, *, metadata: dict[str, Any] | None = None) -> bytes:
     """Export normalized scalar units with explicit Å coordinate convention."""
     if grid.atom_record_charges is None:
         raise DensityError("Cube export requires the original atom-record charges; they are not inferred from elements.")
-    lines = ["CalcLens derived/exported scalar field", f"{grid.kind}; {grid.units}; source {grid.source_sha256}",
+    identity = f"{grid.kind}; {grid.units}; source {grid.source_sha256}"
+    if metadata is not None:
+        identity += "; " + json.dumps(metadata, ensure_ascii=False, sort_keys=True, allow_nan=False)
+    lines = ["CalcLens derived/exported scalar field", identity,
              " ".join([str(len(grid.atom_numbers)), *(f"{value:.17g}" for value in grid.origin_angstrom)])]
     lines.extend(" ".join([str(-count), *(f"{value:.17g}" for value in vector)])
                  for count, vector in zip(grid.shape, grid.voxel_vectors_angstrom, strict=True))
