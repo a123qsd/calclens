@@ -96,7 +96,12 @@ def test_layout_narrow_windows_preserve_editable_controls_and_complete_hash(app,
             win.tabs.setCurrentWidget(win.research_panel)
             win.research_panel.mode.setCurrentIndex(1)
             app.processEvents()
-            assert win.research_panel.stack.currentWidget().horizontalScrollBar().maximum() == 0
+            page = win.research_panel.stack.currentWidget()
+            assert page.horizontalScrollBar().maximum() == 0, {
+                "requested_window": (width, height), "inspector_width": win.tabs.width(),
+                "viewport_width": page.viewport().width(),
+                "content_minimum": page.widget().minimumSizeHint().width(),
+            }
             assert win.tabs.geometry().right() < win.splitter.width()
         win.tabs.setCurrentIndex(0)
         digest = win.selected_entry["sha256"]

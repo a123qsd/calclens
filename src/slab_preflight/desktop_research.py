@@ -12,7 +12,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import numpy as np
-from PySide6.QtCore import QPointF, QRectF, Signal
+from PySide6.QtCore import QEvent, QPointF, QRectF, Signal
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QBoxLayout,
@@ -189,11 +189,17 @@ class ResearchPanel(QWidget):
         self._job_keys = set()
         self.setObjectName("nativeResearchPanel")
         self._action_rows = []
+        self._page_scrolls = {}
+        self._fitting_rows = False
         self._outer = QVBoxLayout(self)
         self._build()
         for form in self.findChildren(QFormLayout):
             form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
-        for combo in (self.mode, self.charge, self.volume):
+            for row in range(form.rowCount()):
+                item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+                if item and isinstance(item.widget(), QLabel):
+                    item.widget().setWordWrap(True)
+        for combo in self.findChildren(QComboBox):
             combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
             combo.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
         self._fit_rows()
@@ -219,6 +225,9 @@ class ResearchPanel(QWidget):
         layout = QVBoxLayout(body)
         layout.setContentsMargins(7, 8, 7, 8)
         scroll.setWidget(body)
+        self._page_scrolls[body] = scroll
+        scroll.viewport().installEventFilter(self)
+        body.installEventFilter(self)
         self.stack.addWidget(scroll)
         return layout
 
@@ -230,12 +239,71 @@ class ResearchPanel(QWidget):
         layout.addLayout(row)
 
     def _fit_rows(self):
-        width = max(1, self.width() - 54)
-        for row, widgets in self._action_rows:
-            needed = sum(w.sizeHint().width() for w in widgets) + 8 * (len(widgets) - 1)
-            direction = QBoxLayout.Direction.LeftToRight if needed <= width else QBoxLayout.Direction.TopToBottom
-            if direction != row.direction():
-                row.setDirection(direction)
+        if self._fitting_rows:
+            return
+        self._fitting_rows = True
+        try:
+            widths = {}
+            for body, scroll in self._page_scrolls.items():
+                margins = body.layout().contentsMargins()
+                widths[body] = max(1, scroll.viewport().width() - margins.left() - margins.right())
+                for form in body.findChildren(QFormLayout):
+                    policy = (QFormLayout.RowWrapPolicy.WrapAllRows if widths[body] < 280
+                              else QFormLayout.RowWrapPolicy.WrapLongRows)
+                    if form.rowWrapPolicy() != policy:
+                        form.setRowWrapPolicy(policy)
+                # Style/font polishing can happen after the panel's resize on
+                # Windows. Measure the real control, including native padding.
+                for control in body.findChildren(QWidget):
+                    if not isinstance(control, (QPushButton, QCheckBox)):
+                        continue
+                    control.ensurePolished()
+                    if not hasattr(control, "_research_text"):
+                        control._research_text = control.text()
+                        control.setAccessibleName(control.text())
+                    metrics = control.fontMetrics()
+                    current_width = max((metrics.horizontalAdvance(line) for line in control.text().split("\n")), default=0)
+                    padding = max(0, control.sizeHint().width() - current_width)
+                    text = self._wrap_control_text(control._research_text, metrics, max(1, widths[body] - padding))
+                    if control.text() != text:
+                        control.setText(text)
+            for row, widgets in self._action_rows:
+                width = widths.get(row.parentWidget(), max(1, self.width() - 54))
+                needed = sum(w.sizeHint().width() for w in widgets) + max(0, row.spacing()) * (len(widgets) - 1)
+                direction = QBoxLayout.Direction.LeftToRight if needed <= width else QBoxLayout.Direction.TopToBottom
+                if direction != row.direction():
+                    row.setDirection(direction)
+            for body in self._page_scrolls:
+                # A newly shown stacked page must finish laying out children
+                # now, rather than display one frame of stale wide geometry.
+                body.layout().activate()
+        finally:
+            self._fitting_rows = False
+
+    @staticmethod
+    def _wrap_control_text(text, metrics, width):
+        lines = []
+        for paragraph in text.split("\n"):
+            line = ""
+            for word in paragraph.split(" "):
+                candidate = (line + " " + word) if line else word
+                if line and metrics.horizontalAdvance(candidate) > width:
+                    lines.append(line)
+                    line = ""
+                # Also support labels without spaces (including Korean words).
+                for char in ((" " if line else "") + word):
+                    if line and metrics.horizontalAdvance(line + char) > width:
+                        lines.append(line)
+                        line = ""
+                    line += char
+            lines.append(line)
+        return "\n".join(lines)
+
+    def eventFilter(self, watched, event):
+        if event.type() in (QEvent.Type.Resize, QEvent.Type.Show, QEvent.Type.LayoutRequest,
+                            QEvent.Type.FontChange, QEvent.Type.StyleChange):
+            self._fit_rows()
+        return super().eventFilter(watched, event)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -447,6 +515,7 @@ class ResearchPanel(QWidget):
         conv.addWidget(self._button("수렴 결과 저장", "Export comparison", self.export_series))
 
     def _mode_changed(self, index):
+        self._fit_rows()
         if index == 1 and hasattr(self, "devices"):
             self.devices.ensure_local_probe()
 
