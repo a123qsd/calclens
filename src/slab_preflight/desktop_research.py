@@ -12,7 +12,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import numpy as np
-from PySide6.QtCore import QEvent, QPointF, QRectF, Signal
+from PySide6.QtCore import QEvent, QPointF, QRectF, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QBoxLayout,
@@ -191,6 +191,10 @@ class ResearchPanel(QWidget):
         self._action_rows = []
         self._page_scrolls = {}
         self._fitting_rows = False
+        self._fit_generation = 0
+        self._fit_timer = QTimer(self)
+        self._fit_timer.setSingleShot(True)
+        self._fit_timer.timeout.connect(self._fit_rows)
         self._outer = QVBoxLayout(self)
         self._build()
         for form in self.findChildren(QFormLayout):
@@ -241,10 +245,13 @@ class ResearchPanel(QWidget):
     def _fit_rows(self):
         if self._fitting_rows:
             return
+        self._fit_timer.stop()
         self._fitting_rows = True
         try:
             widths = {}
             for body, scroll in self._page_scrolls.items():
+                if scroll is not self.stack.currentWidget():
+                    continue
                 margins = body.layout().contentsMargins()
                 widths[body] = max(1, scroll.viewport().width() - margins.left() - margins.right())
                 for form in body.findChildren(QFormLayout):
@@ -261,19 +268,25 @@ class ResearchPanel(QWidget):
                     if not hasattr(control, "_research_text"):
                         control._research_text = control.text()
                         control.setAccessibleName(control.text())
+                    key = (self._fit_generation, widths[body], control.font().toString())
+                    if getattr(control, "_research_wrap_key", None) == key:
+                        continue
                     metrics = control.fontMetrics()
                     current_width = max((metrics.horizontalAdvance(line) for line in control.text().split("\n")), default=0)
                     padding = max(0, control.sizeHint().width() - current_width)
                     text = self._wrap_control_text(control._research_text, metrics, max(1, widths[body] - padding))
                     if control.text() != text:
                         control.setText(text)
+                    control._research_wrap_key = key
             for row, widgets in self._action_rows:
-                width = widths.get(row.parentWidget(), max(1, self.width() - 54))
+                if row.parentWidget() not in widths:
+                    continue
+                width = widths[row.parentWidget()]
                 needed = sum(w.sizeHint().width() for w in widgets) + max(0, row.spacing()) * (len(widgets) - 1)
                 direction = QBoxLayout.Direction.LeftToRight if needed <= width else QBoxLayout.Direction.TopToBottom
                 if direction != row.direction():
                     row.setDirection(direction)
-            for body in self._page_scrolls:
+            for body in widths:
                 # A newly shown stacked page must finish laying out children
                 # now, rather than display one frame of stale wide geometry.
                 body.layout().activate()
@@ -300,8 +313,12 @@ class ResearchPanel(QWidget):
         return "\n".join(lines)
 
     def eventFilter(self, watched, event):
-        if event.type() in (QEvent.Type.Resize, QEvent.Type.Show, QEvent.Type.LayoutRequest,
-                            QEvent.Type.FontChange, QEvent.Type.StyleChange):
+        if event.type() in (QEvent.Type.FontChange, QEvent.Type.StyleChange):
+            # A stylesheet updates many descendants synchronously. Fit once
+            # after that cascade, when their final native metrics are valid.
+            self._fit_generation += 1
+            self._fit_timer.start(0)
+        elif event.type() in (QEvent.Type.Resize, QEvent.Type.Show, QEvent.Type.LayoutRequest):
             self._fit_rows()
         return super().eventFilter(watched, event)
 

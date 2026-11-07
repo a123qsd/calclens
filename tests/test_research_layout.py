@@ -75,6 +75,21 @@ def test_research_pages_fit_minimum_inspector_after_mode_and_font_changes(app, m
         scroll.ensureWidgetVisible(panel.frozen)
         QTest.mouseClick(panel.frozen, Qt.MouseButton.LeftButton, pos=QPoint(6, panel.frozen.height() // 2))
         assert panel.frozen.isChecked()
+        app.processEvents()
+        app.processEvents()
+        wrapping = []
+        original = type(panel)._wrap_control_text
+
+        def counted(*args):
+            wrapping.append(True)
+            return original(*args)
+
+        monkeypatch.setattr(type(panel), "_wrap_control_text", staticmethod(counted))
+        for _ in range(5):
+            panel._fit_rows()
+            window.statusBar().showMessage("Unrelated status update")
+            app.processEvents()
+        assert wrapping == []
     finally:
         window.dirty = False
         window.close()
