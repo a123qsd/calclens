@@ -22,9 +22,10 @@ def test_wine_is_labelled_and_a_loading_window_never_counts_as_passed(tmp_path, 
     exe = tmp_path / "app.exe"
     exe.write_bytes(b"synthetic executable")
     output = tmp_path / "measurements"
+    runner = tmp_path / "wine"
 
     def run(command, **options):
-        assert command[0] == "/wine"
+        assert command[0] == str(runner)
         assert "CALCLENS_STARTUP_PARENT_NS" not in options["env"]
         (output / "run-1.json").write_text(json.dumps({
             "ready": False, "milestones_ms": {"first_window": 5.0},
@@ -33,7 +34,7 @@ def test_wine_is_labelled_and_a_loading_window_never_counts_as_passed(tmp_path, 
 
     monkeypatch.setattr(BENCH.subprocess, "run", run)
     monkeypatch.setattr(BENCH.platform, "platform", lambda: "test host")
-    record = BENCH.measure(exe, output, runner=Path("/wine"), runs=3)
+    record = BENCH.measure(exe, output, runner=runner, runs=3)
     assert record["status"] == "failed"
     assert not record["windows_performance_measured"]
     assert record["environment"].startswith("Wine on ")
