@@ -24,7 +24,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-          cache-dependency-path: requirements-legacy.lock
+          cache-dependency-path: |
+            requirements-legacy.lock
+            packaging/desktop/requirements.lock
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: '26.7.0'
@@ -35,7 +37,7 @@ jobs:
         run: npm ci --ignore-scripts && npm run build && npm test
       - name: Verify committed browser assets match their sources
         run: git diff --exit-code -- src/slab_preflight/web_assets frontend/public/THIRD_PARTY_LICENSES.txt
-      - run: python -m pip install --require-hashes -r requirements-legacy.lock
+      - run: python -m pip install --require-hashes -r requirements-legacy.lock -r packaging/desktop/requirements.lock
       - run: python -m pip install --no-deps --no-build-isolation .
       - name: CLI smoke (English JSON and Korean CSV)
         run: |

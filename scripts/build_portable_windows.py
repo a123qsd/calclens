@@ -1,4 +1,4 @@
-"""Build a self-contained x64 Windows GUI from official CPython and locked Windows wheels.
+"""Build an extract-once Windows folder ZIP from CPython and locked Windows wheels.
 
 The build host needs Python, pip, packaging, and makensis. No Windows VM is
 required to assemble the executable. Validation of a built executable is separate.
@@ -18,6 +18,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import tomllib
 import urllib.request
 import zipfile
 
@@ -225,7 +226,7 @@ def collect_source(runtime):
     for name in ('LICENSE','THIRD_PARTY_NOTICES.md'):
         shutil.copyfile(ROOT/name,runtime/name)
     shutil.copyfile(ROOT/'packaging/desktop/CalcLens.ico',runtime/'CalcLens.ico')
-    (runtime/'desktop_start.py').write_text('from slab_preflight.desktop_entry import main\nraise SystemExit(main())\n')
+    shutil.copyfile(ROOT/'packaging/desktop/windows_bootstrap.py', runtime/'desktop_start.py')
     docs = runtime/'docs'
     if docs.exists():
         shutil.rmtree(docs)
@@ -248,59 +249,107 @@ def payload_files(runtime):
             and '__pycache__' not in p.parts and p.suffix!='.pyc'}
 
 
-def package(cache, runtime, output, makensis):
+def package(cache, runtime, output, makensis, *, distribution='folder'):
+    """Folder mode ships a tiny launcher beside runtime, never a runtime cache.
+
+    Self-extracting mode is explicit for comparison/legacy use, not the default.
+    """
+    if distribution not in ('folder', 'self-extracting'):
+        raise ValueError('Unknown Windows distribution format.')
     output = output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     files = payload_files(runtime)
     if any(Path(name).name.lower() in ('icuuc.dll','icuin.dll','icudt.dll') for name in files):
         raise ValueError('Test-prefix Windows system ICU DLLs must never enter the payload.')
     source_files = {name:value for name,value in files.items() if name.startswith(('src/','examples/','docs/'))}
-    record = {'schema_version':1,'application_version':'0.9.0',
+    version = tomllib.loads((ROOT/'pyproject.toml').read_text())['project']['version']
+    folder = distribution == 'folder'
+    record = {'schema_version':2,'application_version':version,
               'runtime':json.loads((runtime/'DESKTOP-RUNTIME.json').read_bytes()),
-              'launcher':'NSIS Unicode x86 self-extractor; application runtime AMD64',
+              'distribution':distribution,
+              'launcher':('NSIS Unicode x86 folder launcher; no per-launch runtime extraction'
+                          if folder else 'NSIS Unicode x86 per-launch self-extractor'),
               'builder_sha256':sha256(Path(__file__).read_bytes()).hexdigest(),
               'makensis_sha256':sha256(makensis.read_bytes()).hexdigest(),
               'launcher_icon_sha256':sha256((runtime/'CalcLens.ico').read_bytes()).hexdigest(),
               'source_tree_sha256':sha256(json.dumps(source_files,sort_keys=True).encode()).hexdigest(),
               'files':files}
     (runtime/'DESKTOP-BUILD.json').write_text(json.dumps(record,indent=2,sort_keys=True)+'\n')
-    # NSIS inserts files under the program's own temporary directory. Every invocation
-    # starts the bundled pythonw process and waits for its Qt event loop to finish.
     def quoted(path):
         return str(path).replace('$','$$').replace('"','$\\"')
+    launcher = cache/'CalcLens.exe' if folder else output
+    location = '$EXEDIR\\runtime' if folder else '$PLUGINSDIR\\CalcLens'
+    extraction = '' if folder else f'''  InitPluginsDir
+  System::Call 'kernel32::GetTickCount() i.r2'
+  SetOutPath "$PLUGINSDIR\\CalcLens"
+  File /r "{quoted(runtime)}/*"
+  System::Call 'kernel32::GetTickCount() i.r3'
+  IntOp $3 $3 - $2
+  System::Call 'kernel32::SetEnvironmentVariableW(w "CALCLENS_RUNTIME_UNPACK_MS", w r3)'
+'''
+    if folder:
+        extraction = '''  System::Call 'kernel32::SetEnvironmentVariableW(w "CALCLENS_RUNTIME_UNPACK_MS", w "0")'
+'''
     script = cache/'CalcLens-native.nsi'
     script.write_text(f'''Unicode true
 RequestExecutionLevel user
 Name "CalcLens"
 Icon "{quoted(runtime/'CalcLens.ico')}"
-OutFile "{quoted(output)}"
+OutFile "{quoted(launcher)}"
 SetCompressor /SOLID lzma
 SetCompressorDictSize 48
 SilentInstall silent
 AutoCloseWindow true
 !include FileFunc.nsh
 Section
-  InitPluginsDir
-  SetOutPath "$PLUGINSDIR\\CalcLens"
-  File /r "{quoted(runtime)}/*"
+{extraction}  IfFileExists "{location}\\pythonw.exe" runtime_present runtime_missing
+  runtime_missing:
+    MessageBox MB_ICONSTOP "CalcLens runtime is missing. Extract the entire ZIP before running CalcLens.exe.$\\r$\\nZIP 전체를 먼저 풀어 주세요."
+    SetErrorLevel 1
+    Quit
+  runtime_present:
   ${{GetParameters}} $0
   ClearErrors
-  ExecWait '"$PLUGINSDIR\\CalcLens\\pythonw.exe" -I -B "$PLUGINSDIR\\CalcLens\\desktop_start.py" $0' $1
-  IfErrors 0 +3
-    MessageBox MB_ICONSTOP "CalcLens could not start its desktop runtime."
+  ExecWait '"{location}\\pythonw.exe" -I -B "{location}\\desktop_start.py" $0' $1
+  IfErrors runtime_failed runtime_finished
+  runtime_failed:
+    MessageBox MB_ICONSTOP "CalcLens could not start Python. Extract the entire ZIP to a new folder.$\\r$\\nPython을 시작하지 못했습니다. ZIP 전체를 새 폴더에 다시 풀어 주세요."
     StrCpy $1 1
+    Goto finished
+  runtime_finished:
+    StrCmp $1 0 finished
+    MessageBox MB_ICONSTOP "CalcLens stopped with an error. Diagnostics: $LOCALAPPDATA\\CalcLens\\logs$\\r$\\n앱이 오류로 종료했습니다. 위 진단 폴더를 확인해 주세요."
+  finished:
   SetErrorLevel $1
 SectionEnd
 ''',encoding='utf-8-sig')
     subprocess.run([str(makensis),'-V2',str(script)],check=True)
     if payload_files(runtime) != files:
         raise ValueError('Payload changed during packaging.')
+    if folder:
+        top = f'CalcLens-{version}-Windows-x64'
+        with tempfile.TemporaryDirectory(prefix='.windows-zip-', dir=output.parent) as temporary:
+            archive_path = Path(temporary)/output.name
+            with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+                archive.write(launcher, f'{top}/CalcLens.exe')
+                archive.writestr(f'{top}/START-HERE.txt',
+                    'Extract the entire ZIP once, then open CalcLens.exe. Keep runtime next to it.\r\n'
+                    'ZIP 전체를 한 번 풀고 CalcLens.exe를 실행하세요. runtime 폴더를 함께 보관하세요.\r\n'
+                    'No administrator rights or separate Python install are needed.\r\n'
+                    'Diagnostic logs: %LOCALAPPDATA%\\CalcLens\\logs\r\n')
+                for path in sorted(runtime.rglob('*')):
+                    if path.is_file() and '__pycache__' not in path.parts and path.suffix != '.pyc':
+                        archive.write(path, f'{top}/runtime/{path.relative_to(runtime).as_posix()}')
+            if payload_files(runtime) != files:
+                raise ValueError('Payload changed during archive creation.')
+            archive_path.replace(output)
     summary = {key:value for key,value in record.items() if key!='files'}
     summary.update(executable=output.name,sha256=sha256(output.read_bytes()).hexdigest(),
-                   size_bytes=output.stat().st_size,launcher_pe_architecture=pe_architecture(output),
+                   size_bytes=output.stat().st_size,launcher_pe_architecture=pe_architecture(launcher),
+                   launcher_sha256=sha256(launcher.read_bytes()).hexdigest(),
                    payload_manifest_sha256=sha256((runtime/'DESKTOP-BUILD.json').read_bytes()).hexdigest(),
-                   validation='Build integrity only; native smoke must test this exact EXE separately.')
-    output.with_suffix('.exe.manifest.json').write_text(json.dumps(summary,indent=2,sort_keys=True)+'\n')
+                   validation='Build integrity only; test the extracted exact launcher separately.')
+    output.with_suffix(output.suffix+'.manifest.json').write_text(json.dumps(summary,indent=2,sort_keys=True)+'\n')
     print(json.dumps(summary,indent=2),flush=True)
     return summary
 
@@ -313,6 +362,8 @@ def main():
                         help='Reconstruct cleanly from verified cached archives without network.')
     parser.add_argument('--output',type=Path)
     parser.add_argument('--makensis',type=Path)
+    parser.add_argument('--format', choices=('folder', 'self-extracting'), default='folder',
+                        help='Default folder ZIP is extracted once; legacy EXE unpacks every run.')
     args=parser.parse_args()
     cache=args.cache.resolve()
     runtime=stage(cache,offline=args.use_staged_runtime)
@@ -320,7 +371,10 @@ def main():
     if not args.stage_only:
         if not args.output or not args.makensis:
             parser.error('--output and --makensis are required to build the executable')
-        package(cache,runtime,args.output,args.makensis)
+        required_suffix = '.zip' if args.format == 'folder' else '.exe'
+        if args.output.suffix.lower() != required_suffix:
+            parser.error(f'--format {args.format} requires an {required_suffix} output')
+        package(cache,runtime,args.output,args.makensis,distribution=args.format)
 
 
 if __name__=='__main__':

@@ -9,18 +9,23 @@ installed versions or copy its environment.
 The builder checks cached archive hashes again, selects only the required
 compatible wheels, verifies their dependency versions, and reconstructs a
 clean payload. `--use-staged-runtime` reuses verified cached archives without
-network access; it does not trust an old extracted payload. The selected
-interpreter, Qt and scientific-library files run from the executable's own
-temporary directory. `-I -B` preserves isolation from user Python packages and
-prevents runtime bytecode-cache writes. No browser or external service is
-needed for ordinary desktop startup.
+network access; it does not trust an old extracted payload.
+
+The default deliverable is a folder ZIP. Extract the complete ZIP once and
+open `CalcLens.exe` beside its `runtime` folder. Subsequent launches reuse
+these files directly. There is no shared extraction cache, per-launch runtime
+unpacking, installer or administrator requirement. Keep the complete extracted
+folder together; moving only its EXE removes the required runtime.
+
+`-I -B` isolates the embedded interpreter from user Python packages and
+prevents runtime bytecode-cache writes. Ordinary desktop startup runs locally.
 
 Build with the normal development Python environment and NSIS:
 
 ```sh
 NSISDIR=/path/to/nsis/share/nsis python scripts/build_portable_windows.py \
   --cache /path/to/builder-owned-cache \
-  --output /path/to/CalcLens-0.9.0-Windows-x64.exe \
+  --output /path/to/CalcLens-0.9.0-Windows-x64-folder.zip \
   --makensis /path/to/nsis/bin/makensis
 ```
 
@@ -28,15 +33,63 @@ Use `--stage-only` to prepare a runtime without compression. The cache's
 `payload` directory belongs exclusively to this builder and is replaced;
 never select a user project directory as the cache. A build records exact
 source/runtime hashes in `DESKTOP-BUILD.json` inside the payload and an
-`*.exe.manifest.json` sidecar. Every original wheel's license files remain
+`*.zip.manifest.json` sidecar. Every original wheel's license files remain
 under `Lib/site-packages`, CPython's license is `LICENSE.txt`, and
 `WINDOWS-RUNTIME-NOTICES.txt` describes the layout and source links.
 
-NSIS's Unicode self-extractor is an I386 PE launcher; it starts the bundled
-AMD64 interpreter/Qt application and waits for its exit status. The
+NSIS compiles a small I386 PE folder launcher; it starts the bundled AMD64
+interpreter/Qt application and waits for its exit status. The
 application requires x64 Windows with the usual WOW64 support for that
 launcher. It is not an application for 32-bit Windows or a native ARM64 build.
 Record launcher and runtime architectures separately when inspecting a build.
+
+The ZIP is written to a temporary sibling and replaced only after its complete
+payload has been checked against the build manifest. Extract upgrades into a
+new folder rather than merging runtime versions. Concurrent launches read the
+same immutable runtime and write separate per-process diagnostic logs.
+
+For a comparison with the previous solid-LZMA distribution, explicitly pass
+`--format self-extracting --output /path/to/CalcLens-comparison.exe`. That
+variant unpacks its runtime on every invocation. It measures that unpacking
+step with `GetTickCount` and records `runtime_unpack_ms`. The folder variant
+records zero runtime unpacking; this is a packaging property, not a claim
+that total application startup takes zero milliseconds.
+
+## Startup readiness and failure diagnostics
+
+The default desktop shows its main window before creating the research panel
+and completing its initial graphene analysis. The status bar reports progress
+and any failure. Data validation remains part of the background analysis.
+`--startup-trace TRACE.json` records Python entry, Qt/scientific imports, Qt
+initialization, the actual main window, completed default analysis, and a
+posted input response. A first window alone does not set `ready: true`.
+`--startup-benchmark TRACE.json` closes after those readiness events. Import,
+initialization and rendering durations are separate milestones.
+
+The bootstrap installs diagnostic logging before importing Qt or scientific
+packages. Logs are per process under `%LOCALAPPDATA%\CalcLens\logs`, with a
+temporary-folder fallback if that directory cannot be created. Logs contain
+error classes, frame locations and startup phases, without project contents,
+command-line arguments, exception argument values or remote tokens. Startup
+errors show a Windows error dialog even if Qt cannot initialize. The launcher
+also reports failure to start Python or an unexpected nonzero process exit.
+
+Run repeated measurements on the same Windows device and desktop settings:
+
+```powershell
+python scripts/benchmark_desktop_startup.py `
+  --exe C:\CalcLens\CalcLens.exe --runs 3 --output C:\timings\folder
+```
+
+The first run is labelled `first_observed`; OS disk caches are not cleared, so
+it is not labelled a cold-boot result. Later runs are labelled `repeat`. On
+Windows, a parent monotonic timestamp includes launcher/Python startup in the
+trace. `process_wall_ms` also includes orderly shutdown, which is distinct
+from readiness. For an old EXE without instrumentation, `--legacy-smoke`
+measures the complete native smoke only; that total cannot be presented as a
+first-window or first-input timing. Use `--runner /path/to/wine` for explicitly
+labelled Wine compatibility measurements. Wine timings do not establish
+Windows-machine performance or Windows GPU behavior.
 
 ## Isolated Wine validation
 

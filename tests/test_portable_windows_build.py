@@ -170,7 +170,7 @@ def test_generated_launcher_wires_approved_icon_and_isolated_runtime_with_manife
     compiler.write_bytes(b'synthetic compiler fixture')
     output=tmp_path/'app.exe'
     monkeypatch.setattr(BUILD.subprocess,'run',lambda *a,**k:output.write_bytes(fake_pe(0x14c)))
-    result=BUILD.package(tmp_path,runtime,output,compiler)
+    result=BUILD.package(tmp_path,runtime,output,compiler,distribution='self-extracting')
     text=(tmp_path/'CalcLens-native.nsi').read_text(encoding='utf-8-sig')
     icon_path = runtime / 'CalcLens.ico'
     assert f'Icon "{icon_path}"' in text
@@ -180,3 +180,31 @@ def test_generated_launcher_wires_approved_icon_and_isolated_runtime_with_manife
     manifest=json.loads(output.with_suffix('.exe.manifest.json').read_bytes())
     assert manifest['sha256']==sha256(output.read_bytes()).hexdigest()
     assert manifest['launcher_icon_sha256']==sha256((runtime/'CalcLens.ico').read_bytes()).hexdigest()
+
+
+def test_folder_launcher_never_extracts_runtime_and_archive_keeps_complete_layout(tmp_path,monkeypatch):
+    runtime=tmp_path/'payload'
+    runtime.mkdir()
+    (runtime/'CalcLens.ico').write_bytes(b'synthetic icon fixture')
+    (runtime/'pythonw.exe').write_bytes(fake_pe())
+    (runtime/'desktop_start.py').write_text('print("fixture")\n')
+    (runtime/'DESKTOP-RUNTIME.json').write_text('{"runtime_architecture":"AMD64"}')
+    compiler=tmp_path/'makensis'
+    compiler.write_bytes(b'synthetic compiler fixture')
+    output=tmp_path/'CalcLens-folder.zip'
+    monkeypatch.setattr(BUILD.subprocess,'run',lambda *a,**k:(tmp_path/'CalcLens.exe').write_bytes(fake_pe(0x14c)))
+    result=BUILD.package(tmp_path,runtime,output,compiler)
+    text=(tmp_path/'CalcLens-native.nsi').read_text(encoding='utf-8-sig')
+    assert 'File /r' not in text and '$PLUGINSDIR\\CalcLens' not in text
+    assert '$EXEDIR\\runtime\\pythonw.exe' in text
+    assert 'ExecWait' in text and 'RequestExecutionLevel user' in text
+    assert 'runtime_finished:' in text and 'StrCmp $1 0 finished' in text
+    with zipfile.ZipFile(output) as archive:
+        prefix='CalcLens-0.9.0-Windows-x64/'
+        assert archive.read(prefix+'CalcLens.exe')==fake_pe(0x14c)
+        assert archive.read(prefix+'runtime/pythonw.exe')==fake_pe()
+        build=json.loads(archive.read(prefix+'runtime/DESKTOP-BUILD.json'))
+        assert build['files']['desktop_start.py']==sha256((runtime/'desktop_start.py').read_bytes()).hexdigest()
+        assert archive.testzip() is None
+    assert result['distribution']=='folder'
+    assert result['sha256']==sha256(output.read_bytes()).hexdigest()
