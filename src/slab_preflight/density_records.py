@@ -9,7 +9,7 @@ import re
 
 import numpy as np
 
-from .density import MAX_CUBE_BYTES, density_difference, parse_cube
+from .density import MAX_CUBE_BYTES, _plane_geometry, density_difference, parse_cube
 from .native_fields import match_cube
 
 RECORD_SCHEMA_VERSION = 2
@@ -81,7 +81,8 @@ def _inputs(bundle, entry):
             raise ValueError("Retained density-difference source checksum mismatch.")
         grids.append(parse_cube(item["raw"], kind="density", units=bundle.get("units"),
                                 source_name=item["filename"]))
-    match_cube(grids[0], structure_for(entry))
+    structure = structure_for(entry)
+    match_cube(grids[0], structure)
     calculation = bundle.get("calculation")
     if version == RECORD_SCHEMA_VERSION:
         if (not isinstance(calculation, dict)
@@ -92,24 +93,26 @@ def _inputs(bundle, entry):
                 or calculation.get("source_scalar_units") != bundle["units"]
                 or calculation.get("output_scalar_units") != "e/angstrom^3"):
             raise ValueError("Retained calculation identity or conditions are inconsistent.")
-        if (calculation.get("structure_normal_axis") is None
-                and calculation.get("migration_note") != LEGACY_NORMAL_NOTE):
-            raise ValueError("A retained calculation cannot omit its original slab-axis declaration.")
-        normal = calculation.get("normal_vector")
-        if normal is None:
-            raise ValueError("Retained calculation is missing its original plane normal.")
-    else:
-        # Schema 1 saved the grid axis but omitted the slab normal entirely. Its
-        # current CIF axis may have changed, including to an unsupported setting.
-        # Recover the *unoriented plane* from immutable originals, document the
-        # missing orientation, and never infer from today's slab-normal setting.
-        others = [index for index in range(3) if index != bundle["axis"]]
-        normal = np.cross(grids[0].voxel_vectors_angstrom[others[0]],
-                          grids[0].voxel_vectors_angstrom[others[1]])
-        normal /= np.linalg.norm(normal)
-        if np.dot(normal, grids[0].voxel_vectors_angstrom[bundle["axis"]]) < 0:
-            normal = -normal
+        axis = calculation["structure_normal_axis"]
+        if axis is None:
+            if calculation.get("migration_note") != LEGACY_NORMAL_NOTE:
+                raise ValueError("A retained calculation cannot omit its original slab-axis declaration.")
+            expected = _plane_geometry(grids[0], bundle["axis"], None)["normal"]
+        else:
+            if "migration_note" in calculation or "cell" not in structure:
+                raise ValueError("Cannot verify the retained slab axis against the original P1 cell.")
+            # A named slab axis is the original CIF lattice vector, independent of
+            # whichever normal currently passes geometry screening.
+            expected = structure["cell"]["abc".index(axis)]
+        normal = np.asarray(calculation.get("normal_vector"), dtype=float)
+        if (normal.shape != (3,) or not np.isfinite(normal).all()
+                or not np.allclose(normal, expected, atol=1e-10, rtol=1e-10)):
+            raise ValueError("Retained slab axis and plane normal disagree with the original geometry.")
         normal = normal.tolist()
+    else:
+        # Schema 1 omitted the original slab normal. Use only the immutable Cube
+        # basis and declare the missing original orientation during migration.
+        normal = _plane_geometry(grids[0], bundle["axis"], None)["normal"]
     return grids, normal
 
 

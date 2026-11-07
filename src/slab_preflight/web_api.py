@@ -345,7 +345,7 @@ class Workspace:
                 continue
             return {
                 "atom_count": len(atoms), "elements": atoms.get_chemical_symbols(),
-                "positions": atoms.positions.tolist(),
+                "positions": atoms.positions.tolist(), "cell": atoms.cell.tolist(),
             }
         return None
 

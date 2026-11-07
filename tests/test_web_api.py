@@ -695,7 +695,7 @@ def test_unsupported_normal_preserves_raw_data_with_actual_source_structure_on_r
     assert loaded["normal_axis"] == "a"
     assert loaded["analysis"]["report"] is None
     assert loaded["analysis"]["auxiliary_structure"] == {
-        key: original_structure[key] for key in ("atom_count", "elements", "positions")
+        key: original_structure[key] for key in ("atom_count", "elements", "positions", "cell")
     }
     assert refreshed["project"]["workspace_state"] == state
     exported = request(api_server, "GET", "/api/v1/project/export")

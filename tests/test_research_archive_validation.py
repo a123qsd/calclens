@@ -72,3 +72,31 @@ def test_partial_occupancy_and_missing_validated_geometry_are_still_rejected():
         ResearchPanel.validate_state(project.workspace_state, [entry])
     with pytest.raises(ValueError, match="validated original P1"):
         replay_difference(bundle, entry)
+
+
+def test_archived_axis_and_changed_draft_are_identified_without_reinterpreting_record(tmp_path):
+    from PySide6.QtWidgets import QApplication
+    from slab_preflight.desktop import MainWindow
+    from slab_preflight.project import dumps_project_archive
+    import time
+
+    app = QApplication.instance() or QApplication([])
+    project, _, _, _, _ = retained()
+    path = tmp_path / "archive.calclens.zip"
+    path.write_bytes(dumps_project_archive(project))
+    window = MainWindow("en", root=ROOT, recovery=False)
+    try:
+        window.open_project(path, confirm=False)
+        deadline = time.monotonic() + 8
+        while window.is_busy and time.monotonic() < deadline:
+            app.processEvents()
+            time.sleep(.005)
+        panel = window.research_panel
+        assert "differs from current fragment" not in panel.archive_info.text()
+        panel.method.setText("changed method")
+        panel._store_draft()
+        assert "differs from current fragment" in panel.archive_info.text()
+        assert panel._archive()[0]["method"] == "Synthetic method declaration"
+    finally:
+        window.dirty = False
+        window.close()

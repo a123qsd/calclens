@@ -5,6 +5,7 @@ from hashlib import sha256
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from slab_preflight.core import analyze_cif
 from slab_preflight.density import cube_bytes, parse_cube
@@ -106,3 +107,11 @@ def test_self_identifying_cube_comments_do_not_change_normalized_scalar_or_atoms
     np.testing.assert_array_equal(reread.atom_positions_angstrom, result.grid.atom_positions_angstrom)
     assert reread.atom_record_charges == result.grid.atom_record_charges
     assert b'"dataset_id": "difference"' in exported.splitlines()[1]
+
+
+def test_stored_axis_label_must_match_immutable_lattice_vector():
+    _, entry, bundle, *_ = retained()
+    entry["normal_axis"] = "a"
+    bundle["calculation"]["structure_normal_axis"] = "a"
+    with pytest.raises(ValueError, match="axis and plane normal"):
+        replay_difference(bundle, entry)

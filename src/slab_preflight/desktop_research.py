@@ -888,19 +888,33 @@ class ResearchPanel(QWidget):
             self.archive_details.clear()
             self.archive_details.hide()
             return
-        calculation = record.get("calculation", {})
-        recorded_axis = calculation.get("structure_normal_axis")
-        current_axis = (self.entry or {}).get("normal_axis")
+        self._update_archive_status(record, item)
+        details = calculation_record(record, item, self.entry)
+        self.archive_details.setPlainText(json.dumps(details, ensure_ascii=False, indent=2))
+
+    def _update_archive_status(self, record, item):
+        recorded_axis = record.get("calculation", {}).get("structure_normal_axis")
         status = self.t("보관 계산", "Retained calculation")
         if recorded_axis is None:
             status += self.t(" · 이전 형식: 원래 법선 방향 미기록", " · legacy: original slab-normal orientation not recorded")
-        elif recorded_axis != current_axis:
+        elif recorded_axis != (self.entry or {}).get("normal_axis"):
             status += self.t(" · 현재 분석 축과 다름", " · differs from the current analysis axis")
+        try:
+            mappings = [[int(n) for n in field.text().replace(",", " ").split()]
+                        for field in (self.a_indices, self.b_indices)]
+        except ValueError:
+            mappings = None
+        sources = record["sources"]
+        source_changed = any(self._fragments.get(role, {}).get(key) != source[key]
+                             for role, source in sources.items() for key in ("filename", "raw"))
+        if (record["axis"] != self.axis.currentIndex() or record["units"] != self.frag_units.currentText()
+                or record["frozen"] != self.frozen.isChecked() or record["method"] != self.method.text()
+                or record["conditions"] != self.conditions.text() or mappings != [record["a_indices"], record["b_indices"]]
+                or source_changed):
+            status += self.t(" · 현재 조각 입력 또는 계산 조건과 다름", " · differs from current fragment inputs or settings")
         status += f"\n{item['filename']} · {item['kind']} · e/angstrom^3 · "
         status += self.t("계산 평면 축 ", "computed grid plane axis ") + "abc"[record["axis"]]
         self.archive_info.setText(status)
-        details = calculation_record(record, item, self.entry)
-        self.archive_details.setPlainText(json.dumps(details, ensure_ascii=False, indent=2))
 
     def _toggle_archive_details(self):
         self.archive_details.setVisible(not self.archive_details.isVisible())
@@ -974,6 +988,9 @@ class ResearchPanel(QWidget):
 
         token = getattr(view, "_research_selection", 0) + 1
         view._research_selection = token
+        if view.report is None:
+            view.clear_electronic()
+            return
         sources = {
             item["id"]: (tag, item)
             for tag, item in sources_for(self.aux, self.native.get("signed", {}), entry["sha256"])
@@ -1022,6 +1039,9 @@ class ResearchPanel(QWidget):
         self.changed.emit()
 
     def _apply_charge(self):
+        if self.window.view.report is None:
+            self.window.view.set_charges(None)
+            return
         item = self._source("charge", self.charge.currentData())
         if item:
             values, meta = self._decode("charge", item)
@@ -1140,6 +1160,11 @@ class ResearchPanel(QWidget):
             attach(read())
 
     def draw_surface(self, save=True):
+        if self.window.view.report is None:
+            if save:
+                raise ValueError(self.t("현재 분석 축에서는 표면을 표시할 수 없습니다.",
+                                        "A supported geometry is required to display a surface."))
+            return
         item = self._source("volume", self.volume.currentData())
         if not item:
             raise ValueError(self.t("Cube 자료를 선택하세요.", "Select a Cube dataset."))
@@ -1288,6 +1313,9 @@ class ResearchPanel(QWidget):
         if verify_size:
             validate_workspace_state(state)
         self.native["drafts"] = drafts
+        record, item = self._archive()
+        if record and item:
+            self._update_archive_status(record, item)
         self.changed.emit()
 
     def _restore_draft(self):
@@ -1386,7 +1414,7 @@ class ResearchPanel(QWidget):
         from .compute_devices import minimum_image_pair_distances
 
         report = self._report()
-        if "cell" not in report:
+        if not self.entry["analysis"].get("report"):
             raise ValueError("A supported geometric report is required.")
         choice = self._compute()
         if not choice:
