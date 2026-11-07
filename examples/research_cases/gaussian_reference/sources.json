@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "kind": "public_gaussian_reference_logs",
+  "origin": "cclib/cclib repository test data",
+  "repository_commit": "0c6e08e0a0d04b308201666793030ef3b77b2973",
+  "license": "BSD-3-Clause; retained full root license in LICENSE.cclib",
+  "files": [
+    {
+      "path": "dvb_dispersion_bp86_d3zero.out",
+      "sha256": "a6dc80ba77c392977249474d814044769c0877ecd86a468eefe492e4c730066e",
+      "size_bytes": 39580,
+      "source_url": "https://raw.githubusercontent.com/cclib/cclib/0c6e08e0a0d04b308201666793030ef3b77b2973/data/Gaussian/basicGaussian16/dvb_dispersion_bp86_d3zero.out",
+      "original_repository_path": "data/Gaussian/basicGaussian16/dvb_dispersion_bp86_d3zero.out"
+    },
+    {
+      "path": "dvb_gopt.out",
+      "sha256": "f4e280b32b0d9f25ac7a21cfe47e810fe5cecb8b669e8d9751329a0ffded260d",
+      "size_bytes": 210729,
+      "source_url": "https://raw.githubusercontent.com/cclib/cclib/0c6e08e0a0d04b308201666793030ef3b77b2973/data/Gaussian/basicGaussian16/dvb_gopt.out",
+      "original_repository_path": "data/Gaussian/basicGaussian16/dvb_gopt.out"
+    },
+    {
+      "path": "dvb_ir.out",
+      "sha256": "bc1a21de15ada135d5188b11d44226389022d92488ddfa8163ba7d4d713e5061",
+      "size_bytes": 185543,
+      "source_url": "https://raw.githubusercontent.com/cclib/cclib/0c6e08e0a0d04b308201666793030ef3b77b2973/data/Gaussian/basicGaussian16/dvb_ir.out",
+      "original_repository_path": "data/Gaussian/basicGaussian16/dvb_ir.out"
+    },
+    {
+      "path": "LICENSE.cclib",
+      "sha256": "a9ed52f8c54cfefc4c9a02681e074eb7082fb29137db0b7977f40ca6ebf667a4",
+      "size_bytes": 1526,
+      "source_url": "https://raw.githubusercontent.com/cclib/cclib/0c6e08e0a0d04b308201666793030ef3b77b2973/LICENSE",
+      "original_repository_path": "LICENSE"
+    }
+  ],
+  "scope": "Reference parser inputs generated previously by upstream; no local Gaussian execution or researcher trials claimed."
+}

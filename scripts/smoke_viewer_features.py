@@ -524,6 +524,129 @@ def assert_scene_restored(before, after):
         require(before[key] == after[key], f"Image export did not restore {key}: {before[key]} vs {after[key]}")
 
 
+def png_source_and_footer(page, raw_path, annotated_path):
+    """Compare the cropped source area with the actual unannotated download."""
+    return page.evaluate("""async ([raw, annotated]) => {
+        const decode = async encoded => {
+            const image = new Image(); image.src = 'data:image/png;base64,' + encoded;
+            await image.decode(); return image;
+        };
+        const a = await decode(raw), b = await decode(annotated);
+        if (a.width !== b.width || a.height >= b.height) throw Error('Annotation changed the source width or added no footer.');
+        const canvas = document.createElement('canvas'); canvas.width = b.width; canvas.height = b.height;
+        const ctx = canvas.getContext('2d'); ctx.drawImage(a, 0, 0);
+        const original = ctx.getImageData(0, 0, a.width, a.height).data;
+        ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(b, 0, 0);
+        const cropped = ctx.getImageData(0, 0, a.width, a.height).data;
+        let maximumError = 0, changedChannels = 0, alphaError = 0;
+        for (let i = 0; i < original.length; i++) {
+            const error = Math.abs(original[i] - cropped[i]);
+            maximumError = Math.max(maximumError, error);
+            if (error) changedChannels++;
+            if (i % 4 === 3) alphaError = Math.max(alphaError, error);
+        }
+        const footer = ctx.getImageData(0, a.height, b.width, b.height-a.height).data;
+        let inkPixels = 0, transparentFooterPixels = 0;
+        for (let i = 0; i < footer.length; i += 4) {
+            if (footer[i+3] !== 255) transparentFooterPixels++;
+            if (footer[i] < 230 || footer[i+1] < 230 || footer[i+2] < 230) inkPixels++;
+        }
+        return {sourceWidth:a.width, sourceHeight:a.height, footerHeight:b.height-a.height,
+            maximumError, changedChannels, alphaError, inkPixels, transparentFooterPixels,
+            sourceCorner:[...cropped.slice(0,4)], footerCorner:[...footer.slice(0,4)]};
+    }""", [base64.b64encode(path.read_bytes()).decode("ascii")
+           for path in (raw_path, annotated_path)])
+
+
+def check_annotated_png(page, output, expect):
+    """Verify displayed metadata, actual download pixels and omitted hidden data."""
+    expect(page.get_by_test_id("viewer-export-annotated")).not_to_be_checked()
+    page.get_by_test_id("viewer-quality").select_option("balanced")
+    page.get_by_test_id("viewer-export-size").select_option("1600")
+    page.get_by_test_id("viewer-export-background").select_option("transparent")
+    settle(page)
+    before = scene_state(page)
+    with page.expect_download(timeout=60_000) as pending:
+        page.get_by_test_id("viewer-export-png").click()
+    raw_path = output / "annotated-reference-raw.png"
+    pending.value.save_as(raw_path)
+    expect(page.get_by_test_id("viewer-export-png")).to_be_enabled(timeout=60_000)
+    settle(page)
+    page.evaluate("""() => {
+        window.__pngFooterTexts = [];
+        window.__pngOriginalFillText = CanvasRenderingContext2D.prototype.fillText;
+        CanvasRenderingContext2D.prototype.fillText = function(text, x, y, ...rest) {
+            window.__pngFooterTexts.push({text:String(text), x, y});
+            return window.__pngOriginalFillText.call(this, text, x, y, ...rest);
+        };
+    }""")
+    try:
+        page.get_by_test_id("viewer-export-annotated").check()
+        with page.expect_download(timeout=60_000) as pending:
+            page.get_by_test_id("viewer-export-png").click()
+        annotated_path = output / "viewer-annotated-scientific.png"
+        pending.value.save_as(annotated_path)
+        require(pending.value.failure() is None, "Annotated PNG download failed.")
+        expect(page.get_by_test_id("viewer-export-png")).to_be_enabled(timeout=60_000)
+        settle(page)
+        header = png_header(annotated_path)
+        scientific_filename = pending.value.suggested_filename
+        require(scientific_filename.endswith(f"-{header['width']}x{header['height']}.png"),
+                "Annotated filename does not describe the resulting PNG dimensions.")
+        drawn = page.evaluate("window.__pngFooterTexts")
+        text = " ".join(item["text"] for item in drawn)
+        compact_text = "".join(text.split())
+        entry = selected_entry(page)
+        require(entry["sha256"] in compact_text and entry["filename"] in compact_text,
+                "Scientific footer lost the exact current source filename/hash.")
+        require(entry["analysis"]["report"]["formula"] in text and "Selected normal: c" in text,
+                "Scientific footer omitted the current formula or normal.")
+        require("Partial charge" in text and "Color range" in text and "Charge method:" in text
+                and "Synthetic browser test assignment" in text and "Charge source:" in text,
+                "Scientific footer omitted the displayed charge quantity/range/method/source.")
+        require("Unknown charge" in text, "The scientific legend did not retain unknown charge values.")
+        level = page.get_by_test_id("viewer-isovalue").input_value()
+        printed_level = page.evaluate("value => Number(value).toPrecision(6)", level)
+        require("Displayed isovalues" in text and f"+{printed_level}" in text
+                and f"−{printed_level}" in text and "arbitrary" in text and "Volume source:" in text,
+                "Scientific footer omitted actual signed isovalues/units/source.")
+        pixels = png_source_and_footer(page, raw_path, annotated_path)
+        require(pixels["maximumError"] <= 1 and pixels["alphaError"] == 0,
+                f"Annotation changed the cropped raw image area: {pixels!r}")
+        require(pixels["sourceCorner"][3] == 0 and pixels["footerCorner"] == [255, 255, 255, 255],
+                "Transparent image area and white footer are not preserved.")
+        require(pixels["inkPixels"] > 1000 and pixels["transparentFooterPixels"] == 0,
+                "Scientific footer is blank or incorrectly transparent.")
+        require(all(item["y"] >= pixels["sourceHeight"] for item in drawn),
+                "Scientific text overlays/crops the original image area.")
+        assert_scene_restored(before, scene_state(page))
+        # Loaded but hidden electronic datasets must not produce scientific claims.
+        page.get_by_test_id("viewer-color").select_option("element")
+        page.get_by_test_id("viewer-volume-enabled").uncheck()
+        settle(page)
+        page.evaluate("window.__pngFooterTexts = []")
+        with page.expect_download(timeout=60_000) as pending:
+            page.get_by_test_id("viewer-export-png").click()
+        pending.value.save_as(output / "viewer-annotated-geometry-only.png")
+        expect(page.get_by_test_id("viewer-export-png")).to_be_enabled(timeout=60_000)
+        hidden_text = " ".join(item["text"] for item in page.evaluate("window.__pngFooterTexts"))
+        require("Charge method:" not in hidden_text and "Volume source:" not in hidden_text
+                and "Displayed isovalues" not in hidden_text,
+                "Hidden data were incorrectly included in the PNG scientific footer.")
+        return {"download": header, "filename": scientific_filename,
+                "source_crop_and_footer": pixels, "drawn_text": text,
+                "hidden_electronic_data_omitted": True}
+    finally:
+        page.evaluate("""() => {
+            CanvasRenderingContext2D.prototype.fillText = window.__pngOriginalFillText;
+            delete window.__pngOriginalFillText; delete window.__pngFooterTexts;
+        }""")
+        page.get_by_test_id("viewer-export-annotated").uncheck()
+        page.get_by_test_id("viewer-color").select_option("partial_charge")
+        page.get_by_test_id("viewer-volume-enabled").check()
+        settle(page)
+
+
 def check_png(page, output, expect):
     # Use the application's actual measurement path to produce a distance annotation.
     measurement = page.locator("details.tool-card").filter(has=page.get_by_text("Measure atom pair", exact=True))
@@ -564,6 +687,7 @@ def check_png(page, output, expect):
     require(abs(images[1]["width"] - 2 * images[0]["width"]) <= 1
             and abs(images[1]["height"] - 2 * images[0]["height"]) <= 1,
             "The 3200-pixel PNG is not twice the 1600-pixel PNG dimensions.")
+    annotated = check_annotated_png(page, output, expect)
     canvas(page).evaluate("""element => {
         const v=element._3dmol_viewer; v.__originalPngURI=v.pngURI;
         v.pngURI=()=>{throw Error('Synthetic PNG export failure');};
@@ -575,7 +699,8 @@ def check_png(page, output, expect):
         assert_scene_restored(before, scene_state(page))
     finally:
         canvas(page).evaluate("element => {const v=element._3dmol_viewer; v.pngURI=v.__originalPngURI; delete v.__originalPngURI;}")
-    return {"downloads": images, "restored_on_success": True, "restored_on_failure": True}
+    return {"downloads": images, "annotated": annotated,
+            "restored_on_success": True, "restored_on_failure": True}
 
 
 def check_fullscreen_and_panel(page, expect):

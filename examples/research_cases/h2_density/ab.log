@@ -1,0 +1,37 @@
+Actual PySCF 2.12.0 calculation: AB
+PySCF 2.12.0 UHF/STO-3G; common full H2 AO basis with ghost-H centers
+Frozen H2 nuclei at 0.74 angstrom; neutral AB singlet (2 electrons), neutral A/B doublets (1 electron each); isolated gas phase, no periodic electronic calculation; same STO-3G functions on both dimer centers via ghosts, same Cartesian grid/origin/voxel basis; SCF energy tolerance 1e-12 hartree, gradient tolerance 1e-8; no density renormalization
+{"centers_bohr": [{"element": "H", "position": [10.639158081643085, 11.338356747754622, 11.338356747754622]}, {"element": "H", "position": [12.037555413866157, 11.338356747754622, 11.338356747754622]}], "charge": 0, "real_indices_zero_based": [0, 1], "role": "AB", "spin_Nalpha_minus_Nbeta": 0}
+
+
+******** <class 'pyscf.scf.uhf.UHF'> ********
+method = UHF
+initial guess = 1e
+damping factor = 0
+level_shift factor = 0
+DIIS = <class 'pyscf.scf.diis.CDIIS'>
+diis_start_cycle = 1
+diis_space = 8
+diis_damp = 0
+SCF conv_tol = 1e-12
+SCF conv_tol_grad = 1e-08
+SCF max_cycles = 100
+direct_scf = True
+direct_scf_tol = 1e-13
+max_memory 4000 MB (current use 0 MB)
+number electrons alpha = 1  beta = 1
+Initial guess from hcore.
+  alpha nocc = 1  HOMO = -1.2533097866316  LUMO = -0.475068848787149
+  beta  nocc = 1  HOMO = -1.2533097866316  LUMO = -0.475068848787149
+init E= -0.783437393048156
+  alpha nocc = 1  HOMO = -0.847930816392072  LUMO = 0.410766154596044
+  beta  nocc = 1  HOMO = -0.529118895157071  LUMO = 0.429893022224608
+cycle= 1 E= -1.11675930739518  delta_E= -0.333  |g|=    0  |ddm|= 0.426
+  alpha nocc = 1  HOMO = -0.578553859821689  LUMO = 0.671143491889685
+  beta  nocc = 1  HOMO = -0.578553859821689  LUMO = 0.671143491889685
+cycle= 2 E= -1.11675930739518  delta_E=    0  |g|=    0  |ddm|=    0
+  alpha nocc = 1  HOMO = -0.578553859821689  LUMO = 0.671143491889685
+  beta  nocc = 1  HOMO = -0.578553859821689  LUMO = 0.671143491889685
+Extra cycle  E= -1.11675930739518  delta_E=    0  |g|=    0  |ddm|=    0
+converged SCF energy = -1.11675930739518  <S^2> = 0  2S+1 = 1
+Independent CPU matrix checks: {"alpha_beta_electrons": [1, 1], "ao_count": 2, "basis": "STO-3G at both full-dimer centers", "converged": true, "cycles": 2, "electrons": 2, "energy_hartree": -1.116759307395182, "independent_energy_hartree": -1.1167593073951825, "method": "UHF", "multiplicity_from_spin_squared": 1.0, "overlap_electron_count": 1.9999999999999998, "role": "AB", "spin_squared": 0.0, "stationary_commutator_norm": 1.2412670766236366e-16}

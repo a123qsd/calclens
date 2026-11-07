@@ -287,3 +287,12 @@ def test_existing_symlink_output_is_rejected_before_any_asset_write(source_repo,
         release.build_release(source_repo)
     assert target.read_text() == "preserve me"
     assert list(destination.iterdir()) == [destination / "SHA256SUMS.txt"]
+
+
+def test_source_default_opens_native_program_with_selected_cif(tmp_path, monkeypatch):
+    from slab_preflight import desktop
+    calls = []
+    monkeypatch.setattr(launcher.subprocess, 'run', lambda *a, **k: pytest.fail('Unexpected browser/server subprocess'))
+    monkeypatch.setattr(desktop, 'main', lambda **options: calls.append(options) or 0)
+    assert launcher.main(['--language','en','sample.cif'],project_dir=tmp_path) == 0
+    assert calls == [{'language':'en','root':tmp_path.resolve(),'argv':['CalcLens','sample.cif']}]

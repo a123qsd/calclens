@@ -1,0 +1,108 @@
+{
+  "platform": "darwin",
+  "architecture": "arm64",
+  "units": "seconds and mebibytes",
+  "method": "Three fresh processes per operation; peak RSS includes interpreter and loaded libraries. No GPU was requested.",
+  "measurements": [
+    {
+      "operation": "cif_parse",
+      "runs": [
+        {
+          "operation": "cif_parse",
+          "source": "400-site synthetic square sheet; timing fixture only",
+          "seconds": 0.0037304169964045286,
+          "peak_process_rss_mib": 76.3125
+        },
+        {
+          "operation": "cif_parse",
+          "source": "400-site synthetic square sheet; timing fixture only",
+          "seconds": 0.0038543340051546693,
+          "peak_process_rss_mib": 76.234375
+        },
+        {
+          "operation": "cif_parse",
+          "source": "400-site synthetic square sheet; timing fixture only",
+          "seconds": 0.0038147080049384385,
+          "peak_process_rss_mib": 76.0625
+        }
+      ],
+      "median_seconds": 0.0038147080049384385,
+      "max_process_rss_mib": 76.3125
+    },
+    {
+      "operation": "cif_analyze",
+      "runs": [
+        {
+          "operation": "cif_analyze",
+          "source": "400-site synthetic square sheet; timing fixture only",
+          "seconds": 0.03928041600011056,
+          "peak_process_rss_mib": 81.1875
+        },
+        {
+          "operation": "cif_analyze",
+          "source": "400-site synthetic square sheet; timing fixture only",
+          "seconds": 0.038964209001278505,
+          "peak_process_rss_mib": 81.015625
+        },
+        {
+          "operation": "cif_analyze",
+          "source": "400-site synthetic square sheet; timing fixture only",
+          "seconds": 0.03843050000432413,
+          "peak_process_rss_mib": 81.1875
+        }
+      ],
+      "median_seconds": 0.038964209001278505,
+      "max_process_rss_mib": 81.1875
+    },
+    {
+      "operation": "cube_parse",
+      "runs": [
+        {
+          "operation": "cube_parse",
+          "source": "examples/research_cases/h2_density/ab.cube",
+          "seconds": 0.03432991699810373,
+          "peak_process_rss_mib": 94.46875
+        },
+        {
+          "operation": "cube_parse",
+          "source": "examples/research_cases/h2_density/ab.cube",
+          "seconds": 0.03505870899971342,
+          "peak_process_rss_mib": 94.46875
+        },
+        {
+          "operation": "cube_parse",
+          "source": "examples/research_cases/h2_density/ab.cube",
+          "seconds": 0.035265167003672104,
+          "peak_process_rss_mib": 94.515625
+        }
+      ],
+      "median_seconds": 0.03505870899971342,
+      "max_process_rss_mib": 94.515625
+    },
+    {
+      "operation": "native_mesh",
+      "runs": [
+        {
+          "operation": "native_mesh",
+          "source": "examples/research_cases/h2_density/ab.cube; level 0.12 e/angstrom^3, 3648 triangles",
+          "seconds": 0.00436812499538064,
+          "peak_process_rss_mib": 94.515625
+        },
+        {
+          "operation": "native_mesh",
+          "source": "examples/research_cases/h2_density/ab.cube; level 0.12 e/angstrom^3, 3648 triangles",
+          "seconds": 0.004186040998320095,
+          "peak_process_rss_mib": 94.5
+        },
+        {
+          "operation": "native_mesh",
+          "source": "examples/research_cases/h2_density/ab.cube; level 0.12 e/angstrom^3, 3648 triangles",
+          "seconds": 0.004274625003745314,
+          "peak_process_rss_mib": 94.359375
+        }
+      ],
+      "median_seconds": 0.004274625003745314,
+      "max_process_rss_mib": 94.515625
+    }
+  ]
+}

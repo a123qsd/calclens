@@ -25,6 +25,7 @@ export interface GeometryReport {
   short_distance_threshold_angstrom: number; short_contacts: Contact[];
   short_contact_count: number; short_contacts_truncated: boolean;
   issues: Issue[]; assumptions: string[]; limitations: string[];
+  provenance?: { original_filename: string; sha256: string; calclens_version?: string; ase_version?: string };
 }
 export interface PairSelection {
   i: number; j: number; first_shift: Vec3; second_shift: Vec3;
@@ -54,6 +55,7 @@ export interface Workspace {
 export interface Measurement { i: number; j: number; displayed: Contact; minimum_image: Contact }
 export interface MolecularViewerProps {
   report: GeometryReport; language: Language;
+  source?: { filename: string; sha256: string };
   highlight?: Contact | null;
   highlightGap?: boolean;
   highlightedAtomIndices?: number[];

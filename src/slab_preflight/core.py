@@ -22,6 +22,7 @@ from ase.io.cif import parse_cif
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_ATOMS = 400
 MAX_CONTACTS = 200
+OCCUPANCY_TOLERANCE = 1e-8
 OVERLAP_TOLERANCE = 1e-5
 PERPENDICULAR_ANGLE_TOLERANCE = 1e-5
 AMBIGUOUS_GAP_MIN = 3.0
@@ -32,6 +33,73 @@ COMPETING_GAP_RATIO = 0.5
 
 class UnsupportedStructure(ValueError):
     """The input cannot be interpreted within this tool's supported scope."""
+
+
+# Only declared aliases are interchangeable. Replacing every dot with an
+# underscore can silently reinterpret unknown data names as supported fields.
+# IUCr coreCIF: https://www.iucr.org/__data/iucr/cifdic_html/3/CORE_DIC/index.html
+_CIF_ALIAS_FIELDS = {
+    "cell": ("length_a", "length_b", "length_c", "angle_alpha", "angle_beta", "angle_gamma"),
+    "atom_site": (
+        "label", "type_symbol", "fract_x", "fract_y", "fract_z",
+        "cartn_x", "cartn_y", "cartn_z", "occupancy",
+        "disorder_assembly", "disorder_group", "symmetry_multiplicity",
+    ),
+    "space_group": (
+        "it_number", "name_h-m_alt", "name_h-m_ref", "name_hall",
+        "it_coordinate_system_code", "origin_choice", "crystal_system",
+    ),
+    "space_group_symop": ("operation_xyz",),
+    "symmetry": (
+        "int_tables_number", "space_group_name_h-m", "space_group_name_hall",
+        "space_group_setting", "cell_setting",
+    ),
+    "symmetry_equiv": ("pos_as_xyz",),
+}
+_CIF_TAG_ALIASES = {
+    alias: f"_{category}_{field}"
+    for category, fields in _CIF_ALIAS_FIELDS.items()
+    for field in fields
+    for alias in (f"_{category}_{field}", f"_{category}.{field}")
+}
+_CIF_TAG_ALIASES.update({
+    "_atom_site_site_symmetry_multiplicity": "_atom_site_symmetry_multiplicity",
+    "_atom_site.site_symmetry_multiplicity": "_atom_site_symmetry_multiplicity",
+})
+for _legacy, _canonical in (
+    ("symmetry.int_tables_number", "_space_group_it_number"),
+    ("symmetry.space_group_name_h-m", "_space_group_name_h-m_alt"),
+    ("symmetry.space_group_name_hall", "_space_group_name_hall"),
+    ("symmetry_equiv.pos_as_xyz", "_space_group_symop_operation_xyz"),
+):
+    _CIF_TAG_ALIASES[f"_{_legacy}"] = _canonical
+    _CIF_TAG_ALIASES[f"_{_legacy.replace('.', '_')}"] = _canonical
+# These describe uncertainty/refinement, not the occupancy value itself.
+_OCCUPANCY_ANNOTATIONS = {
+    f"_atom_site{separator}{field}"
+    for separator in ("_", ".")
+    for field in ("occupancy_su", "occupancy_esd", "refinement_flags_occupancy")
+}
+
+
+def _normalize_cif_tags(block: Any) -> dict[str, Any]:
+    """Resolve the same supported names at both analysis and preparation entrypoints."""
+    normalized: dict[str, Any] = {}
+    for original in block:
+        raw = original.lower()
+        key = _CIF_TAG_ALIASES.get(raw, raw)
+        if raw not in _CIF_TAG_ALIASES and raw not in _OCCUPANCY_ANNOTATIONS:
+            compact = re.sub(r"[_.-]", "", raw)
+            if compact.startswith("atomsite") and any(
+                marker in compact for marker in ("occupancy", "disorder", "multiplicity")
+            ):
+                raise UnsupportedStructure(
+                    f"Unsupported occupancy, disorder, or multiplicity CIF tag: {original}."
+                )
+        if key in normalized:
+            raise UnsupportedStructure("Repeated CIF tag aliases are ambiguous and unsupported.")
+        normalized[key] = block[original]
+    return normalized
 
 
 def _issue(
@@ -68,6 +136,41 @@ def _numeric(value: Any, description: str) -> float:
     if not math.isfinite(result):
         raise UnsupportedStructure(f"{description} must be a finite number.")
     return result
+
+
+def _site_metadata_column(block: Any, key: str, count: int) -> list[Any]:
+    values = block[key]
+    if not isinstance(values, list) or len(values) != count:
+        raise UnsupportedStructure(
+            "Occupancy, disorder, and multiplicity must be site-loop columns matching the site count."
+        )
+    return values
+
+
+def _validate_site_metadata(block: Any, count: int) -> bool:
+    """Validate occupancy/disorder; return whether occupancy was explicitly provided."""
+    explicit_occupancy = "_atom_site_occupancy" in block
+    if explicit_occupancy:
+        values = _site_metadata_column(block, "_atom_site_occupancy", count)
+        if any(abs(_numeric(value, "Occupancy") - 1) > OCCUPANCY_TOLERANCE for value in values):
+            raise UnsupportedStructure("Only fully occupied sites (occupancy 1) are supported.")
+    for key in ("_atom_site_disorder_assembly", "_atom_site_disorder_group"):
+        if key in block and any(str(value) not in (".", "0")
+                                for value in _site_metadata_column(block, key, count)):
+            raise UnsupportedStructure("Disordered or ambiguous site groups are unsupported.")
+    return explicit_occupancy
+
+
+def _validate_site_multiplicity(block: Any, expected: list[int], *, prepared: bool = False) -> None:
+    key = "_atom_site_symmetry_multiplicity"
+    if key not in block:
+        return
+    values = _site_metadata_column(block, key, len(expected))
+    if any(_numeric(value, "Site multiplicity") != count
+           for value, count in zip(values, expected)):
+        if prepared:
+            raise UnsupportedStructure("Declared site multiplicity disagrees with symmetry expansion.")
+        raise UnsupportedStructure("Site multiplicity must be 1 in an explicitly expanded P1 structure.")
 
 
 def _reject_duplicate_tags(text: str) -> None:
@@ -145,6 +248,9 @@ def _validate_symmetry(block: Any) -> None:
     if "_symmetry_space_group_setting" in block:
         if _numeric(block["_symmetry_space_group_setting"], "Space-group setting") != 1:
             raise UnsupportedStructure("Nonstandard space-group settings are unsupported.")
+    for key in ("_space_group_it_coordinate_system_code", "_space_group_origin_choice"):
+        if key in block and str(block[key]) != "1":
+            raise UnsupportedStructure("Nonstandard space-group settings are unsupported.")
     if any("magn" in key and ("symop" in key or "space_group" in key) for key in block):
         raise UnsupportedStructure("Magnetic symmetry CIFs are unsupported.")
 
@@ -175,7 +281,7 @@ def _read_cif(data: str | bytes, normal_axis: str) -> tuple[Atoms, list[dict[str
         raise UnsupportedStructure("ASE could not parse this as an unambiguous CIF 1.1 file.") from None
     if len(blocks) != 1:
         raise UnsupportedStructure("Exactly one CIF data block is required.")
-    block = blocks[0]
+    block = _normalize_cif_tags(blocks[0])
     _validate_symmetry(block)
 
     cell_tags = (
@@ -234,19 +340,9 @@ def _read_cif(data: str | bytes, normal_axis: str) -> tuple[Atoms, list[dict[str
     if any(key.startswith("_atom_site_cartn_") for key in block):
         raise UnsupportedStructure("CIFs containing Cartesian site coordinates are unsupported; provide fractional coordinates only.")
     issues: list[dict[str, Any]] = []
-    if "_atom_site_occupancy" in block:
-        occupancy = _values(block["_atom_site_occupancy"])
-        if len(occupancy) != count or any(abs(_numeric(value, "Occupancy") - 1) > 1e-8 for value in occupancy):
-            raise UnsupportedStructure("Only fully occupied sites (occupancy 1) are supported.")
-    else:
+    if not _validate_site_metadata(block, count):
         issues.append(_issue("ASSUMED_FULL_OCCUPANCY", "info", "Occupancies were omitted; every explicit site is assumed fully occupied.", atom_indices=list(range(count))))
-    for key in ("_atom_site_disorder_assembly", "_atom_site_disorder_group"):
-        if key in block and any(str(value) not in (".", "0") for value in _values(block[key])):
-            raise UnsupportedStructure("Disordered or ambiguous site groups are unsupported.")
-    if "_atom_site_symmetry_multiplicity" in block:
-        values = _values(block["_atom_site_symmetry_multiplicity"])
-        if any(_numeric(value, "Site multiplicity") != 1 for value in values):
-            raise UnsupportedStructure("Site multiplicity must be 1 in an explicitly expanded P1 structure.")
+    _validate_site_multiplicity(block, [1] * count)
     atoms = Atoms(symbols=symbols, scaled_positions=np.mod(coordinates, 1.0), cell=cell, pbc=True)
     return atoms, issues
 

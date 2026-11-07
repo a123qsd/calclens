@@ -315,6 +315,21 @@ def test_review_stamp_tracks_engine_inputs_but_not_ui_only_app_version():
         assert refreshed.review_stamp == changed.review_stamp
 
 
+def test_pre_alias_fix_reviews_require_rechecking_but_keep_their_history():
+    value = document()
+    value["tools"]["analysis_revision"] = "geometry-v1"
+    old_stamp = value["entries"][0]["review_stamp"]
+    old_stamp["analysis_revision"] = "geometry-v1"
+    reopened = loads_project(encode(value))
+    entry = reopened.entries[0]
+    assert entry.reviewed is False
+    assert entry.review_stamp.analysis_revision == "geometry-v1"
+    assert entry.review_stamp.sha256 == old_stamp["sha256"]
+    assert entry.data == sample_project().entries[0].data
+    assert entry.note == sample_project().entries[0].note
+    assert review_is_current(mark_reviewed(entry))
+
+
 def test_reviewed_without_current_stamp_is_rejected_on_save_and_cleared_on_load():
     unstamped = Project([ProjectEntry("one", "sample.cif", b"data", reviewed=True)])
     with pytest.raises(ProjectError, match="review stamp"):

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "calclens"
-version = "0.8.0"
+version = "0.9.0"
 description = "A local CIF geometry preflight tool for simple two-dimensional slabs."
 readme = "README.en.md"
 requires-python = ">=3.12,<3.14"
@@ -13,6 +13,7 @@ license-files = ["LICENSE"]
 dependencies = [
   "ase>=3.26,<4",
   "numpy>=2,<3",
+  "PySide6-Essentials==6.12.0",
 ]
 
 [project.optional-dependencies]
@@ -22,11 +23,17 @@ dev = ["pytest>=8,<10", "ruff>=0.14,<1", "hatchling==1.33.0"]
 [project.scripts]
 calclens = "slab_preflight.cli:main"
 
+[project.gui-scripts]
+calclens-desktop = "slab_preflight.desktop_entry:main"
+
 [project.urls]
 Repository = "https://github.com/a123qsd/calclens"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/slab_preflight"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"examples" = "slab_preflight/_resources/examples"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

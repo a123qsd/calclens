@@ -23,7 +23,7 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_ROOTS = ("ase", "numpy")
+RUNTIME_ROOTS = ("ase", "numpy", "PySide6-Essentials")
 LEGACY_RUNTIME_ROOTS = ("streamlit", "plotly")
 BUILD_TOOLS = ("pyinstaller", "pyinstaller-hooks-contrib")
 NOTICE_WORDS = ("license", "licence", "copying", "notice", "copyright", "authors")

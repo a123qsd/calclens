@@ -1,0 +1,199 @@
+{
+  "schema_version": 1,
+  "case_id": "h2-frozen-density",
+  "title": "Frozen H2 AB\u2212A\u2212B density difference",
+  "source_status": "illustrative synthetic geometry; actual local SCF calculations",
+  "structure": "h2.cif",
+  "pyscf_version": "2.12.0",
+  "common_method": "PySCF 2.12.0 UHF/STO-3G; common full H2 AO basis with ghost-H centers",
+  "common_basis": "same full H2 STO-3G basis via ghost-H centers",
+  "reference_conditions": "Frozen H2 nuclei at 0.74 angstrom; neutral AB singlet (2 electrons), neutral A/B doublets (1 electron each); isolated gas phase, no periodic electronic calculation; same STO-3G functions on both dimer centers via ghosts, same Cartesian grid/origin/voxel basis; SCF energy tolerance 1e-12 hartree, gradient tolerance 1e-8; no density renormalization",
+  "frozen_geometry": true,
+  "a_indices": [
+    1
+  ],
+  "b_indices": [
+    2
+  ],
+  "normal_axis": 2,
+  "density_sources": [
+    {
+      "role": "AB",
+      "path": "ab.cube",
+      "kind": "density",
+      "units": "e/bohr^3",
+      "real_indices_one_based": [
+        1,
+        2
+      ]
+    },
+    {
+      "role": "A",
+      "path": "a.cube",
+      "kind": "density",
+      "units": "e/bohr^3",
+      "real_indices_one_based": [
+        1
+      ]
+    },
+    {
+      "role": "B",
+      "path": "b.cube",
+      "kind": "density",
+      "units": "e/bohr^3",
+      "real_indices_one_based": [
+        2
+      ]
+    }
+  ],
+  "grid": {
+    "shape": [
+      49,
+      49,
+      49
+    ],
+    "origin_bohr": [
+      3.7794522492515403,
+      3.7794522492515403,
+      3.7794522492515403
+    ],
+    "voxel_vectors_bohr": [
+      [
+        0.314954354104295,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.314954354104295,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.314954354104295
+      ]
+    ]
+  },
+  "scf": [
+    {
+      "role": "AB",
+      "method": "UHF",
+      "basis": "STO-3G at both full-dimer centers",
+      "energy_hartree": -1.116759307395182,
+      "converged": true,
+      "electrons": 2,
+      "alpha_beta_electrons": [
+        1,
+        1
+      ],
+      "spin_squared": 0.0,
+      "multiplicity_from_spin_squared": 1.0,
+      "ao_count": 2,
+      "overlap_electron_count": 1.9999999999999998,
+      "independent_energy_hartree": -1.1167593073951825,
+      "stationary_commutator_norm": 1.2412670766236366e-16,
+      "cycles": 2
+    },
+    {
+      "role": "A",
+      "method": "UHF",
+      "basis": "STO-3G at both full-dimer centers",
+      "energy_hartree": -0.47098945635195655,
+      "converged": true,
+      "electrons": 1,
+      "alpha_beta_electrons": [
+        1,
+        0
+      ],
+      "spin_squared": 0.75,
+      "multiplicity_from_spin_squared": 2.0,
+      "ao_count": 2,
+      "overlap_electron_count": 1.0000000000000002,
+      "independent_energy_hartree": -0.47098945635195666,
+      "stationary_commutator_norm": 6.206335383118183e-17,
+      "cycles": 0
+    },
+    {
+      "role": "B",
+      "method": "UHF",
+      "basis": "STO-3G at both full-dimer centers",
+      "energy_hartree": -0.47098945635195666,
+      "converged": true,
+      "electrons": 1,
+      "alpha_beta_electrons": [
+        1,
+        0
+      ],
+      "spin_squared": 0.75,
+      "multiplicity_from_spin_squared": 2.0,
+      "ao_count": 2,
+      "overlap_electron_count": 1.0,
+      "independent_energy_hartree": -0.4709894563519566,
+      "stationary_commutator_norm": 9.614813431917819e-17,
+      "cycles": 0
+    }
+  ],
+  "common_basis_verified_by": "identical AO overlap and kinetic matrices within 1e-14",
+  "independent_readback": {
+    "parser": "ASE read_cube_data, independent of CalcLens Cube parser",
+    "shape": [
+      49,
+      49,
+      49
+    ],
+    "integrals_e": {
+      "AB": 2.000000063722771,
+      "A": 1.0000000456940066,
+      "B": 1.0000000456940061
+    },
+    "difference_integral_e": -2.766524209977306e-08
+  },
+  "limitations": [
+    "Isolated illustrative molecule; CIF P1 cell is for display only.",
+    "No geometry relaxation, periodic electronic calculation or basis/grid convergence study.",
+    "Density difference is not a uniquely assigned atomic charge transfer."
+  ],
+  "files": {
+    "h2.cif": {
+      "sha256": "ba7b9df832296dc5d903dea1c28b3273ff7370a0230e2e1080a1bf79e6ae249a",
+      "bytes": 527
+    },
+    "ab.cube": {
+      "sha256": "330a552801a2a5dadfb68ca1192e61fd7254d8a420b347ec177ae70322ee38c4",
+      "bytes": 2235727
+    },
+    "a.cube": {
+      "sha256": "3cd4818279d2de43df00a1e2d58a97c463e3d2c547671723f19e38bfd08d9be5",
+      "bytes": 2235665
+    },
+    "b.cube": {
+      "sha256": "96fb6e21e89523a96c4e84882955446074931067719e9f51b5a021b4ac70b55c",
+      "bytes": 2235665
+    },
+    "ab.log": {
+      "sha256": "180322db66b462e7b1ae4d90b6c91fcbc8eb51d0b4a77e15f49f7533b58d8509",
+      "bytes": 2484
+    },
+    "a.log": {
+      "sha256": "3048dc2d27179608a35e4f308a26187d8c5a9f3e2d10e854f8a4613cf005f69b",
+      "bytes": 1525
+    },
+    "b.log": {
+      "sha256": "151b221689c33ea6d2c4bc635e69ded73de2cd0bbb7ae89905930ee217eac0c4",
+      "bytes": 1509
+    },
+    "inputs.json": {
+      "sha256": "9080ea1a0acd4612204c0e1fd4699777f2bb9e04bafb4978d01ff43d3e84471c",
+      "bytes": 2903
+    },
+    "reference-profile.csv": {
+      "sha256": "b582ded1ff1a9b96e9a15f6a36f01297af0afd4e1bd80217a271b0b7f9a950c5",
+      "bytes": 1973
+    },
+    "README.md": {
+      "sha256": "fa512199f524ca384463339528c0115c9fdc7c2a0e5823b2bd112d95614dd755",
+      "bytes": 3379
+    }
+  }
+}

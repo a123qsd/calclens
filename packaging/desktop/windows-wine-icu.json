@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "purpose": "Disposable Wine test prefix only; never package or redistribute these Windows system DLLs.",
+  "primary_documentation": "https://learn.microsoft.com/en-us/windows/win32/intl/international-components-for-unicode--icu-",
+  "discovery_metadata": "https://winbindex.m417z.com/",
+  "files": [
+    {
+      "name": "icuuc.dll",
+      "url": "https://msdl.microsoft.com/download/symbols/icuuc.dll/A6331E8314e000/icuuc.dll",
+      "sha256": "39b210cc0ec16a04c21764e4e10cf01410f7258a77a61c55bf2c661731d9caee",
+      "size_bytes": 1347072,
+      "pe_architecture": "AMD64"
+    },
+    {
+      "name": "icuin.dll",
+      "url": "https://msdl.microsoft.com/download/symbols/icuin.dll/D18989CE1cb000/icuin.dll",
+      "sha256": "5a162e1d276d8fd8e3983270dead31e985f8dea7e21ebfde67857d8a27d66f1d",
+      "size_bytes": 1860096,
+      "pe_architecture": "AMD64"
+    }
+  ]
+}

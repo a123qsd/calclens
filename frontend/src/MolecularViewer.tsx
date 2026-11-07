@@ -15,6 +15,8 @@ import type { ColorMode, Quality, Representation } from './viewerPresentation';
 import { reconcileViewerDatasets, restoreViewerState, sameCamera, selectedCharge, selectedVolume, validCamera } from './viewerState';
 import type { ViewerState } from './viewerState';
 import { observeCamera } from './viewerCameraLink';
+import { annotatePng, pngDataUrlDimensions } from './pngAnnotations';
+import type { PNGAnnotation } from './pngAnnotations';
 import './viewer.css';
 
 type RepeatCount = 1 | 2 | 3;
@@ -70,7 +72,7 @@ function defaultCamera(viewer: GLViewer, report: GeometryReport, preset = 'defau
 }
 
 export default function MolecularViewer({
-  report, language, highlight = null, highlightGap = false, highlightedAtomIndices,
+  report, language, source, highlight = null, highlightGap = false, highlightedAtomIndices,
   onAtomPick, compact = false, auxiliary, onViewerReady, state, onStateChange, chargeRange,
 }: MolecularViewerProps) {
   const labels = text[language];
@@ -83,7 +85,7 @@ export default function MolecularViewer({
   const overlayShapesRef = useRef<GLShape[]>([]);
   const volumeShapesRef = useRef<GLShape[]>([]);
   const volumeCacheRef = useRef<{ source: VolumeDataset; data: InstanceType<typeof $3Dmol.VolumeData> } | null>(null);
-  const surfaceGeometryRef = useRef<{ source: VolumeDataset; level: number } | null>(null);
+  const surfaceGeometryRef = useRef<{ source: VolumeDataset; level: number; levels: number[] } | null>(null);
   const distanceLabelRef = useRef<Label | null>(null);
   const exportingRef = useRef(false);
   const sceneRef = useRef<ViewerScene | null>(null);
@@ -118,6 +120,7 @@ export default function MolecularViewer({
   const [exportSize, setExportSize] = useState(1600);
   const [exportBackground, setExportBackground] = useState('white');
   const [exportDistance, setExportDistance] = useState(true);
+  const [exportAnnotated, setExportAnnotated] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
   const [displayStats, setDisplayStats] = useState({ atoms: report.atom_count * (compact ? 1 : 9), bonds: 0, capped: false });
@@ -476,7 +479,7 @@ export default function MolecularViewer({
             color: volume.kind === 'density' ? '#4D9DB0' : level > 0 ? '#8064AD' : '#1EAA9A',
           }));
         }
-        surfaceGeometryRef.current = { source: volume, level: surface.level };
+        surfaceGeometryRef.current = { source: volume, level: surface.level, levels };
       }
       for (const shape of volumeShapesRef.current) shape.updateStyle({ hidden: false, opacity: surface.opacity });
       viewer.render();
@@ -525,6 +528,60 @@ export default function MolecularViewer({
     }
   }
 
+  function pngAnnotation(): PNGAnnotation {
+    const sourceName = source?.filename ?? report.provenance?.original_filename;
+    const sourceHash = source?.sha256 ?? report.provenance?.sha256;
+    const annotation: PNGAnnotation = {
+      title: `CalcLens · ${report.formula}`,
+      lines: [
+        `${t('입력 구조', 'Input structure')}: ${report.formula} · ${report.atom_count} ${t('원자', 'atoms')} · ${t('선택한 법선', 'Selected normal')}: ${report.normal_axis} · Å`,
+        `${t('원본 CIF', 'Source CIF')}: ${sourceName ?? t('제공되지 않음', 'not supplied')}`,
+        `SHA-256: ${sourceHash ?? t('제공되지 않음', 'not supplied')}`,
+        `${t('표시', 'Display')}: ${representation} · ${repeatDimensions(report.normal_axis_index, repeat).join(' × ')} · ${projection}`,
+      ],
+      swatches: [],
+    };
+    if (effectiveColor === 'element') {
+      const elements = [...new Set(report.elements)];
+      annotation.swatches.push(...elements.slice(0, 24).map(element => ({ label: element, color: elementColor(element) })));
+      if (elements.length > 24) annotation.lines.push(`${t('다른 원소 색상', 'Other element colors')}: ${elements.slice(24).map(element => `${element} ${elementColor(element)}`).join(', ')}`);
+    } else if (effectiveColor === 'metal') {
+      annotation.lines.push(t('금속 원소 분류 색상 · 물질의 금속성을 판정하지 않음', 'Metal-element category colors; material metallicity is not assessed.'));
+      annotation.swatches.push({ label: t('금속 원소', 'Metal element'), color: '#B9824F' },
+        { label: t('다른 원소', 'Other element'), color: '#BEC7CF' });
+    } else if (charge && effectiveColor === charge.kind) {
+      const quantity = { partial_charge: t('부분전하', 'Partial charge'), formal_charge: t('형식전하', 'Formal charge'),
+        ionic_charge: t('이온 순전하', 'Ionic net charge'), oxidation_state: t('산화수', 'Oxidation state') }[charge.kind];
+      const units = charge.kind === 'oxidation_state' ? t('무차원', 'dimensionless') : 'e';
+      annotation.lines.push(`${quantity}: ${charge.name} · ${t('색상 범위', 'Color range')} [${colorRange[0].toPrecision(6)}, ${colorRange[1].toPrecision(6)}] ${units}`,
+        `${t('전하 방법', 'Charge method')}: ${charge.method}`,
+        `${t('전하 출처', 'Charge source')}: ${charge.source} · ${charge.filename}`);
+      if (chargeRange) annotation.lines.push(t('비교 화면의 공통 범위; 범위 밖의 값은 끝 색으로 표시', 'Shared comparison range; values outside the range use endpoint colors.'));
+      const values = [...new Set([colorRange[0], ...(colorRange[0] < 0 && colorRange[1] > 0 ? [0] : []), colorRange[1]])];
+      annotation.swatches.push(...values.map(value => ({ label: `${value.toPrecision(4)} ${units}`, color: chargeColor(value, colorRange) })));
+      if (charge.values.some(value => value === null)) annotation.swatches.push({ label: t('전하 정보 없음', 'Unknown charge'), color: chargeColor(null, colorRange) });
+    }
+    const renderedSurface = surfaceGeometryRef.current;
+    if (surfaceEnabled && volume && renderedSurface?.source === volume
+      && renderedSurface.level === surface.level && volumeShapesRef.current.length > 0) {
+      const quantity = volume.kind === 'density' ? t('전자밀도', 'Electron density') : t('오비탈 진폭', 'Orbital amplitude');
+      const levels = renderedSurface.levels.map(level => `${level > 0 ? '+' : '−'}${Math.abs(level).toPrecision(6)}`);
+      annotation.lines.push(`${quantity}: ${volume.name} · ${t('표시 등치값', 'Displayed isovalues')} ${levels.join(', ')} ${volume.units} · ${t('불투명도', 'opacity')} ${surface.opacity}`,
+        `${t('전자 자료 출처', 'Volume source')}: ${volume.source} · ${volume.filename}`);
+      annotation.swatches.push(...renderedSurface.levels.map(level => ({
+        label: `${volume.kind === 'density' ? 'ρ' : 'ψ'} ${level > 0 ? '+' : '−'}${Math.abs(level).toPrecision(4)} ${volume.units}`,
+        color: volume.kind === 'density' ? '#4D9DB0' : level > 0 ? '#8064AD' : '#1EAA9A',
+      })));
+      if (volume.kind === 'orbital') annotation.lines.push(t('ψ의 양·음은 파동함수 부호이며 전하 부호가 아닙니다.', 'Positive/negative ψ denotes wavefunction sign, not electric charge.'));
+    }
+    if (picked || highlight || Boolean(highlightedAtomIndices?.length)) annotation.swatches.push({
+      label: t('선택·검토 강조', 'Selection / review highlight'), color: '#F59E0B',
+    });
+    if (showBonds) annotation.lines.push(t('연결은 표시용 추정이며 과학 계산에 사용되지 않습니다.', 'Connections are inferred for display and are not used in the analysis.'));
+    annotation.lines.push(t('기하 사전 점검; 안정성 또는 계산 정확도를 보장하지 않습니다.', 'Geometry preflight; stability and calculation accuracy are not established.'));
+    return annotation;
+  }
+
   async function savePng() {
     const viewer = viewerRef.current;
     const host = hostRef.current;
@@ -546,12 +603,14 @@ export default function MolecularViewer({
       viewer.render();
       const data = viewer.pngURI();
       if (!data.startsWith('data:image/png')) throw new Error('PNG export failed.');
+      const output = exportAnnotated ? await annotatePng(data, pngAnnotation())
+        : { dataUrl: data, ...pngDataUrlDimensions(data) };
       const anchor = document.createElement('a');
-      anchor.href = data;
-      anchor.download = `CalcLens-${report.formula.replace(/[^a-zA-Z0-9_-]/g, '_')}-${dimensions.width}x${dimensions.height}.png`;
+      anchor.href = output.dataUrl;
+      anchor.download = `CalcLens-${report.formula.replace(/[^a-zA-Z0-9_-]/g, '_')}${exportAnnotated ? '-annotated' : ''}-${output.width}x${output.height}.png`;
       anchor.click();
-      setActionMessage(t(`${dimensions.width} × ${dimensions.height} PNG를 저장했습니다.`,
-        `Saved ${dimensions.width} × ${dimensions.height} PNG.`));
+      setActionMessage(t(`${output.width} × ${output.height} PNG를 저장했습니다.`,
+        `Saved ${output.width} × ${output.height} PNG.`));
     } catch (cause) {
       setActionMessage(cause instanceof Error ? cause.message : t('PNG 저장에 실패했습니다.', 'PNG export failed.'));
     } finally {
@@ -693,9 +752,11 @@ export default function MolecularViewer({
           <label>{t('긴 변의 해상도', 'Longest edge')}<select data-testid="viewer-export-size" value={exportSize} onChange={(event) => setExportSize(Number(event.target.value))}><option value={1600}>1600 px</option><option value={3200}>3200 px</option></select></label>
           <label>{t('이미지 배경', 'Image background')}<select data-testid="viewer-export-background" value={exportBackground} onChange={(event) => setExportBackground(event.target.value)}><option value="white">{t('흰색', 'White')}</option><option value="transparent">{t('투명', 'Transparent')}</option></select></label>
           <label className="viewer-checkbox"><input data-testid="viewer-export-distance" type="checkbox" checked={exportDistance} onChange={(event) => setExportDistance(event.target.checked)} />{t('표시 중인 거리 포함', 'Include visible distance')}</label>
+          <label className="viewer-checkbox"><input data-testid="viewer-export-annotated" type="checkbox" checked={exportAnnotated} onChange={(event) => setExportAnnotated(event.target.checked)} />{t('출처와 표시 자료 범례 포함', 'Include sources and displayed-data legend')}</label>
           <button type="button" data-testid="viewer-export-png" disabled={exporting || Boolean(error)} onClick={() => void savePng()}>{exporting ? t('이미지 생성 중…', 'Rendering image…') : t('PNG 저장', 'Save PNG')}</button>
         </div>
         <p>{t('현재 시점과 표현을 선택한 해상도로 다시 그립니다. 투명 배경에는 화면 배경색이 포함되지 않습니다.', 'Re-renders the current view at the selected resolution. Transparent images do not include the canvas background.')}</p>
+        {exportAnnotated && <p>{t('그림 아래에 흰색 설명 영역을 추가합니다. 원본 그림의 배경과 크기는 유지되며 전체 PNG 높이는 늘어납니다.', 'Adds a white scientific footer below the image. The rendered image area keeps its background and size; total PNG height increases.')}</p>}
       </fieldset>
     </details>
     {picked && <div className="viewer-atom-detail" data-testid="viewer-atom-detail">

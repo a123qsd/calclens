@@ -37,9 +37,11 @@ def package_language(project_dir: Path) -> str:
 def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--language", choices=("en", "ko"), help="Override the package's default language.")
-    parser.add_argument("--port", type=_port, default=8501, help="Local TCP port (default: 8501).")
+    parser.add_argument("--port", type=_port, help="TCP port for the explicitly selected browser workspace.")
     parser.add_argument("--legacy-ui", action="store_true", help="Use the previous Streamlit interface.")
     parser.add_argument("--no-browser", action="store_true", help="Do not open the browser.")
+    parser.add_argument("--web-ui", action="store_true", help="Open the optional browser workspace.")
+    parser.add_argument("files", nargs="*", help="CIF files or a saved desktop project.")
     args = parser.parse_args(argv)
     root = (project_dir or Path(__file__).resolve().parent).resolve()
     if not root.is_dir():
@@ -54,6 +56,14 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
         language = args.language or package_language(root)
     except ValueError as error:
         parser.error(str(error))
+    if not (args.web_ui or args.legacy_ui or args.no_browser or args.port is not None):
+        if (root / "src").is_dir():
+            sys.path.insert(0, str(root / "src"))
+        from slab_preflight.desktop import main as native_main
+        return native_main(language=language, root=root, argv=["CalcLens", *args.files])
+    if args.files:
+        parser.error("Open file paths using the native desktop mode.")
+    args.port = args.port or 8501
     environment = os.environ.copy()
     environment["CALCLENS_LANGUAGE"] = language
     command = [

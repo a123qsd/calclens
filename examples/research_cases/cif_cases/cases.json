@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "kind": "controlled_cif_research_cases",
+  "normal_axis": "c",
+  "length_unit": "angstrom",
+  "cases": [
+    {
+      "id": "planar_hbn",
+      "class": "planar",
+      "path": "planar_hbn.cif",
+      "sha256": "4a30fe10bbd80c39d123ab2dbbb0276df03463bc8144f8da9b2352ee3b2c827c",
+      "origin": "CalcLens original controlled/idealized geometry fixture",
+      "license": "LicenseRef-CalcLens-Free-Use (repository LICENSE)",
+      "experimental": false,
+      "relaxed": false,
+      "expected": {
+        "atom_count": 2,
+        "nuclei_thickness_angstrom": 0,
+        "nuclei_gap_angstrom": 20,
+        "minimum_distance_angstrom": 1.4433756729740645
+      }
+    },
+    {
+      "id": "buckled_silicene",
+      "class": "buckled",
+      "path": "buckled_silicene.cif",
+      "sha256": "0cb7c821a175121fdc561f7cbc1fde647d8420967e7b1e1fd705ce4e3ce5e803",
+      "origin": "CalcLens original controlled/idealized geometry fixture",
+      "license": "LicenseRef-CalcLens-Free-Use (repository LICENSE)",
+      "experimental": false,
+      "relaxed": false,
+      "expected": {
+        "atom_count": 2,
+        "nuclei_thickness_angstrom": 0.46,
+        "nuclei_gap_angstrom": 19.54,
+        "minimum_distance_angstrom": 2.275551215273639
+      }
+    },
+    {
+      "id": "bilayer_graphene",
+      "class": "multilayer",
+      "path": "bilayer_graphene.cif",
+      "sha256": "3365a22b31d049482c5dd0cd395c351f20102f404c0b65e8034e2e4b835ec9d9",
+      "origin": "CalcLens original controlled/idealized geometry fixture",
+      "license": "LicenseRef-CalcLens-Free-Use (repository LICENSE)",
+      "experimental": false,
+      "relaxed": false,
+      "expected": {
+        "atom_count": 4,
+        "nuclei_thickness_angstrom": 3.35,
+        "nuclei_gap_angstrom": 16.65,
+        "minimum_distance_angstrom": 1.4202816622064793
+      }
+    },
+    {
+      "id": "hbn_h_adsorbate",
+      "class": "adsorbate",
+      "path": "hbn_h_adsorbate.cif",
+      "sha256": "0aea2f729b0b80521daf407581d86571906ba220ff142a3e59beaa3d7ccaaf60",
+      "origin": "CalcLens original controlled/idealized geometry fixture",
+      "license": "LicenseRef-CalcLens-Free-Use (repository LICENSE)",
+      "experimental": false,
+      "relaxed": false,
+      "expected": {
+        "atom_count": 3,
+        "nuclei_thickness_angstrom": 1.2,
+        "nuclei_gap_angstrom": 18.8,
+        "minimum_distance_angstrom": 1.2
+      }
+    },
+    {
+      "id": "graphene_vacancy_2x2",
+      "class": "defect",
+      "path": "graphene_vacancy_2x2.cif",
+      "sha256": "4cad40f03715f660c904b873c2f6515b472c509c12add62b7ad152f6b747def3",
+      "origin": "CalcLens original controlled/idealized geometry fixture",
+      "license": "LicenseRef-CalcLens-Free-Use (repository LICENSE)",
+      "experimental": false,
+      "relaxed": false,
+      "expected": {
+        "atom_count": 7,
+        "nuclei_thickness_angstrom": 0,
+        "nuclei_gap_angstrom": 20,
+        "minimum_distance_angstrom": 1.4202816622064793
+      }
+    },
+    {
+      "id": "wrapped_mos2",
+      "class": "wrapped_boundary",
+      "path": "wrapped_mos2.cif",
+      "sha256": "7c885f2787fecda66284d1a64fcdd04de915c08ca998b457b792dc546b89c1b0",
+      "origin": "CalcLens original controlled/idealized geometry fixture",
+      "license": "LicenseRef-CalcLens-Free-Use (repository LICENSE)",
+      "experimental": false,
+      "relaxed": false,
+      "expected": {
+        "atom_count": 3,
+        "nuclei_thickness_angstrom": 3.12,
+        "nuclei_gap_angstrom": 16.88,
+        "minimum_distance_angstrom": 2.409232242852482
+      }
+    },
+    {
+      "id": "boundary_overlap",
+      "class": "overlap",
+      "path": "boundary_overlap.cif",
+      "sha256": "74f16fda1c57f6d0e78455bc959d841aff2676c4dddd0763984a8f0d26b568a3",
+      "origin": "CalcLens original controlled/idealized geometry fixture",
+      "license": "LicenseRef-CalcLens-Free-Use (repository LICENSE)",
+      "experimental": false,
+      "relaxed": false,
+      "expected": {
+        "atom_count": 3,
+        "nuclei_thickness_angstrom": 0,
+        "nuclei_gap_angstrom": 20,
+        "minimum_distance_angstrom": 0
+      },
+      "expected_issue": "OVERLAPPING_SITES"
+    },
+    {
+      "id": "reject_partial_occupancy",
+      "class": "rejection",
+      "path": "reject_partial_occupancy.cif",
+      "sha256": "86061fec098b83e70b65e29800d70a8756ea2585386667451c1102d565b14ba9",
+      "origin": "CalcLens original controlled/idealized geometry fixture",
+      "license": "LicenseRef-CalcLens-Free-Use (repository LICENSE)",
+      "experimental": false,
+      "relaxed": false,
+      "expected_rejection_contains": "fully occupied"
+    },
+    {
+      "id": "reject_unexpanded_symmetry",
+      "class": "rejection",
+      "path": "reject_unexpanded_symmetry.cif",
+      "sha256": "e94358438dacf0c89ca316194b475e83026f141f7054e45cab8500448df163b8",
+      "origin": "CalcLens original controlled/idealized geometry fixture",
+      "license": "LicenseRef-CalcLens-Free-Use (repository LICENSE)",
+      "experimental": false,
+      "relaxed": false,
+      "expected_rejection_contains": "P1"
+    },
+    {
+      "id": "reject_modulated",
+      "class": "rejection",
+      "path": "reject_modulated.cif",
+      "sha256": "c741d3d183e491826aab866cac81f635aa87e496a9c509888bca0112fe39b737",
+      "origin": "CalcLens original controlled/idealized geometry fixture",
+      "license": "LicenseRef-CalcLens-Free-Use (repository LICENSE)",
+      "experimental": false,
+      "relaxed": false,
+      "expected_rejection_contains": "Modulated"
+    }
+  ],
+  "limitations": [
+    "Controlled developer fixtures, not human usability trials or independently measured/relaxed structures.",
+    "No bonding, energetic stability, or physical-dimensionality claim.",
+    "Public experimental graphite provenance remains separately in examples/public_case."
+  ]
+}

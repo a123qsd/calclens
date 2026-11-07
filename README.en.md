@@ -1,5 +1,9 @@
 # CalcLens
 
+**Desktop 0.9.0** opens CIFs in a native desktop program. The Windows executable and Apple Silicon app include automatic recovery, electronic fields, Apple Metal/CUDA or a remote worker, Gaussian output review and a real vacuum-convergence case. [Desktop guide](docs/DESKTOP.md)
+
+[Windows x64 EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [Release files](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+
 Created, led and maintained by [a123qsd](https://github.com/a123qsd).
 [Project origin and responsibilities](AUTHORS.md) · [Citation](CITATION.cff)
 
@@ -33,7 +37,7 @@ charge scales in Compare. See the [workspace guide](docs/WORKSPACE_SAVE.md) and
 [real H2O calculation case](docs/ELECTRONIC_CASE.md). See [Imported viewer data](docs/VIEWER_DATA.md) for formats,
 coordinate matching and units.
 
-![CalcLens molecular workspace](docs/assets/calclens-workspace-0.8.0-en.png)
+![CalcLens molecular workspace](docs/assets/calclens-native-0.9.0-en.png)
 
 [Watch the earlier Streamlit demo](docs/assets/calclens-demo.webm) ·
 [Read the public graphite case](docs/CASE_STUDY.md)
@@ -44,24 +48,11 @@ coordinate matching and units.
 
 ## Run locally
 
-On Windows x64, download the
-[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-en.exe)
-and double-click it. Python and the app's dependencies are included. A launch
-manager opens the browser workspace and provides **Open CalcLens**, **Diagnostics**
-and **Quit**. Closing the manager stops the server; closing only the browser tab
-leaves it running. For faster repeat launches, extract the complete
-[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-en-folder.zip)
-and run the EXE inside it. These executables are unsigned. See the
-[Windows guide](packaging/windows/README.en.md) for startup, closing the app,
-checksums, and license/source files.
+On Windows x64, download and double-click the EXE. On an Apple Silicon Mac, open the DMG, drag CalcLens into Applications, and open the app. Both builds include Python. A graphene example opens on first launch.
 
-For an English-default source ZIP, choose the English ZIP asset on the
-[v0.8.0 resources page](https://github.com/a123qsd/calclens/releases/tag/v0.8.0-resources) and follow
-the [download instructions](docs/DOWNLOADS.md#english). A standalone
-[English guide file](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-Guide.en.md)
-is also available. Python 3.12 or 3.13 and dependency
-installation are required for that source ZIP. The browser workspace is already
-included; you do not need Node.js to run it.
+[Windows x64 EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [Release files](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+
+[Source ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.9.0.zip) · [Installation guide](docs/DOWNLOADS.md#english)
 
 To clone the source with Git instead, use the commands below. These installation
 examples use Python 3.12.

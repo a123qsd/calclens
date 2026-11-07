@@ -35,6 +35,21 @@ def has_korean(text):
     return any("가" <= char <= "힣" for char in text)
 
 
+@pytest.mark.parametrize("message", [
+    "Repeated CIF tag aliases are ambiguous and unsupported.",
+    "Occupancy, disorder, and multiplicity must be site-loop columns matching the site count.",
+    "Declared site multiplicity disagrees with symmetry expansion.",
+    "Unsupported occupancy, disorder, or multiplicity CIF tag: _atom_site.occupancy_value.",
+])
+def test_cif_alias_failures_have_specific_korean_explanations(message):
+    translated = localized_error_message(message, "ko")
+    assert has_korean(translated)
+    assert "원문:" not in translated
+    assert localized_error_message(message, "en") == message
+    if "_atom_site" in message:
+        assert "_atom_site.occupancy_value" in translated
+
+
 def missing_occupancy():
     return "\n".join(
         line.rsplit(" ", 1)[0] if line.startswith(("C1 ", "C2 ")) else line

@@ -664,6 +664,13 @@ def main():
             require(info.get("includes_legacy_ui") is diagnostic["includes_legacy_ui"],
                     "Build-info and self-test UI variants differ.")
             result["build_info"] = info
+            native_result = output / "native-launch.json"
+            subprocess.run([str(executable), "--language", args.language, "--native-smoke", str(native_result)],
+                           cwd=cwd, env=environment, check=True, timeout=240)
+            native = json.loads(native_result.read_text(encoding="utf-8"))
+            require(native.get("status") == "passed" and native.get("browser_or_socket_listeners") == 0,
+                    "Native Qt startup did not pass its offline assertions.")
+            result["default_launch"] = native
             capture = isolated / "captured-browser-url.txt"
             manager_environment = dict(environment)
             manager_environment["CALCLENS_BROWSER_CAPTURE_FILE"] = str(capture)
@@ -673,7 +680,7 @@ def main():
             started_at = time.monotonic()
             with (output / "default-launch.log").open("wb") as default_log:
                 default_process = subprocess.Popen(
-                    [str(executable)], cwd=cwd, env=manager_environment,
+                    [str(executable), "--web-ui"], cwd=cwd, env=manager_environment,
                     stdout=default_log, stderr=subprocess.STDOUT, **options,
                 )
                 try:
@@ -690,7 +697,7 @@ def main():
                     require(default_url.startswith("http://127.0.0.1:") and "/inherited-prefix" not in default_url,
                             "Default launch used the wrong local URL.")
                     wait_health(default_process, default_url)
-                    result["default_launch"] = {
+                    result["optional_web_launch"] = {
                         "url": default_url,
                         "startup_seconds": round(time.monotonic() - started_at, 3),
                         "automatic_port": True,
@@ -723,8 +730,8 @@ def main():
                     ):
                         require(marker in manager_log,
                                 f"Diagnostic log is missing lifecycle marker: {marker}")
-                    result["default_launch"]["manager_close"] = "graceful"
-                    result["default_launch"]["diagnostic_log"] = logs[0].name
+                    result["optional_web_launch"]["manager_close"] = "graceful"
+                    result["optional_web_launch"]["diagnostic_log"] = logs[0].name
                 finally:
                     if default_process.poll() is None:
                         stop_process_tree(

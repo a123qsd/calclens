@@ -652,6 +652,9 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
     parser.add_argument("--port", type=_port, help="Local TCP port (default: choose a free port).")
     parser.add_argument("--no-browser", action="store_true", help="Do not open the browser.")
     parser.add_argument("--legacy-ui", action="store_true", help="Use the previous Streamlit interface.")
+    parser.add_argument("--web-ui", action="store_true", help="Use the optional browser workspace.")
+    parser.add_argument("--native-smoke", type=Path, metavar="RESULT.json")
+    parser.add_argument("files", nargs="*", help="Desktop CIF or project files.")
     inspection = parser.add_mutually_exclusive_group()
     inspection.add_argument("--self-test", action="store_true", help="Run offline bundle checks.")
     inspection.add_argument("--build-info", action="store_true", help="Print build metadata as JSON.")
@@ -679,6 +682,14 @@ def main(argv: list[str] | None = None, *, project_dir: Path | None = None) -> i
             if args.self_test:
                 print(json.dumps(self_test(root, language), sort_keys=True))
                 return 0
+            if args.native_smoke:
+                from slab_preflight.desktop_entry import smoke
+                return smoke(args.native_smoke, root, language)
+            if not (args.web_ui or args.no_browser or args.legacy_ui or args.port is not None):
+                from slab_preflight.desktop import main as native_main
+                if os.name == "nt" and getattr(sys, "frozen", False):
+                    _set_console_visible(False)
+                return native_main(language=language, root=root, argv=["CalcLens", *args.files])
             port = choose_port(args.port)
             url = f"http://{HOST}:{port}"
             if _should_use_manager(no_browser=args.no_browser):

@@ -1,0 +1,67 @@
+CalcLens controlled periodic input; lengths in angstrom.
+{"cell_angstrom": [[2.5, 0.0, 0.0], [-1.2499999999999996, 2.165063509461097, 0.0], [0.0, 0.0, 16.0]], "elements": ["B", "N"], "fixed_conditions": {"basis": "gth-szv", "charge": 0, "coulomb_boundary": "3D periodic supercell; no truncated Coulomb potential", "density_fitting": "FFTDF", "energy_quantity": "electronic_total", "fft_mesh": [15, 15, 151], "geometry_optimized": false, "kpoint_convention": "Gamma only", "kpoint_grid": [1, 1, 1], "maximum_scf_cycles": 60, "method": "RKS", "multiplicity": 1, "periodic_dimensions": 3, "precision": 1e-08, "program": "PySCF", "program_version": "2.12.0", "pseudopotential": "gth-pade", "scf_energy_tolerance_hartree": 1e-09, "scf_gradient_tolerance": 1e-06, "smearing": null, "threads": 1, "xc": "LDA,VWN", "xc_grid": "uniform cell grid, same mesh as FFTDF"}, "positions_angstrom": [[0.0, 0.0, 8.0], [-1.2496762883766146e-12, 1.443375672974786, 8.0]]}
+
+
+******** <class 'pyscf.pbc.dft.rks.RKS'> ********
+method = RKS
+initial guess = minao
+damping factor = 0
+level_shift factor = 0
+DIIS = <class 'pyscf.scf.diis.CDIIS'>
+diis_start_cycle = 1
+diis_space = 8
+diis_damp = 0
+SCF conv_tol = 1e-09
+SCF conv_tol_grad = 1e-06
+SCF max_cycles = 60
+direct_scf = True
+direct_scf_tol = 1e-13
+chkfile to save SCF result = /var/folders/wx/yqfb_8bn58jd3qrygv1dwyfc0000gn/T/tmpwfvxl31f
+max_memory 700 MB (current use 0 MB)
+******** PBC SCF flags ********
+kpt = [0. 0. 0.]
+Exchange divergence treatment (exxdiv) = ewald
+    madelung (= occupied orbital energy shift) = -0.7462361038319958
+    Total energy shift due to Ewald probe charge = -1/2 * Nelec*madelung = 2.98494441533
+DF object = <pyscf.pbc.df.fft.FFTDF object at 0x10b4fb470>
+XC functionals = lda,vwn
+small_rho_cutoff = 1e-07
+Uniform grid, mesh = [ 15  15 151]
+Initial guess from minao.
+nelec by numeric integration = 7.9999883531292415
+init E= -13.4060275931033
+  HOMO = -0.691795640064145  LUMO = -0.10813045598794
+nelec by numeric integration = 7.999951817863984
+cycle= 1 E= -12.0135963801941  delta_E= 1.39  |g|= 1.24  |ddm|= 3.45
+  HOMO = -0.00073890587237711  LUMO = 0.530306167225059
+nelec by numeric integration = 7.999988622596758
+cycle= 2 E= -11.2265589187393  delta_E= 0.787  |g|= 1.95  |ddm|= 5.94
+  HOMO = -0.269961369803458  LUMO = 0.196016713436008
+nelec by numeric integration = 7.99996144741299
+cycle= 3 E= -12.5580580322849  delta_E= -1.33  |g|= 0.0383  |ddm|= 4.31
+  HOMO = -0.325508226782755  LUMO = 0.143744108724564
+nelec by numeric integration = 7.999962727674078
+cycle= 4 E= -12.558996339874  delta_E= -0.000938  |g|= 0.000518  |ddm|= 0.155
+  HOMO = -0.324567507138243  LUMO = 0.143348752170269
+nelec by numeric integration = 7.999962741282162
+cycle= 5 E= -12.5589964527394  delta_E= -1.13e-07  |g|= 7.5e-05  |ddm|= 0.00166
+  HOMO = -0.324609622606483  LUMO = 0.143352414694962
+nelec by numeric integration = 7.9999627403763425
+cycle= 6 E= -12.558996454487  delta_E= -1.75e-09  |g|= 1.84e-05  |ddm|= 0.000121
+  HOMO = -0.324619007698781  LUMO = 0.14335255860211
+nelec by numeric integration = 7.999962740140557
+cycle= 7 E= -12.5589964545933  delta_E= -1.06e-10  |g|= 2.75e-06  |ddm|= 3.2e-05
+  HOMO = -0.324619251583225  LUMO = 0.143352423696808
+nelec by numeric integration = 7.999962740127486
+cycle= 8 E= -12.5589964545947  delta_E= -1.43e-12  |g|= 1.7e-06  |ddm|= 1.91e-06
+  HOMO = -0.324619352558409  LUMO = 0.143352363155697
+nelec by numeric integration = 7.999962740121829
+cycle= 9 E= -12.5589964545951  delta_E= -3.84e-13  |g|= 1.25e-06  |ddm|= 8.27e-07
+  HOMO = -0.324619413636892  LUMO = 0.143352328023246
+nelec by numeric integration = 7.999962740118484
+cycle= 10 E= -12.5589964545953  delta_E= -1.78e-13  |g|= 9.86e-07  |ddm|= 4.89e-07
+  HOMO = -0.324619872636462  LUMO = 0.143351958620272
+nelec by numeric integration = 7.999962740086531
+Extra cycle  E= -12.5589964545948  delta_E= 5.19e-13  |g|= 1.66e-06  |ddm|= 4.75e-06
+converged SCF energy = -12.5589964545948
+nelec by numeric integration = 7.999962740086531
