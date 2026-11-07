@@ -6,8 +6,8 @@ from copy import deepcopy
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFormLayout,
-    QHBoxLayout, QLabel, QPushButton, QSplitter, QTableWidget, QTableWidgetItem,
-    QVBoxLayout, QWidget,
+    QFileDialog, QGridLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QSizePolicy, QSplitter,
+    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from .desktop_compat import legacy_camera_state
@@ -28,9 +28,16 @@ class ComparisonDialog(QDialog):
         self.panes = []
         self.setObjectName("nativeComparison")
         self.setWindowTitle(self.t("구조 비교", "Compare structures"))
-        self.resize(1300, 880)
-        self.setMinimumSize(1000, 700)
-        layout = QVBoxLayout(self)
+        available = window.screen().availableGeometry()
+        self.resize(min(1300, max(520, available.width() - 24)), min(880, max(300, available.height() - 24)))
+        self.setMinimumSize(520, 300)
+        outer = QVBoxLayout(self)
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        self.scroll.setWidget(content)
+        outer.addWidget(self.scroll, 1)
         heading = QLabel(self.t("같은 기준으로 나란히 보기", "LOOK AT THE SAME EVIDENCE, SIDE BY SIDE"))
         heading.setObjectName("eyebrow")
         layout.addWidget(heading)
@@ -41,10 +48,17 @@ class ComparisonDialog(QDialog):
             panel = QVBoxLayout(body)
             panel.setContentsMargins(2, 0, 2, 0)
             files, charge, volume = QComboBox(), QComboBox(), QComboBox()
+            for selector in (files, charge, volume):
+                selector.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+                selector.setMinimumContentsLength(8)
+                selector.setMinimumWidth(0)
+                selector.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             files.setObjectName(f"compareFile{side}")
             charge.setObjectName(f"compareCharge{side}")
             volume.setObjectName(f"compareVolume{side}")
             form = QFormLayout()
+            form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+            form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
             form.addRow(self.t("왼쪽 구조" if side == 0 else "오른쪽 구조", "Left structure" if side == 0 else "Right structure"), files)
             form.addRow(self.t("원자 색상", "Atom colors"), charge)
             form.addRow(self.t("전자 표면", "Surface data"), volume)
@@ -62,13 +76,48 @@ class ComparisonDialog(QDialog):
             form.addRow(self.t("등치값 단위", "Isovalue units"), units)
             panel.addLayout(form)
             view = StructureView(language=window.language)
+            view.setMinimumSize(160, 100)
+            view.set_graphics_quality(window.view.graphics_quality)
+            view.restore_view_state({"representation": window.view.representation, "background": window.view.background})
+            display = QHBoxLayout()
+            representation = QComboBox()
+            for ko, en, value in (("구·막대", "Ball and stick", "ball-stick"),
+                                  ("막대", "Sticks", "stick"), ("공간 채움", "Space filling", "spacefill")):
+                representation.addItem(self.t(ko, en), value)
+            representation.setCurrentIndex(max(0, representation.findData(view.representation)))
+            representation.setAccessibleName(self.t("원자 표현", "Representation"))
+            representation.currentIndexChanged.connect(lambda _index, view=view, selector=representation: view.set_representation(selector.currentData()))
+            background = QComboBox()
+            for ko, en, value in (("밝은 배경", "Light background", "gradient"), ("흰색", "White", "white"),
+                                  ("어두운 배경", "Dark background", "dark"), ("투명", "Transparent", "transparent")):
+                background.addItem(self.t(ko, en), value)
+            background.setCurrentIndex(max(0, background.findData(view.background)))
+            background.setAccessibleName(self.t("화면 배경", "Scene background"))
+            background.currentIndexChanged.connect(lambda _index, view=view, selector=background: view.set_background(selector.currentData()))
+            display.addWidget(representation, 1)
+            display.addWidget(background, 1)
+            panel.addLayout(display)
+            toggles = QHBoxLayout()
+            display_toggles = {}
+            for key, ko, en, attr in (("cell", "셀", "Cell", "show_cell"), ("bonds", "연결선", "Guides", "show_bonds"),
+                                       ("gap", "간격", "Gap", "show_gap"), ("labels", "원소", "Labels", "show_labels")):
+                toggle = QCheckBox(self.t(ko, en))
+                toggle.setChecked(getattr(view, attr))
+                toggle.toggled.connect(lambda checked, view=view, attr=attr: self._display_toggle(view, attr, checked))
+                toggles.addWidget(toggle)
+                display_toggles[key] = toggle
+            save = QPushButton("PNG…")
+            save.clicked.connect(lambda _checked=False, view=view: self._export_view(view))
+            toggles.addWidget(save)
+            panel.addLayout(toggles)
             panel.addWidget(view, 1)
             info = QLabel()
             info.setWordWrap(True)
             info.setObjectName("muted")
             panel.addWidget(info)
             self.panes.append({"file": files, "charge": charge, "volume": volume,
-                               "surface": surface, "level": level, "units": units, "view": view, "info": info})
+                               "surface": surface, "level": level, "units": units, "view": view, "info": info,
+                               "representation": representation, "background": background, "display_toggles": display_toggles})
             files.currentIndexChanged.connect(lambda _index, side=side: self._select_file(side))
             charge.currentIndexChanged.connect(lambda _index, side=side: self._render_electronic(side))
             volume.currentIndexChanged.connect(lambda _index, side=side: self._render_electronic(side))
@@ -88,17 +137,16 @@ class ComparisonDialog(QDialog):
         self.metrics.setColumnWidth(1, 190)
         self.metrics.setColumnWidth(2, 190)
         layout.addWidget(self.metrics)
-        controls = QHBoxLayout()
+        controls = QGridLayout()
         self.link_cameras = QCheckBox(self.t("시점 함께 움직이기", "Link camera orientation"))
         self.shared_range = QCheckBox(self.t("같은 물리량의 색상 범위 공유", "Share range for the same quantity"))
         self.link_cameras.toggled.connect(lambda: self._camera_changed(0))
         self.shared_range.toggled.connect(lambda: self._render_electronic())
-        controls.addWidget(self.link_cameras)
-        controls.addWidget(self.shared_range)
-        controls.addStretch()
+        controls.addWidget(self.link_cameras, 0, 0)
+        controls.addWidget(self.shared_range, 0, 1)
         refresh = QPushButton(self.t("자료 목록 새로 고침", "Refresh datasets"))
         refresh.clicked.connect(self._refresh_datasets)
-        controls.addWidget(refresh)
+        controls.addWidget(refresh, 1, 1)
         layout.addLayout(controls)
         self.scope = QLabel(self.t(
             "수치는 각 CIF의 축·거리 조건에 따릅니다. 두 구조의 차이는 안정성이나 개선을 뜻하지 않습니다.",
@@ -109,7 +157,7 @@ class ComparisonDialog(QDialog):
         close = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         close.button(QDialogButtonBox.StandardButton.Close).setText(self.t("닫기", "Close"))
         close.rejected.connect(self.close)
-        layout.addWidget(close)
+        outer.addWidget(close)
         window.workspaceChanged.connect(self.refresh_entries)
         if window.research_panel:
             window.research_panel.changed.connect(self._refresh_datasets)
@@ -117,6 +165,24 @@ class ComparisonDialog(QDialog):
 
     def t(self, ko, en):
         return self.window.text(ko, en)
+
+    def _display_toggle(self, view, attribute, checked):
+        setattr(view, attribute, checked)
+        view.update()
+        view.viewChanged.emit()
+
+    def _export_view(self, view):
+        if not view.report:
+            return
+        path, _ = QFileDialog.getSaveFileName(self, self.t("비교 이미지 저장", "Save comparison pane image"),
+                                             "comparison.png", "PNG (*.png)")
+        if path:
+            try:
+                preferences = getattr(self.window, "preferences", None)
+                view.export_png(path, width=int(preferences.get("export_width")) if preferences else 1600,
+                                background=preferences.get("export_background") if preferences else "white")
+            except (OSError, ValueError, RuntimeError) as error:
+                self.window.show_error(error)
 
     def _initial_state(self):
         if self.window.comparison_state:
@@ -177,6 +243,10 @@ class ComparisonDialog(QDialog):
             pane["surface"].setChecked(previous.get("surface") is True)
             self._set_structure(side)
             pane["view"].restore_view_state(previous.get("camera", {}))
+            pane["representation"].setCurrentIndex(max(0, pane["representation"].findData(pane["view"].representation)))
+            pane["background"].setCurrentIndex(max(0, pane["background"].findData(pane["view"].background)))
+            for key, attribute in (("cell", "show_cell"), ("bonds", "show_bonds"), ("gap", "show_gap"), ("labels", "show_labels")):
+                pane["display_toggles"][key].setChecked(getattr(pane["view"], attribute))
         self.link_cameras.setChecked(saved.get("linked") is True)
         self.shared_range.setChecked(saved.get("shared_range") is True)
         self._updating = False

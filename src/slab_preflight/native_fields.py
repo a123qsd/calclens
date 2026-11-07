@@ -122,6 +122,11 @@ _TETS = ((0, 5, 1, 6), (0, 1, 2, 6), (0, 2, 3, 6), (0, 3, 7, 6), (0, 7, 4, 6), (
 
 
 def isosurfaces(grid: CubeGrid, magnitude: float, opacity: float = 0.45):
+    """Extract the requested physical level from every original grid cell.
+
+    Graphics presets operate on raster samples later. They never resample this
+    grid, discard triangles or silently replace a user's scientific isovalue.
+    """
     if (
         not math.isfinite(magnitude)
         or magnitude <= 0
@@ -145,7 +150,8 @@ def isosurfaces(grid: CubeGrid, magnitude: float, opacity: float = 0.45):
         crossing = np.argwhere((hi >= level) & (lo < level))
         if len(crossing) > 25_000:
             raise ValueError(
-                "Isosurface exceeds the native display budget. Choose a larger isovalue."
+                "Isosurface exceeds the native display budget at the requested isovalue. "
+                "No grid values or isovalue were changed; prepare an explicitly bounded source grid."
             )
         if not len(crossing):
             continue
@@ -185,7 +191,8 @@ def isosurfaces(grid: CubeGrid, magnitude: float, opacity: float = 0.45):
                         total_faces += len(tris)
                         if total_faces > MAX_MESH_FACES:
                             raise ValueError(
-                                "Isosurface exceeds 30,000 display triangles. Choose a different isovalue."
+                                "Isosurface exceeds 30,000 display triangles at the requested isovalue. "
+                                "No triangles, grid values or isovalue were changed."
                             )
                         triangles.append(tris)
         if triangles:

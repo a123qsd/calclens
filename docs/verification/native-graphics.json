@@ -1,0 +1,216 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "d6e9acf4c3ee572d295276af97d22ba22abf30cb",
+  "scope": "Native Qt graphics: real offscreen capture observations; no Windows or hardware display performance measurement.",
+  "baseline": {
+    "environment": {
+      "system": "Darwin",
+      "architecture": "arm64",
+      "python": "3.12.16",
+      "pyside": "6.12.0",
+      "qt_platform": "offscreen"
+    },
+    "baseline_ref": "d6e9acf",
+    "scenes": [
+      {
+        "image": "graphics-before-opaque-plane.png",
+        "picked_center_atom": 0
+      },
+      {
+        "image": "graphics-before-plane-behind-atom.png",
+        "picked_center_atom": 0
+      },
+      {
+        "image": "graphics-before-transparent-plane.png",
+        "picked_center_atom": 0
+      },
+      {
+        "image": "graphics-before-water-baseline.png",
+        "picked_center_atom": 0
+      }
+    ]
+  },
+  "modified": {
+    "environment": {
+      "system": "Darwin",
+      "architecture": "arm64",
+      "python": "3.12.16",
+      "pyside": "6.12.0",
+      "qt_platform": "offscreen"
+    },
+    "baseline_ref": null,
+    "scenes": [
+      {
+        "image": "graphics-after-opaque-plane.png",
+        "picked_center_atom": -1,
+        "rendering": {
+          "quality": "light",
+          "requested_quality": "auto",
+          "frame_ms": 18.15954100311501,
+          "raster_size": [
+            599,
+            374
+          ],
+          "labels": 1,
+          "interacting": false,
+          "surface_faces": 2,
+          "mesh_simplification": "none; original triangles retained"
+        }
+      },
+      {
+        "image": "graphics-after-plane-behind-atom.png",
+        "picked_center_atom": 0,
+        "rendering": {
+          "quality": "balanced",
+          "requested_quality": "auto",
+          "frame_ms": 33.29841599770589,
+          "raster_size": [
+            856,
+            534
+          ],
+          "labels": 1,
+          "interacting": false,
+          "surface_faces": 2,
+          "mesh_simplification": "none; original triangles retained"
+        }
+      },
+      {
+        "image": "graphics-after-transparent-plane.png",
+        "picked_center_atom": 0,
+        "rendering": {
+          "quality": "balanced",
+          "requested_quality": "auto",
+          "frame_ms": 42.64033299841685,
+          "raster_size": [
+            856,
+            534
+          ],
+          "labels": 1,
+          "interacting": false,
+          "surface_faces": 2,
+          "mesh_simplification": "none; original triangles retained"
+        }
+      },
+      {
+        "image": "graphics-after-intersecting-transparent-planes.png",
+        "picked_center_atom": 0,
+        "rendering": {
+          "quality": "light",
+          "requested_quality": "auto",
+          "frame_ms": 40.74795899941819,
+          "raster_size": [
+            599,
+            374
+          ],
+          "labels": 1,
+          "interacting": false,
+          "surface_faces": 4,
+          "mesh_simplification": "none; original triangles retained"
+        }
+      },
+      {
+        "image": "graphics-after-water-light.png",
+        "picked_center_atom": 0,
+        "rendering": {
+          "quality": "light",
+          "requested_quality": "light",
+          "frame_ms": 121.56258399772923,
+          "raster_size": [
+            669,
+            416
+          ],
+          "labels": 3,
+          "interacting": false,
+          "surface_faces": 7624,
+          "mesh_simplification": "none; original triangles retained"
+        }
+      },
+      {
+        "image": "graphics-after-water-balanced.png",
+        "picked_center_atom": 0,
+        "rendering": {
+          "quality": "balanced",
+          "requested_quality": "balanced",
+          "frame_ms": 186.96025000099326,
+          "raster_size": [
+            956,
+            594
+          ],
+          "labels": 3,
+          "interacting": false,
+          "surface_faces": 7624,
+          "mesh_simplification": "none; original triangles retained"
+        }
+      },
+      {
+        "image": "graphics-after-water-high.png",
+        "picked_center_atom": 0,
+        "rendering": {
+          "quality": "high",
+          "requested_quality": "high",
+          "frame_ms": 342.65400000003865,
+          "raster_size": [
+            1434,
+            891
+          ],
+          "labels": 3,
+          "interacting": false,
+          "surface_faces": 7624,
+          "mesh_simplification": "none; original triangles retained"
+        }
+      },
+      {
+        "image": "graphics-after-water-export-800-transparent.png",
+        "width": 800,
+        "height": 1026,
+        "rendering": {
+          "quality": "high",
+          "background": "transparent",
+          "scene_width": 800,
+          "scene_height": 600,
+          "renderer": "software-per-pixel-depth",
+          "mesh_simplification": "none"
+        }
+      },
+      {
+        "image": "graphics-after-water-export-1600-white.png",
+        "width": 1600,
+        "height": 1506,
+        "rendering": {
+          "quality": "high",
+          "background": "white",
+          "scene_width": 1600,
+          "scene_height": 1200,
+          "renderer": "software-per-pixel-depth",
+          "mesh_simplification": "none"
+        }
+      },
+      {
+        "image": "graphics-after-water-export-3200-white.png",
+        "width": 3200,
+        "height": 2666,
+        "rendering": {
+          "quality": "high",
+          "background": "white",
+          "scene_width": 3200,
+          "scene_height": 2400,
+          "renderer": "software-per-pixel-depth",
+          "mesh_simplification": "none"
+        }
+      }
+    ]
+  },
+  "verification": {
+    "command": "PYTHONPATH=src QT_QPA_PLATFORM=offscreen python -m pytest -q tests/test_native_graphics.py tests/test_native_desktop.py tests/test_desktop_research_panel.py",
+    "passed": 50,
+    "ruff": "passed for graphics-owned sources, tests and capture utility",
+    "inspection": "Opaque front/behind plane, crossing translucent planes, real-water high-quality view and actual transparent annotated PNG visually inspected."
+  },
+  "limits": [
+    "Software per-pixel renderer only; no OpenGL/Metal/CUDA 3D acceleration.",
+    "Orthographic original-cell rendering; web perspective and arbitrary repeated-cell controls remain unavailable.",
+    "All mesh triangles retained. Large transparent meshes can remain slow, including high-quality interaction.",
+    "Individual offscreen frame observations are not a before/after performance benchmark.",
+    "Windows scale factors and physical Retina display were not tested."
+  ]
+}
