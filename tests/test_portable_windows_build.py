@@ -211,3 +211,24 @@ def test_folder_launcher_never_extracts_runtime_and_archive_keeps_complete_layou
         assert archive.testzip() is None
     assert result['distribution']=='folder'
     assert result['sha256']==sha256(output.read_bytes()).hexdigest()
+
+
+def test_source_collection_keeps_images_referenced_by_bundled_documentation(tmp_path,monkeypatch):
+    source=tmp_path/'source'
+    for name,content in {
+        'src/slab_preflight/__init__.py':b'__version__="fixture"',
+        'examples/graphene.cif':b'CIF fixture', 'LICENSE':b'license',
+        'THIRD_PARTY_NOTICES.md':b'notices', 'packaging/desktop/CalcLens.ico':b'icon',
+        'packaging/desktop/windows_bootstrap.py':b'# bootstrap fixture',
+        'docs/DESKTOP.md':b'![Actual screen](assets/report.png)',
+        'docs/assets/report.png':b'PNG fixture',
+    }.items():
+        path=source/name
+        path.parent.mkdir(parents=True,exist_ok=True)
+        path.write_bytes(content)
+    runtime=tmp_path/'payload'
+    runtime.mkdir()
+    monkeypatch.setattr(BUILD,'ROOT',source)
+    BUILD.collect_source(runtime)
+    assert (runtime/'docs/assets/report.png').read_bytes()==b'PNG fixture'
+    assert (runtime/'docs/DESKTOP.md').read_bytes()==b'![Actual screen](assets/report.png)'

@@ -230,9 +230,7 @@ def collect_source(runtime):
     docs = runtime/'docs'
     if docs.exists():
         shutil.rmtree(docs)
-    docs.mkdir()
-    for path in (ROOT/'docs').glob('*.md'):
-        shutil.copyfile(path,docs/path.name)
+    shutil.copytree(ROOT/'docs', docs, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '.DS_Store'))
     (runtime/'WINDOWS-RUNTIME-NOTICES.txt').write_text(
         'CPython license: LICENSE.txt. Application: LICENSE and THIRD_PARTY_NOTICES.md.\n'
         'Unmodified wheel licenses remain in Lib/site-packages/*.dist-info/licenses.\n'
