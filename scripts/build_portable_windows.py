@@ -20,6 +20,7 @@ import sys
 import tempfile
 import tomllib
 import urllib.request
+from urllib.parse import unquote, urlsplit
 import zipfile
 
 from packaging.markers import default_environment
@@ -216,6 +217,45 @@ def stage(cache: Path, offline=False) -> Path:
     return runtime
 
 
+def collect_documentation(runtime):
+    """Keep root guides and their explicit image/verification references only."""
+    source = ROOT/'docs'
+    destination = runtime/'docs'
+    if destination.exists():
+        shutil.rmtree(destination)
+    destination.mkdir()
+    selected = {path.relative_to(source) for path in source.glob('*.md') if path.is_file()}
+    for relative in tuple(selected):
+        guide = source/relative
+        if guide.is_symlink():
+            raise ValueError('Bundled documentation must not contain symlinks.')
+        for link in re.findall(r'\]\(([^)\n]+)\)', guide.read_text(encoding='utf-8')):
+            link = link.strip()
+            link = link[1:link.index('>')] if link.startswith('<') and '>' in link else link.split()[0]
+            parsed = urlsplit(link)
+            if parsed.scheme or parsed.netloc:
+                continue
+            target = Path(unquote(parsed.path))
+            if not target.parts or target.parts[0] not in ('assets', 'verification'):
+                continue
+            expected = {'.png', '.jpg', '.jpeg', '.svg', '.gif', '.webm'} if target.parts[0] == 'assets' else {'.json', '.csv', '.md'}
+            candidate = source/target
+            try:
+                resolved = candidate.resolve().relative_to(source.resolve())
+            except ValueError:
+                raise ValueError('Documentation reference escapes its source directory.') from None
+            if (not resolved.parts or resolved.parts[0] != target.parts[0]
+                    or candidate.suffix.lower() not in expected or not candidate.is_file()
+                    or any(part.is_symlink() for part in [candidate, *candidate.parents]
+                           if part != source.parent)):
+                raise ValueError(f'Unsafe or missing documentation reference: {target}')
+            selected.add(target)
+    for relative in sorted(selected):
+        target = destination/relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source/relative, target)
+
+
 def collect_source(runtime):
     for name in ('src/slab_preflight','examples'):
         dest = runtime/name
@@ -227,10 +267,7 @@ def collect_source(runtime):
         shutil.copyfile(ROOT/name,runtime/name)
     shutil.copyfile(ROOT/'packaging/desktop/CalcLens.ico',runtime/'CalcLens.ico')
     shutil.copyfile(ROOT/'packaging/desktop/windows_bootstrap.py', runtime/'desktop_start.py')
-    docs = runtime/'docs'
-    if docs.exists():
-        shutil.rmtree(docs)
-    shutil.copytree(ROOT/'docs', docs, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '.DS_Store'))
+    collect_documentation(runtime)
     (runtime/'WINDOWS-RUNTIME-NOTICES.txt').write_text(
         'CPython license: LICENSE.txt. Application: LICENSE and THIRD_PARTY_NOTICES.md.\n'
         'Unmodified wheel licenses remain in Lib/site-packages/*.dist-info/licenses.\n'

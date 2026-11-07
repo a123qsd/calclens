@@ -220,8 +220,12 @@ def test_source_collection_keeps_images_referenced_by_bundled_documentation(tmp_
         'examples/graphene.cif':b'CIF fixture', 'LICENSE':b'license',
         'THIRD_PARTY_NOTICES.md':b'notices', 'packaging/desktop/CalcLens.ico':b'icon',
         'packaging/desktop/windows_bootstrap.py':b'# bootstrap fixture',
-        'docs/DESKTOP.md':b'![Actual screen](assets/report.png)',
+        'docs/DESKTOP.md':b'![Actual screen](assets/report.png) [Verification](verification/report.json)',
         'docs/assets/report.png':b'PNG fixture',
+        'docs/verification/report.json':b'{"status":"fixture"}',
+        'docs/assets/unrelated.png':b'not referenced',
+        'docs/design/private.md':b'not a desktop guide',
+        'docs/.env':b'not distributable',
     }.items():
         path=source/name
         path.parent.mkdir(parents=True,exist_ok=True)
@@ -231,4 +235,27 @@ def test_source_collection_keeps_images_referenced_by_bundled_documentation(tmp_
     monkeypatch.setattr(BUILD,'ROOT',source)
     BUILD.collect_source(runtime)
     assert (runtime/'docs/assets/report.png').read_bytes()==b'PNG fixture'
-    assert (runtime/'docs/DESKTOP.md').read_bytes()==b'![Actual screen](assets/report.png)'
+    assert (runtime/'docs/verification/report.json').read_bytes()==b'{"status":"fixture"}'
+    assert not (runtime/'docs/assets/unrelated.png').exists()
+    assert not (runtime/'docs/design').exists() and not (runtime/'docs/.env').exists()
+
+
+@pytest.mark.parametrize('escape', [False,True])
+def test_documentation_collection_rejects_symlinks_and_escaping_references(tmp_path,monkeypatch,escape):
+    source=tmp_path/'source'
+    (source/'docs/assets').mkdir(parents=True)
+    (source/'private.png').write_bytes(b'outside guide tree')
+    if escape:
+        link='assets/../../private.png'
+    else:
+        link='assets/image.png'
+        try:
+            (source/'docs/assets/image.png').symlink_to(source/'private.png')
+        except OSError:
+            pytest.skip('This Windows account cannot create symlinks')
+    (source/'docs/DESKTOP.md').write_text(f'![Screen]({link})')
+    runtime=tmp_path/'payload'
+    runtime.mkdir()
+    monkeypatch.setattr(BUILD,'ROOT',source)
+    with pytest.raises(ValueError,match='escapes|Unsafe'):
+        BUILD.collect_documentation(runtime)
