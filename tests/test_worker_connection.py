@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import secrets
+import socket
 import threading
 import time
 import pytest
@@ -43,11 +44,24 @@ def test_authenticated_connection_reports_real_probes_and_worker_policy_without_
 
 
 @pytest.mark.parametrize("manual", [False, True])
-def test_timeout_and_cancel_interrupt_a_worker_that_never_answers(manual):
+@pytest.mark.parametrize("phase", ["headers", "body"])
+@pytest.mark.parametrize("shutdown_wakes_read", [False, True])
+def test_timeout_and_cancel_interrupt_a_worker_that_never_answers(
+    manual, phase, shutdown_wakes_read, monkeypatch
+):
+    if not shutdown_wakes_read:
+        # Winsock shutdown does not reliably wake an already waiting select().
+        # Cancellation must work independently of this best-effort interrupt.
+        monkeypatch.setattr(socket.socket, "shutdown", lambda *_: None)
     arrived, release = threading.Event(), threading.Event()
     class Stalled(BaseHTTPRequestHandler):
         def do_POST(self):
             self.rfile.read(int(self.headers["Content-Length"]))
+            if phase == "body":
+                self.send_response(200)
+                self.send_header("Content-Length", "32")
+                self.end_headers()
+                self.wfile.flush()
             arrived.set()
             release.wait(6)
         def log_message(self, *_):

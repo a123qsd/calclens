@@ -10,6 +10,8 @@ import base64
 from dataclasses import dataclass, field
 import hmac
 import http.client
+import io
+import select
 import socket
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -61,6 +63,74 @@ class RemoteCancellation:
         with self._lock:
             if self._cancelled:
                 raise ComputeError("Remote request cancelled.")
+
+
+class _RemoteReader(io.RawIOBase):
+    def __init__(self, transport):
+        super().__init__()
+        self.transport = transport
+        # Retain the socket's normal makefile reference: HTTPConnection may
+        # close its socket before an HTTP/1.0 response body has been consumed.
+        self.raw = transport.sock.makefile("rb", buffering=0)
+
+    def readable(self):
+        return True
+
+    def readinto(self, buffer):
+        return self.transport.perform(lambda: self.raw.readinto(buffer))
+
+    def close(self):
+        try:
+            self.raw.close()
+        finally:
+            super().close()
+
+
+class _RemoteTransport:
+    """Keep HTTP buffering while bounding every wait for plain or TLS I/O.
+
+    Winsock shutdown need not wake a socket's existing timeout/select wait.
+    Nonblocking operations and short readiness polls check cancellation directly;
+    a timeout never escapes into a makefile buffer that cannot safely be retried.
+    """
+    def __init__(self, sock, cancel, deadline):
+        self.sock, self.cancel, self.deadline = sock, cancel, deadline
+        sock.setblocking(False)
+
+    def perform(self, operation, *, writing=False):
+        while True:
+            if time.monotonic() >= self.deadline:
+                raise TimeoutError("Compute worker response deadline exceeded.")
+            self.cancel.check()
+            try:
+                value = operation()
+                if value is not None:
+                    return value
+                wait_write = writing  # SocketIO returns None when a read would block.
+            except ssl.SSLWantReadError:
+                wait_write = False
+            except ssl.SSLWantWriteError:
+                wait_write = True
+            except BlockingIOError:
+                wait_write = writing
+            seconds = min(0.1, max(0, self.deadline - time.monotonic()))
+            select.select([] if wait_write else [self.sock], [self.sock] if wait_write else [], [], seconds)
+
+    def sendall(self, data):
+        remaining = memoryview(data)
+        while remaining:
+            sent = self.perform(lambda: self.sock.send(remaining), writing=True)
+            if sent == 0:
+                raise ConnectionError("Compute worker closed the connection during upload.")
+            remaining = remaining[sent:]
+
+    def makefile(self, mode):
+        if mode != "rb":
+            raise ValueError("Compute responses require binary reads.")
+        return io.BufferedReader(_RemoteReader(self))
+
+    def close(self):
+        self.sock.close()
 
 
 @dataclass(frozen=True)
@@ -142,6 +212,7 @@ def _post(request_data, config, *, capabilities=False):
         cancel.check()
         connection.connect()
         cancel.attach(connection.sock)
+        connection.sock = _RemoteTransport(connection.sock, cancel, deadline)
         path = "/v1/capabilities" if capabilities else target.path
         connection.request("POST", path, body, headers={"Authorization": "Bearer " + config.token,
                            "Content-Type": "application/json", "Accept": "application/json"})
