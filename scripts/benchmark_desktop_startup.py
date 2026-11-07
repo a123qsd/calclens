@@ -14,6 +14,7 @@ import platform
 import statistics
 import subprocess
 import sys
+import threading
 import time
 
 
@@ -46,15 +47,40 @@ def measure(executable, output, *, runs=3, runner=None, legacy_smoke=False,
             child_env["CALCLENS_STARTUP_PARENT_NS"] = str(started)
         else:
             child_env.pop("CALCLENS_STARTUP_PARENT_NS", None)
+        observed = {}
+        stopped = threading.Event()
+
+        def observe():
+            try:
+                current = json.loads(trace.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                return
+            receipt_ms = round((time.perf_counter_ns() - started) / 1e6, 3)
+            for stage in current.get("milestones_ms", {}):
+                observed.setdefault(stage, receipt_ms)
+
+        def watch():
+            while not stopped.wait(0.025):
+                observe()
+
+        watcher = threading.Thread(target=watch, daemon=True)
+        watcher.start()
         with (output / f"run-{index + 1}.output.txt").open("w", encoding="utf-8") as log:
-            completed = subprocess.run(command, env=child_env, stdout=log, stderr=log,
-                                       timeout=timeout, check=False)
+            try:
+                completed = subprocess.run(command, env=child_env, stdout=log, stderr=log,
+                                           timeout=timeout, check=False)
+            finally:
+                stopped.set()
+                watcher.join()
+                observe()
         elapsed = round((time.perf_counter_ns() - started) / 1e6, 3)
         record = json.loads(trace.read_text(encoding="utf-8")) if trace.is_file() else {}
         success = record.get("status") == "passed" if legacy_smoke else record.get("ready") is True
         observation = {"run": index + 1, "kind": "first_observed" if index == 0 else "repeat",
                        "process_wall_ms": elapsed, "exit_code": completed.returncode,
                        "passed": completed.returncode == 0 and success, "trace": record}
+        if observed:
+            observation["observed_launch_to_ms"] = observed
         observations.append(observation)
         print(json.dumps({key: value for key, value in observation.items() if key != "trace"}), flush=True)
         if not observation["passed"]:
@@ -72,6 +98,7 @@ def measure(executable, output, *, runs=3, runner=None, legacy_smoke=False,
         "first_is_cold_boot": False,
         "cache_policy": "OS and application caches are left unchanged; first observed run then repeats",
         "process_wall_includes": "launcher, runtime, GUI, readiness/verification and orderly shutdown",
+        "observation_method": "Parent reads atomic trace updates every 25 ms; receipt times are upper bounds, subject to scheduling",
         "windows_performance_measured": not wine,
         "runs": observations,
         "repeat_wall_median_ms": statistics.median(repeats) if repeats else None,
