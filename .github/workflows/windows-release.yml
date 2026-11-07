@@ -1,6 +1,8 @@
 name: Windows executables
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       include_legacy_ui:
@@ -13,7 +15,49 @@ permissions:
   contents: read
 
 jobs:
+  test-published-exe:
+    name: Run published EXE on Windows x64
+    if: github.event_name == 'release' && !contains(github.event.release.tag_name, '-')
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+      QT_QPA_PLATFORM: windows
+    steps:
+      - name: Download and check the public executable
+        shell: pwsh
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v(\d+\.\d+\.\d+)$') { throw "Unexpected release tag" }
+          $file = "CalcLens-$($Matches[1])-Windows-x64.exe"
+          $base = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/releases/download/$env:RELEASE_TAG"
+          Invoke-WebRequest "$base/$file" -OutFile $file
+          Invoke-WebRequest "$base/SHA256SUMS.txt" -OutFile SHA256SUMS.txt
+          $hash = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLowerInvariant()
+          if ((Get-Content SHA256SUMS.txt) -cnotcontains "$hash  $file") { throw "EXE checksum mismatch" }
+          "CALCLENS_EXE=$file" >> $env:GITHUB_ENV
+      - name: Open the native window and exercise the packaged examples
+        shell: pwsh
+        run: |
+          $report = Join-Path $env:GITHUB_WORKSPACE 'windows-smoke.json'
+          $arguments = '--language ko --native-smoke "{0}"' -f $report
+          $process = Start-Process -FilePath ".\$env:CALCLENS_EXE" -ArgumentList $arguments -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "EXE exited with code $($process.ExitCode)" }
+          $result = Get-Content windows-smoke.json -Raw | ConvertFrom-Json
+          $result | ConvertTo-Json -Depth 6
+          if ($result.status -ne 'passed' -or $result.version -ne $env:RELEASE_TAG.Substring(1) -or
+              $result.platform -ne 'win32' -or $result.architecture -ne 'AMD64' -or
+              $result.native_widget -ne 'MainWindow' -or $result.browser_or_socket_listeners -ne 0) {
+            throw "Unexpected Windows desktop smoke result"
+          }
+      - name: Keep the report and window capture
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: published-windows-smoke
+          path: windows-smoke.*
+          if-no-files-found: warn
   build:
+    if: github.event_name == 'workflow_dispatch'
     name: Windows x64 (${{ matrix.language }}${{ inputs.include_legacy_ui && ' legacy' || '' }})
     runs-on: windows-latest
     timeout-minutes: 60
@@ -23,6 +67,7 @@ jobs:
         language: [ko, en]
     env:
       PYTHONUTF8: '1'
+      QT_QPA_PLATFORM: 'offscreen'
       PYTHONHASHSEED: '0'
       CALCLENS_INCLUDE_LEGACY_UI: ${{ inputs.include_legacy_ui && '1' || '0' }}
     steps:

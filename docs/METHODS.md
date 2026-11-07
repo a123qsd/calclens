@@ -1,13 +1,15 @@
 # Methods and scientific limits / 계산 방법과 과학적 한계
 
-CalcLens checks a deliberately narrow geometric model: explicitly listed,
-fully occupied atomic sites in a P1 cell, periodic in all three directions,
+CalcLens directly analyzes a deliberately narrow geometric model: fully expanded,
+explicitly listed sites in an ordered, fully occupied P1 cell, periodic in all
+three directions,
 with a user-selected normal axis (a, b, or c) perpendicular to the other two
 cell vectors. It performs no relaxation, force,
 energy, phonon, charge, or electronic-structure calculation.
 
-이 도구는 P1 셀에 명시된 원자핵 위치를 검사합니다. 물질의 안정성, 결합의 적절성,
-계산 설정의 정확성을 판정하지 않으며 구조를 자동으로 고치지 않습니다.
+직접 분석은 대칭 전개를 마친 P1 셀의 완전 점유·질서 구조에 명시된 원자핵 위치를
+검사합니다. 물질의 안정성, 결합의 적절성, 계산 설정의 정확성을 판정하지 않으며
+구조를 자동으로 고치지 않습니다.
 
 The optional viewer can display externally supplied charge assignments and Cube
 density/orbital grids. Those displays do not change these calculations or relax
@@ -15,20 +17,24 @@ the CIF input contract. Source/coordinate checks establish a display mapping,
 not the correctness of the external calculation. Unknown charges are not zero,
 oxidation states are not partial charges, and orbital colors denote wavefunction
 sign rather than positive/negative electron charges. See [Imported viewer
-data](VIEWER_DATA.md) for the separate display-data contract and session-only lifetime.
+data](VIEWER_DATA.md) for the separate display-data contract. Imported sources,
+drafts and viewer settings can be retained by manually saving a project ZIP;
+see [Workspace save](WORKSPACE_SAVE.md). Desktop sessions also keep local automatic recovery snapshots. The optional browser workspace requires a manual project save.
 
 가져온 전하·전자 표면은 표시용 보조 자료이며 기하 분석이나 입력 제한을 바꾸지 않습니다.
 표면의 기준값은 그래픽 품질과 별개이고, 원자핵 기준 두께·간격은 전자 표면을 반영하지 않습니다.
+가져온 원본·초안·뷰어 설정은 작업 ZIP에 수동으로 저장할 수 있습니다.
+데스크톱은 저장 전 변경 사항의 로컬 복구본을 만듭니다. 이전 브라우저 화면에서는 작업 ZIP을 직접 저장해야 합니다.
 
-## Input contract
+## Direct-analysis input contract
 
 | Input | Accepted values |
 | --- | --- |
 | Format | CIF 1.x, exactly one data block |
-| Sites | 1–400 explicit fractional-coordinate sites |
+| Sites | 1–400 fully expanded, explicit fractional-coordinate sites in an ordered structure |
 | File size | At most 2 MiB (2,097,152 bytes) |
 | Elements | Standard element symbols; no mixed species or placeholder sites |
-| Occupancy | 1 within 0.00000001 for every site; omitted occupancy is interpreted as 1 with an informational note |
+| Occupancy | 1 within 0.00000001 for every site; an absent occupancy field defaults to 1 with an informational note; explicit `?` or `.` is rejected |
 | Symmetry | Explicit P1 declaration; symmetry operations, if supplied, must be identity only |
 | Cell lengths | Finite, between 0.001 and 10,000 Å |
 | Cell angles | Angles between the selected normal vector and each other vector within 0.00001° of 90°; the remaining angle strictly between 0° and 180° |
@@ -55,12 +61,19 @@ convention. The program cannot detect a file whose numerical lengths have been
 mislabeled, for example nanometre values written in ångström fields.
 
 Unsupported input stops analysis with a reason instead of yielding a reassuring
-partial result. In particular, the program does not expand non-P1 symmetry,
-choose a dominant species for mixed occupancy, guess a slab normal, or select
-one block from a multi-structure file. A symmetry-expanded P1 export must contain
-all required atoms. First review occupancy and disorder in a suitable structure
-tool; then export fully expanded P1 if that representation is appropriate.
-Changing only the space-group label does not make a file valid.
+partial result. Direct analysis does not expand non-P1 symmetry. The separate
+[P1 preparation step](WORKSPACE_SAVE.md#p1-preparation) can expand supported,
+ordered, fully occupied structures in a validated standard setting. Applying a
+preview retains the original bytes, hashes and preparation history in the project;
+the resulting explicit P1 structure must satisfy the input contract above.
+Neither path chooses a dominant species for mixed occupancy, guesses a slab
+normal, or selects one block from a multi-structure file. Changing only the
+space-group label does not make a file valid.
+
+직접 분석은 비 P1 대칭을 전개하지 않습니다. 별도의 **P1 구조 준비** 단계에서
+지원되는 완전 점유·질서 구조를 검증한 뒤 대칭 전개할 수 있습니다. 적용 후에도
+원본 바이트·해시·준비 이력을 프로젝트에 보관하며, 전개한 구조는 위 입력 조건을
+충족해야 합니다. 공간군 이름만 P1으로 바꾸는 것은 유효한 변환이 아닙니다.
 
 Symmetry-related records and alternative partially occupied sites in a general
 CIF are not automatically accidental duplicates. The P1/full-occupancy boundary
@@ -71,20 +84,52 @@ sites. Unsupported input is not repaired by discarding atoms.
 
 [ASE's CIF parser](https://docs.ase-lib.org/ase/io/formatoptions.html#cif) handles
 CIF syntax. CalcLens reads the explicit site loop and constructs the
-geometry from those rows. It avoids a symmetry-expansion path that might merge
-equivalent positions before duplicate-site checking. Two rows at the same
+geometry from those rows. Direct analysis avoids a symmetry-expansion path that
+might merge equivalent positions before duplicate-site checking. Two rows at the same
 periodic position therefore remain two sites and can be reported as an overlap.
 
 Only the geometry and supported site fields are analyzed. Chemical oxidation
 states, magnetic order, occupancies below one, and structural disorder are outside
-the model. Nontrivial disorder groups, site multiplicity other than 1, a
-nonstandard space-group setting, magnetic symmetry, modulated, superspace, or
-composite structure declarations, and Cartesian-coordinate site fields are
-rejected. Declared modulation metadata is conservatively unsupported even when
+the model. Direct analysis rejects nontrivial disorder groups, site multiplicity
+other than 1, a nonstandard space-group setting, magnetic symmetry, modulated,
+superspace, or composite structure declarations, and Cartesian-coordinate site
+fields. Declared modulation metadata is conservatively unsupported even when
 its value is zero or unknown; an average structure cannot substitute for the
 full model without a separate scientific decision. Repeated tags and ASE parser warnings also stop
 analysis because their interpretation may be ambiguous. A parsable file is
 not necessarily an appropriate simulation input.
+
+### CIF field aliases and site values
+
+Both direct analysis and P1 preparation accept an explicit list of known
+underscore and dotted aliases, such as `_atom_site_occupancy` and
+`_atom_site.occupancy`. The four multiplicity spellings
+`_atom_site_symmetry_multiplicity`, `_atom_site.symmetry_multiplicity`,
+`_atom_site_site_symmetry_multiplicity` and `_atom_site.site_symmetry_multiplicity`
+refer to one field. Repeating a semantic field through any of its aliases is
+rejected even when the values agree. Other dotted names are not automatically
+converted to underscore names.
+
+Explicit occupancy, disorder and multiplicity values must be site-loop columns
+with one value per atom. Both paths require occupancy 1 within `1e-8`. Only an
+absent occupancy field receives the default 1 and an informational note; explicit
+`?` and `.` values never receive that default. Direct P1 analysis requires site
+multiplicity 1. P1 preparation instead checks each declared multiplicity against
+the number of distinct sites generated for that source atom by symmetry.
+Occupancy uncertainty and refinement metadata remain annotations and do not
+replace occupancy values.
+
+직접 분석과 P1 구조 준비는 명시적으로 지원하는 밑줄·점 표기를 같은 항목으로
+읽습니다. 예를 들어 `_atom_site_occupancy`와 `_atom_site.occupancy`는 같습니다.
+위의 다중도 표기 네 가지도 하나의 항목이며, 값이 같아도 같은 항목을 여러 표기로
+중복 선언하면 거부합니다. 모든 점 표기를 밑줄로 일괄 변환하지는 않습니다.
+
+점유율·무질서·다중도를 명시하면 원자마다 값이 하나씩 있는 원자 목록의 열이어야
+합니다. 두 경로 모두 점유율 1을 `1e-8` 오차 범위에서 허용합니다. 점유율 항목이
+없을 때만 안내와 함께 1을 적용하며, `?`나 `.`을 명시한 값에는 적용하지 않습니다.
+직접 P1 분석의 다중도는 1이어야 합니다. P1 구조 준비에서는 각 원본 원자를 대칭
+전개해 얻은 서로 다른 위치 수와 선언된 다중도가 일치하는지 확인합니다.
+점유율 불확도와 정밀화 메타데이터는 주석이며 점유율 값을 대신하지 않습니다.
 
 ## Periodic distances
 
@@ -275,11 +320,9 @@ broader materials objects, symmetry, and analysis workflows. CalcLens's
 narrow P1 contract keeps its duplicate handling and slab convention inspectable;
 it deliberately exposes fewer capabilities than either library.
 
-Use the broader libraries or a suitable structure editor when symmetry expansion,
-disorder, a normal that is not a supported cell axis, chemical bonding, or advanced analysis is
-required. Check their own method assumptions before using the result for research.
+Use the broader libraries or a suitable structure editor when the validated P1
+preparation does not support the required symmetry expansion, or when disorder,
+a normal that is not a supported cell axis, chemical bonding, or advanced analysis
+is required. Check their own method assumptions before using the result for research.
 
-Gaussian/ORCA log parsing, SCF convergence, optimization histories, and frequency
-analysis are outside the current scope. A CIF geometry report supplies no
-evidence that any of those calculations ran or converged. See [DEVELOPMENT.md](DEVELOPMENT.md) for
-the boundary of a possible future log feature.
+The desktop's separate Gaussian reader reports supported SCF energies, optimization steps, frequencies and termination records with their original line numbers. ORCA output is outside this parser's scope. A CIF geometry report alone cannot establish that an electronic calculation ran or converged. See the [research cases](RESEARCH_CASES.md) for the Gaussian and periodic convergence contracts and [compute methods](COMPUTE.md) for external-field post-processing.

@@ -1,0 +1,136 @@
+{
+  "source_status": "illustrative synthetic geometry; actual local SCF calculations",
+  "pyscf_version": "2.12.0",
+  "method": "PySCF 2.12.0 UHF/STO-3G; common full H2 AO basis with ghost-H centers",
+  "reference_conditions": "Frozen H2 nuclei at 0.74 angstrom; neutral AB singlet (2 electrons), neutral A/B doublets (1 electron each); isolated gas phase, no periodic electronic calculation; same STO-3G functions on both dimer centers via ghosts, same Cartesian grid/origin/voxel basis; SCF energy tolerance 1e-12 hartree, gradient tolerance 1e-8; no density renormalization",
+  "basis": "sto-3g",
+  "positions_angstrom": [
+    [
+      5.63,
+      6.0,
+      6.0
+    ],
+    [
+      6.37,
+      6.0,
+      6.0
+    ]
+  ],
+  "states": [
+    {
+      "role": "AB",
+      "centers_bohr": [
+        {
+          "element": "H",
+          "position": [
+            10.639158081643085,
+            11.338356747754622,
+            11.338356747754622
+          ]
+        },
+        {
+          "element": "H",
+          "position": [
+            12.037555413866157,
+            11.338356747754622,
+            11.338356747754622
+          ]
+        }
+      ],
+      "spin_Nalpha_minus_Nbeta": 0,
+      "charge": 0,
+      "real_indices_zero_based": [
+        0,
+        1
+      ]
+    },
+    {
+      "role": "A",
+      "centers_bohr": [
+        {
+          "element": "H",
+          "position": [
+            10.639158081643085,
+            11.338356747754622,
+            11.338356747754622
+          ]
+        },
+        {
+          "element": "ghost-H",
+          "position": [
+            12.037555413866157,
+            11.338356747754622,
+            11.338356747754622
+          ]
+        }
+      ],
+      "spin_Nalpha_minus_Nbeta": 1,
+      "charge": 0,
+      "real_indices_zero_based": [
+        0
+      ]
+    },
+    {
+      "role": "B",
+      "centers_bohr": [
+        {
+          "element": "ghost-H",
+          "position": [
+            10.639158081643085,
+            11.338356747754622,
+            11.338356747754622
+          ]
+        },
+        {
+          "element": "H",
+          "position": [
+            12.037555413866157,
+            11.338356747754622,
+            11.338356747754622
+          ]
+        }
+      ],
+      "spin_Nalpha_minus_Nbeta": 1,
+      "charge": 0,
+      "real_indices_zero_based": [
+        1
+      ]
+    }
+  ],
+  "grid": {
+    "shape": [
+      49,
+      49,
+      49
+    ],
+    "origin_bohr": [
+      3.7794522492515403,
+      3.7794522492515403,
+      3.7794522492515403
+    ],
+    "voxel_vectors_bohr": [
+      [
+        0.314954354104295,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.314954354104295,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.314954354104295
+      ]
+    ]
+  },
+  "scf": {
+    "conv_tol_hartree": 1e-12,
+    "conv_tol_grad": 1e-08,
+    "max_cycle": 100,
+    "initial_guess": "1e",
+    "threads": 1
+  }
+}

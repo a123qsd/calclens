@@ -1,0 +1,87 @@
+.version 6.0
+.target sm_50
+.address_size 64
+
+.visible .entry vector_norms(.param .u64 vectors, .param .u64 output, .param .u32 count) {
+    .reg .pred %p;
+    .reg .b32 %r<5>;
+    .reg .b64 %d<7>;
+    .reg .f64 %v<9>;
+    ld.param.u64 %d0, [vectors]; ld.param.u64 %d1, [output]; ld.param.u32 %r0, [count];
+    mov.u32 %r1, %ctaid.x; mov.u32 %r2, %ntid.x; mov.u32 %r3, %tid.x;
+    mad.lo.u32 %r4, %r1, %r2, %r3;
+    setp.ge.u32 %p, %r4, %r0; @%p bra norm_done;
+    mul.wide.u32 %d2, %r4, 24; add.u64 %d3, %d0, %d2;
+    ld.global.f64 %v0, [%d3]; ld.global.f64 %v1, [%d3+8]; ld.global.f64 %v2, [%d3+16];
+    mul.rn.f64 %v3, %v0, %v0; mul.rn.f64 %v4, %v1, %v1; mul.rn.f64 %v5, %v2, %v2;
+    add.rn.f64 %v6, %v3, %v4; add.rn.f64 %v7, %v6, %v5; sqrt.rn.f64 %v8, %v7;
+    mul.wide.u32 %d4, %r4, 8; add.u64 %d5, %d1, %d4; st.global.f64 [%d5], %v8;
+norm_done: ret;
+}
+
+// Driver-JIT float64 arithmetic: no CUDA toolkit, Python extension or CuPy required.
+.visible .entry density_difference(
+    .param .u64 ab, .param .u64 a, .param .u64 b, .param .u64 output, .param .u32 count
+) {
+    .reg .pred %p;
+    .reg .b32 %r<5>;
+    .reg .b64 %d<10>;
+    .reg .f64 %v<5>;
+    ld.param.u64 %d0, [ab]; ld.param.u64 %d1, [a];
+    ld.param.u64 %d2, [b]; ld.param.u64 %d3, [output];
+    ld.param.u32 %r0, [count];
+    mov.u32 %r1, %ctaid.x; mov.u32 %r2, %ntid.x; mov.u32 %r3, %tid.x;
+    mad.lo.u32 %r4, %r1, %r2, %r3;
+    setp.ge.u32 %p, %r4, %r0; @%p bra done;
+    mul.wide.u32 %d4, %r4, 8;
+    add.u64 %d5, %d0, %d4; add.u64 %d6, %d1, %d4;
+    add.u64 %d7, %d2, %d4; add.u64 %d8, %d3, %d4;
+    ld.global.f64 %v0, [%d5]; ld.global.f64 %v1, [%d6]; ld.global.f64 %v2, [%d7];
+    sub.rn.f64 %v3, %v0, %v1; sub.rn.f64 %v4, %v3, %v2;
+    st.global.f64 [%d8], %v4;
+done: ret;
+}
+
+.visible .entry density_planar(
+    .param .u64 values, .param .u64 average,
+    .param .u32 n0, .param .u32 n1, .param .u32 n2, .param .u32 axis
+) {
+    .reg .pred %p<5>;
+    .reg .b32 %r<20>;
+    .reg .b64 %d<8>;
+    .reg .f64 %v<9>;
+    ld.param.u64 %d0, [values]; ld.param.u64 %d1, [average];
+    ld.param.u32 %r0, [n0]; ld.param.u32 %r1, [n1];
+    ld.param.u32 %r2, [n2]; ld.param.u32 %r3, [axis];
+    mov.u32 %r4, %ctaid.x; mov.u32 %r5, %ntid.x; mov.u32 %r6, %tid.x;
+    mad.lo.u32 %r7, %r4, %r5, %r6;
+    setp.eq.u32 %p0, %r3, 0; setp.eq.u32 %p1, %r3, 1;
+    selp.u32 %r8, %r1, %r2, %p1; selp.u32 %r8, %r0, %r8, %p0;
+    setp.ge.u32 %p2, %r7, %r8; @%p2 bra complete;
+    mul.lo.u32 %r9, %r0, %r1; mul.lo.u32 %r9, %r9, %r2;
+    div.u32 %r10, %r9, %r8;
+    mov.u32 %r11, 0; mov.f64 %v0, 0d0000000000000000;
+    mov.f64 %v4, 0d0000000000000000;
+loop:
+    setp.ge.u32 %p3, %r11, %r10; @%p3 bra store;
+    @%p0 bra axis_zero; @%p1 bra axis_one;
+    mad.lo.u32 %r12, %r11, %r2, %r7; bra load;
+axis_zero:
+    mad.lo.u32 %r12, %r7, %r10, %r11; bra load;
+axis_one:
+    div.u32 %r13, %r11, %r2; rem.u32 %r14, %r11, %r2;
+    mad.lo.u32 %r12, %r13, %r1, %r7;
+    mad.lo.u32 %r12, %r12, %r2, %r14;
+load:
+    mul.wide.u32 %d2, %r12, 8; add.u64 %d3, %d0, %d2;
+    ld.global.f64 %v1, [%d3];
+    sub.rn.f64 %v5, %v1, %v4; add.rn.f64 %v6, %v0, %v5;
+    sub.rn.f64 %v7, %v6, %v0; sub.rn.f64 %v4, %v7, %v5;
+    mov.f64 %v0, %v6;
+    add.u32 %r11, %r11, 1; bra loop;
+store:
+    cvt.rn.f64.u32 %v2, %r10; div.rn.f64 %v3, %v0, %v2;
+    mul.wide.u32 %d4, %r7, 8; add.u64 %d5, %d1, %d4;
+    st.global.f64 [%d5], %v3;
+complete: ret;
+}

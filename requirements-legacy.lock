@@ -643,3 +643,5 @@ websockets==17.4 \
     --hash=sha256:e3e80cad85ba68c07c1e8d4ccc9cf51e63bf6a73d6bf631640be947bd72b6b63 \
     --hash=sha256:f24bed98595b9d854da8d6debaf82754abf3e8fe63ec90505ef560566814df7e
     # via streamlit
+
+-r packaging/desktop/requirements.lock

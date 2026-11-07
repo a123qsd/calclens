@@ -186,7 +186,7 @@ def test_streamlit_import_occurs_after_development_mode_is_disabled(package, mon
     assert observed
 
 
-def test_frozen_windows_default_uses_manager_but_no_browser_keeps_cli(package, monkeypatch):
+def test_frozen_windows_explicit_web_ui_uses_manager_and_no_browser_keeps_cli(package, monkeypatch):
     (package / "DEFAULT_LANGUAGE.txt").write_text("ko\n", encoding="utf-8")
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(launcher, "_should_use_manager", lambda *, no_browser: not no_browser)
@@ -198,7 +198,7 @@ def test_frozen_windows_default_uses_manager_but_no_browser_keeps_cli(package, m
     )
     monkeypatch.setattr(launcher, "_run_workspace", lambda *args: 4)
 
-    assert launcher.main([], project_dir=package) == 9
+    assert launcher.main(["--web-ui"], project_dir=package) == 9
     assert managed == [("http://127.0.0.1:43123", 43123, "ko")]
     assert launcher.main(["--no-browser"], project_dir=package) == 4
 
@@ -229,7 +229,7 @@ def test_manager_failure_falls_back_to_existing_console_launch(package, monkeypa
         lambda *args, **kwargs: (_ for _ in ()).throw(OSError("desktop unavailable")),
     )
     monkeypatch.setattr(launcher, "_run_workspace", lambda *args: 6)
-    assert launcher.main([], project_dir=package) == 6
+    assert launcher.main(["--web-ui"], project_dir=package) == 6
     assert "using console mode" in capsys.readouterr().err
 
 
@@ -498,3 +498,13 @@ def test_redirected_korean_console_and_errors_use_utf8_without_environment(
         assert output.errors == errors.errors == "backslashreplace"
     assert "사용하는 동안 이 창을 열어 두세요" in output_bytes.getvalue().decode("utf-8")
     assert "CalcLens를 시작할 수 없습니다" in error_bytes.getvalue().decode("utf-8")
+
+
+def test_normal_executable_calls_native_ui_without_a_listener_or_browser(package, monkeypatch):
+    from slab_preflight import desktop
+    calls = []
+    monkeypatch.setattr(launcher, 'choose_port', forbid_process)
+    monkeypatch.setattr(launcher.webbrowser, 'open', forbid_process)
+    monkeypatch.setattr(desktop, 'main', lambda **options: calls.append(options) or 0)
+    assert launcher.main(['--language', 'ko'], project_dir=package) == 0
+    assert calls == [{'language':'ko', 'root':package.resolve(), 'argv':['CalcLens']}]

@@ -43,6 +43,9 @@ _LIMITATIONS_KO = {
 }
 
 _ERRORS_KO = {
+    "Repeated CIF tag aliases are ambiguous and unsupported.": "같은 CIF 항목이 여러 이름으로 중복되어 해석할 수 없습니다. 각 항목은 한 번만 입력하세요.",
+    "Occupancy, disorder, and multiplicity must be site-loop columns matching the site count.": "점유율·무질서·자리 다중도는 원자 수와 길이가 같은 원자 자리 루프의 열이어야 합니다.",
+    "Declared site multiplicity disagrees with symmetry expansion.": "입력한 자리 다중도가 대칭 전개로 생성된 자리 수와 일치하지 않습니다.",
     "Repeated CIF tags are ambiguous and unsupported.": "중복된 CIF 태그는 해석이 모호하여 지원하지 않습니다.",
     "Modulated, superspace, and composite-structure CIF metadata are unsupported; average site coordinates are not an explicit ordinary periodic structure.": "변조·초공간·복합 구조의 CIF 메타데이터는 지원하지 않습니다. 평균 원자 좌표만으로는 일반적인 주기 구조 전체를 명시할 수 없습니다.",
     "Only explicitly expanded P1 (space group 1) CIFs are supported.": "모든 원자 자리가 명시된 P1(공간군 1) CIF만 지원합니다.",
@@ -128,6 +131,12 @@ def localized_error_message(message: str, language: str = "en") -> str:
         return message
     if message in _ERRORS_KO:
         return _ERRORS_KO[message]
+    unsupported_tag = re.fullmatch(
+        r"Unsupported occupancy, disorder, or multiplicity CIF tag: (.+)\.", message,
+    )
+    if unsupported_tag:
+        return (f"지원하지 않는 점유율·무질서·자리 다중도 항목 이름입니다: {unsupported_tag[1]}. "
+                "지원하는 CIF 항목 이름을 사용하세요.")
     finite = re.fullmatch(r"(.+) must be a finite number\.", message)
     if finite:
         label = _NUMERIC_LABELS_KO.get(finite[1], finite[1])

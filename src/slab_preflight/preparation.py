@@ -31,7 +31,10 @@ from ase.spacegroup.spacegroup import SpacegroupError, spacegroup_from_data
 import numpy as np
 
 from .core import MAX_ATOMS, MAX_FILE_BYTES, UnsupportedStructure, _numeric, _read_cif
-from .core import _reject_duplicate_tags
+from .core import (
+    _normalize_cif_tags, _reject_duplicate_tags, _validate_site_metadata,
+    _validate_site_multiplicity,
+)
 
 MAX_SYMMETRY_OPERATIONS = 192
 SYMMETRY_TOLERANCE_ANGSTROM = 0.001
@@ -127,12 +130,10 @@ def _block(source: bytes) -> dict:
         raise PreparationError("ASE could not parse an unambiguous CIF 1.1 source.") from exc
     if len(blocks) != 1:
         raise PreparationError("Exactly one CIF data block is required for preparation.")
-    block = {}
-    for original in blocks[0]:
+    block = _normalize_cif_tags(blocks[0])
+    for original in block:
+        # Forbidden metadata remains forbidden regardless of dictionary spelling.
         key = original.replace(".", "_")
-        if key in block:
-            raise PreparationError("Repeated CIF tag aliases are ambiguous.")
-        block[key] = blocks[0][original]
         if (
             any(marker in key for marker in ("modulat", "superspace", "fourier"))
             or key.startswith((
@@ -178,16 +179,8 @@ def _sites(block: dict) -> tuple[list[str], np.ndarray, str]:
         labels = _column(block, "_atom_site_label", count)
         if len(set(map(str, labels))) != count:
             raise PreparationError("Source site labels must be unique.")
-    occupancy_policy = OCCUPANCY_DEFAULT
-    if "_atom_site_occupancy" in block:
-        values = _column(block, "_atom_site_occupancy", count)
-        if any(abs(_numeric(value, "Occupancy") - 1) > 1e-10 for value in values):
-            raise PreparationError("Only explicit full occupancy 1 is supported; unknown or partial occupancy is rejected.")
-        occupancy_policy = OCCUPANCY_EXPLICIT
-    for key in ("_atom_site_disorder_assembly", "_atom_site_disorder_group"):
-        if key in block and any(str(value) not in (".", "0")
-                                for value in _column(block, key, count)):
-            raise PreparationError("Disordered or unknown site groups cannot be prepared.")
+    occupancy_policy = (OCCUPANCY_EXPLICIT if _validate_site_metadata(block, count)
+                        else OCCUPANCY_DEFAULT)
     positions = np.array([[_numeric(value, "Fractional coordinate") for value in column]
                           for column in coordinates], dtype=float).T
     if np.any(np.abs(positions) > 1e6):
@@ -341,12 +334,7 @@ def _prepare_p1(source: bytes, normal_axis: str) -> PreparedP1:
                 raise PreparationError("Source sites are symmetry-equivalent or overlapping; preparation cannot merge them.")
         expanded_sites.extend(orbit)
         expanded_symbols.extend([symbol] * len(orbit))
-    for key in ("_atom_site_symmetry_multiplicity", "_atom_site_site_symmetry_multiplicity"):
-        if key in block:
-            values = _column(block, key, len(symbols))
-            if any(_numeric(value, "Site multiplicity") != count
-                   for value, count in zip(values, orbit_counts)):
-                raise PreparationError("Declared site multiplicity disagrees with symmetry expansion.")
+    _validate_site_multiplicity(block, orbit_counts, prepared=True)
     # Stable source-site/orbit ordering preserves representatives selected from
     # deposited coordinates rather than rounding them onto ideal special sites.
     prepared = _explicit_p1(parameters, expanded_symbols, np.array(expanded_sites), digest)

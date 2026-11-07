@@ -1,5 +1,11 @@
 # CalcLens
 
+**CalcLens Desktop 0.9.0** opens a native Qt desktop application. CIF inspection, 3D rotation, comparison, project recovery and research tools run inside the application. The desktop can compute density differences and planar averages locally or with an explicitly selected worker. [Desktop guide / 데스크톱 사용 안내](docs/DESKTOP.md)
+
+**CalcLens 데스크톱 0.9.0**은 실행 파일 안에서 구조를 열고 검사하는 네이티브 프로그램입니다. 실제 H₂ 밀도 차이와 h-BN 진공 수렴 예제가 포함되어 있습니다. 두 운영체제 모두 앱 안에서 한국어와 영어를 선택할 수 있습니다.
+
+[Windows x64 EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+
 Created, led and maintained by [a123qsd](https://github.com/a123qsd).
 [Project origin and responsibilities](AUTHORS.md) · [Citation](CITATION.cff)
 
@@ -31,24 +37,6 @@ CalcLens가 이 값을 계산하지는 않습니다. 보조 자료, 파일별 �
 [0.8.0 release notes / 변경 사항](docs/RELEASE-0.8.0.md) ·
 [Workspace guide / 작업 안내](docs/WORKSPACE_SAVE.md) · [Real electronic-data case / 실제 계산 사례](docs/ELECTRONIC_CASE.md)
 
-**Published Windows v0.8.0 / 현재 공개된 Windows v0.8.0**
-
-[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-ko.exe) ·
-[English EXE](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-en.exe) ·
-[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-ko-folder.zip) ·
-[English folder ZIP](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-en-folder.zip) ·
-[실행 안내](packaging/windows/README.ko.md) · [Windows guide](packaging/windows/README.en.md)
-
-Double-click the EXE to open the launch manager and browser workspace. Use the
-manager to reopen the page, view diagnostics, or quit. Closing the manager stops
-the server; closing only the browser tab leaves it running. Extract the complete
-folder ZIP for faster repeat launches. The executables are unsigned.
-
-EXE를 두 번 클릭하면 실행 관리 창과 브라우저 작업공간이 열립니다. 관리 창에서
-화면 다시 열기, 진단 기록 확인과 종료를 할 수 있습니다. 관리 창을 닫으면 서버도
-종료되며, 브라우저 탭만 닫으면 계속 실행됩니다. 반복 실행 시간을 줄이려면 폴더 ZIP을
-모두 풀어 사용하세요. 실행 파일에는 코드 서명이 없습니다.
-
 **Inspect a 2D material CIF before setting up a calculation.**
 
 CalcLens is a local tool for visualizing atomic structures, finding short periodic
@@ -62,41 +50,20 @@ JSON/CSV exports and comparisons of up to 20 CIF files with settings for each fi
 빈 간격을 확인합니다. 화면·사용 안내·결과 설명을 한국어와 영어로 제공하며,
 예제와 JSON·CSV 내보내기, 파일마다 조건을 정하는 최대 20개 CIF 비교를 지원합니다.
 
-![CalcLens molecular workspace / 입체 구조 작업공간](docs/assets/calclens-workspace-0.8.0-ko.png)
+![CalcLens molecular workspace / 입체 구조 작업공간](docs/assets/calclens-native-0.9.0-ko.png)
 
 [Earlier Streamlit demo / 이전 Streamlit 화면 영상](docs/assets/calclens-demo.webm) ·
 [Public graphite case / 공개 흑연 사례](docs/CASE_STUDY.md)
 
 ## Download / 다운로드
 
-[Windows downloads / Windows 실행 파일](https://github.com/a123qsd/calclens/releases/latest) ·
-[Source packages, guides and verification files / 소스·안내·검증 자료](https://github.com/a123qsd/calclens/releases/tag/v0.8.0-resources)
+Download the EXE on Windows, or open the DMG on an Apple Silicon Mac and drag CalcLens into Applications. Both builds include the desktop runtime and work offline.
 
-| Language | Source ZIP for v0.8.0 | Read guide | Download guide |
-| --- | --- | --- | --- |
-| English | [calclens-0.8.0-en.zip](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/calclens-0.8.0-en.zip) | [English](README.en.md) | [English .md](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-Guide.en.md) |
-| 한국어 | [calclens-0.8.0-ko.zip](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/calclens-0.8.0-ko.zip) | [한국어](README.ko.md) | [한국어 .md](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-Guide.ko.md) |
+Windows에서는 EXE를 두 번 클릭하세요. Apple Silicon Mac에서는 DMG를 열고 CalcLens를 응용 프로그램 폴더로 옮기세요. 설치 후 인터넷 연결 없이 사용할 수 있습니다.
 
-[Windows checksums / Windows 체크섬](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/WINDOWS-SHA256SUMS.txt) ·
-[Windows licenses and build source / Windows 라이선스·빌드 소스](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-0.8.0-windows-support.zip)
+[Windows x64 EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
 
-Both ZIPs contain the same analysis engine and both interface languages. Each
-opens in its selected language by default. **Python 3.12 or 3.13 and dependency
-installation are required; these are source packages, not standalone executables.**
-The browser workspace is included, so Node.js is not required to run them.
-The installation examples in the guides use Python 3.12.
-Report language follows the interface by default and can be chosen separately.
-JSON keys and technical identifiers stay in standard English for compatibility;
-human explanations and CSV headings are localized.
-See [download and installation instructions](docs/DOWNLOADS.md).
-
-두 ZIP의 검사 기능은 같으며, 처음 열리는 언어와 기본 안내 문서만 다릅니다.
-실행 후에도 언어를 전환할 수 있습니다. **Python 3.12 또는 3.13과 의존성 설치가 필요한
-소스 패키지이며, 독립 실행 프로그램이 아닙니다.** 화면 파일은 포함되어 있어 실행에
-Node.js는 필요하지 않습니다. 안내 문서의 설치 명령 예시는
-Python 3.12를 사용합니다. 보고서 언어는 기본적으로 화면 언어를
-따르며 별도로 선택할 수도 있습니다. 설명과 CSV 열 제목은 번역하고, JSON 키와 기술
-식별자는 호환성을 위해 표준 영문을 유지합니다. [설치 안내](docs/DOWNLOADS.md#한국어)를 확인하세요.
+[Source ZIP / 소스 ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.9.0.zip) · [SHA-256 checksums / 파일 검증](https://github.com/a123qsd/calclens/releases/download/v0.9.0/SHA256SUMS.txt) · [Installation guide / 설치 안내](docs/DOWNLOADS.md)
 
 ## Save and continue work / 작업 저장하고 이어가기
 

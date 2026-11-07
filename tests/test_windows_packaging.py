@@ -72,12 +72,13 @@ def test_spec_collects_only_the_selected_ui_variant(tmp_path, monkeypatch, legac
 
 def test_runtime_notice_roots_exclude_ambient_legacy_packages(monkeypatch):
     dependencies = {"ase": ["numpy>=2"], "numpy": [], "streamlit": ["altair>=5"],
-                    "plotly": ["narwhals>=1"], "altair": [], "narwhals": []}
+                    "plotly": ["narwhals>=1"], "altair": [], "narwhals": [],
+                    "pyside6-essentials": ["shiboken6==6.0"], "shiboken6": []}
     monkeypatch.setattr(licenses.metadata, "distribution", lambda name:
                         SimpleNamespace(requires=dependencies[name], version="6.0"))
-    assert licenses.runtime_closure({}) == ["ase", "numpy"]
+    assert licenses.runtime_closure({}) == ["ase", "numpy", "pyside6-essentials", "shiboken6"]
     assert licenses.runtime_closure({}, include_legacy_ui=True) == \
-        ["altair", "ase", "narwhals", "numpy", "plotly", "streamlit"]
+        ["altair", "ase", "narwhals", "numpy", "plotly", "pyside6-essentials", "shiboken6", "streamlit"]
 
 
 def test_notice_collection_is_independent_of_installed_bytecode(tmp_path, monkeypatch):
@@ -116,7 +117,7 @@ def test_build_and_notice_metadata_distinguish_bundle_variants(monkeypatch):
     info = builder.build_info("en", "onefile", "a" * 40)
     legacy = builder.build_info("en", "onefile", "a" * 40, include_legacy_ui=True)
     assert info["includes_legacy_ui"] is False and info["app_sha256"] is None
-    assert set(info["dependencies"]) == {"ase", "numpy"}
+    assert set(info["dependencies"]) == {"ase", "numpy", "PySide6-Essentials", "shiboken6"}
     assert legacy["includes_legacy_ui"] is True and legacy["app_sha256"]
     assert {"plotly", "streamlit"} <= legacy["dependencies"].keys()
     assert builder.bundle_name("0.6.0", "en") == "CalcLens-0.6.0-windows-x64-en"

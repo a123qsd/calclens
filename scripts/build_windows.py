@@ -34,7 +34,7 @@ def build_info(
         dist.metadata["Name"]: dist.version
         for dist in importlib.metadata.distributions() if dist.metadata["Name"]
     }
-    roots = ("ase", "numpy") + (("streamlit", "plotly") if include_legacy_ui else ())
+    roots = ("ase", "numpy", "PySide6-Essentials", "shiboken6") + (("streamlit", "plotly") if include_legacy_ui else ())
     dependencies = {name: importlib.metadata.version(name) for name in roots}
     assets = ROOT / "src" / "slab_preflight" / "web_assets"
     if not (assets / "index.html").is_file():

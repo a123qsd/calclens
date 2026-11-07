@@ -6,7 +6,7 @@ This naming difference does not indicate a second application.
 
 ## Local workflow
 
-The source tree is v0.8.0. Release package names and installation instructions
+The source tree is v0.9.0. [Native startup and packaging](DESKTOP.md) use QtWidgets and direct Python engine calls. Release package names and installation instructions
 are listed in [DOWNLOADS.md](DOWNLOADS.md).
 The [0.8.0 release notes](RELEASE-0.8.0.md) describe the workspace layout update;
 [DESIGN.md](../DESIGN.md) records its presentation rules.
@@ -26,7 +26,7 @@ changing package files, reinstall with the same command before testing the
 installed CLI or launching the app. The repository's pytest configuration is the
 source of truth for how tests locate the code.
 
-The default browser workspace is React/TypeScript with a locally bundled
+The optional browser workspace is React/TypeScript with a locally bundled
 3Dmol.js viewer. Checked-in browser assets are included in source archives and
 Python wheels, so end users do not need Node.js. To change the frontend, use
 Node 26.7.0 and the locked packages:
@@ -232,25 +232,9 @@ The internal module name may be changed later, but public CLI behavior and repor
 semantics need a deliberate compatibility decision. Do not silently change a
 legacy field from a c-axis measurement to a measurement along some other axis.
 
-## Boundary for future calculation-log support
+## Research tools in the desktop
 
-Gaussian/ORCA output, SCF convergence, geometry-optimization histories, and
-vibrational frequencies are not implemented. A CIF supplies structural data;
-it cannot establish whether an electronic calculation converged, whether an
-optimization finished, or whether imaginary frequencies were present.
-
-If log support is added, keep it separate from the CIF report and parser. Start
-with one named program and documented output versions, preserve units and the
-source of every extracted value, and distinguish a completed calculation from
-an incomplete or unrecognized log. Use a separate schema for calculation events
-and results. Connect it to a structure only when the input supplies an explicit,
-checkable relationship.
-
-That extension requires its own public fixtures, licensing/provenance review,
-and tests for failed, interrupted, concatenated, and partially written outputs.
-Do not make a generic “calculation passed” badge from missing error strings or
-from a CIF geometry report. No log framework or execution service is needed to
-maintain the current tool.
+Gaussian ingestion reads explicit job, SCF, optimization, frequency and termination records from the original bytes. Convergence manifests verify their CIFs, outputs and fixed conditions. See [research case contracts](RESEARCH_CASES.md). Grid differences and planar averages use the [compute device contracts](COMPUTE.md). The native application starts a Qt event loop and calls the local workspace in-process. The worker is a separate, explicit command.
 
 ## 한국어 개발 메모
 

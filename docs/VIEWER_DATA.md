@@ -1,5 +1,7 @@
 # Imported viewer data
 
+This page describes the optional browser viewer’s data contract. The [native desktop](DESKTOP.md) also loads signed difference and spin densities as distinct types, validates original data, and computes physical planar averages in e/Å³. Native isovalues use the normalized field units displayed beside the control. [Numerical methods and compatibility](COMPUTE.md)
+
 CalcLens can display externally supplied atomic charge assignments and multiple
 electron-density or orbital Cube grids, with one selected volume per viewer. These files do not change the CIF,
 geometric measurements, review results or scientific input limits. CalcLens does

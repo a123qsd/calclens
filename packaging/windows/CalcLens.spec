@@ -14,6 +14,7 @@ include_legacy_ui = os.environ.get('CALCLENS_BUILD_INCLUDE_LEGACY_UI') == '1'
 datas = [
     (str(root / 'examples'), 'examples'),
     (str(root / 'LICENSE'), '.'),
+    (str(root / 'packaging/desktop/CalcLens.ico'), '.'),
     (str(root / 'THIRD_PARTY_NOTICES.md'), '.'),
     (str(root / 'src' / 'slab_preflight' / 'web_assets'), 'slab_preflight/web_assets'),
     (str(stage / 'DEFAULT_LANGUAGE.txt'), '.'),
@@ -31,6 +32,8 @@ for package in ('ase', 'numpy') + (('streamlit', 'plotly') if include_legacy_ui 
     datas += collect_data_files(package)
     datas += copy_metadata(package, recursive=True)
 
+datas += copy_metadata('PySide6-Essentials') + copy_metadata('shiboken6')
+datas += [(str(root / 'src' / 'slab_preflight' / 'kernels'), 'slab_preflight/kernels')]
 hiddenimports = collect_submodules('slab_preflight', filter=lambda name:
                                  include_legacy_ui or name != 'slab_preflight.plotting')
 # Streamlit injects imports such as scriptrunner.magic_funcs into the app AST;
@@ -42,7 +45,7 @@ if include_legacy_ui:
     hiddenimports += collect_submodules('plotly', filter=lambda name: '.tests' not in name)
 
 excluded = ['pytest', '_pytest', 'ruff', 'playwright', 'IPython', 'notebook',
-            'PyQt5', 'PyQt6', 'PySide2', 'PySide6']
+            'PyQt5', 'PyQt6', 'PySide2', 'PySide6.QtWebEngineCore', 'PySide6.QtWebEngineWidgets']
 if not include_legacy_ui:
     excluded += ['streamlit', 'plotly', 'slab_preflight.plotting']
 
@@ -58,8 +61,8 @@ a = Analysis(
 pyz = PYZ(a.pure)
 if mode == 'onefile':
     exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], name=name,
-              debug=False, strip=False, upx=False, console=True)
+              debug=False, strip=False, upx=False, console=True, icon=str(root / 'packaging/desktop/CalcLens.ico'))
 else:
     exe = EXE(pyz, a.scripts, [], name=name, exclude_binaries=True,
-              debug=False, strip=False, upx=False, console=True)
+              debug=False, strip=False, upx=False, console=True, icon=str(root / 'packaging/desktop/CalcLens.ico'))
     coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name=name)

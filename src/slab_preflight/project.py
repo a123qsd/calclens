@@ -25,7 +25,7 @@ from . import __version__
 
 PROJECT_FORMAT = "calclens.project"
 SCHEMA_VERSION = 3
-ANALYSIS_REVISION = "geometry-v1"
+ANALYSIS_REVISION = "geometry-v2-cif-aliases"
 MAX_PROJECT_FILES = 20
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_ENCODED_FILE_BYTES = 4 * ((MAX_FILE_BYTES + 2) // 3)

@@ -1,6 +1,8 @@
 # Continue a research workspace / 연구 작업 이어가기
 
-This guide describes the default browser workspace in CalcLens 0.8.0.
+CalcLens Desktop 0.9.0 stores unsaved native work in an atomic per-session recovery file and offers it at the next startup. A portable project ZIP includes original electronic files and any retained research sources. See the [desktop guide](DESKTOP.md) for backup locations and native controls.
+
+데스크톱은 작업 변경 후 복구본을 자동 저장합니다. 비정상 종료 뒤 다시 열면 이전 세션의 복구 시각을 확인할 수 있습니다. 아래의 탭·서버 설명은 선택적으로 실행하는 기존 브라우저 화면에 해당합니다.
 
 ## Find the current structure
 
@@ -36,9 +38,10 @@ against the original CIF hash, atom indices and elements. Cube files are checked
 against the atom order, coordinates, field kind and units. Stored render meshes
 and numeric geometry reports are never treated as authoritative results.
 
-Drafts and viewer changes are local to a browser tab until saved. There is no
-automatic disk backup. Save before closing the tab or server. Browser reload
-warnings help prevent accidental loss but do not themselves store the work.
+Imported electronic sources, drafts and viewer changes remain in the browser tab
+until **Save project** writes them to a project ZIP. There is no automatic disk
+backup or recovery of unsaved work. Save before closing the tab or server.
+Browser reload warnings help prevent accidental loss but do not themselves store the work.
 
 메모와 검사 조건의 초안은 파일마다 따로 유지됩니다. 비교·검토·방법 화면으로
 이동하거나 다른 CIF를 선택해도 초안이 남습니다. **변경 적용**을 눌러야 분석에
@@ -48,7 +51,8 @@ warnings help prevent accidental loss but do not themselves store the work.
 전하 JSON·Cube 원본, 뷰어 설정과 비교 선택을 `.calclens.zip`에 담습니다.
 **작업 열기**는 이전 `.calclens.json`도 읽습니다. 새 작업 파일은 이전 버전에서
 열 수 없습니다. 파일을 열 때 원본으로 다시 계산하고 전자 자료의 연결을 확인합니다.
-저장하기 전의 초안과 화면 설정은 브라우저 탭에만 있으므로 종료 전에 저장하세요.
+저장하기 전의 전자 자료 원본·초안·화면 설정은 브라우저 탭에만 남습니다.
+자동 디스크 백업이나 미저장 작업 복구 기능은 없으므로 종료 전에 저장하세요.
 
 ## Electronic datasets and comparable colors
 
@@ -89,12 +93,22 @@ Preparation supports fully occupied, ordered structures in the validated
 standard setting. Ambiguous or conflicting symmetry declarations, partial or
 unknown occupancy, disorder, unsupported geometry and structures exceeding 400
 expanded sites are rejected. It does not choose a layer, add vacuum, relax atoms
-or establish stability. The core analysis still accepts only explicit P1 CIFs.
+or establish stability. Direct analysis still accepts only fully expanded,
+explicit, ordered and fully occupied P1 CIFs.
+
+Preparation uses the same [CIF alias and occupancy rules](METHODS.md#cif-field-aliases-and-site-values)
+as direct analysis. A declared non-P1 site multiplicity must match the generated
+symmetry orbit; it need not be 1. An absent occupancy field defaults to 1 with a
+note, while explicit `?` or `.` values are rejected.
 
 **P1 구조 준비**에서 원본의 공간군·점유율·무질서 여부를 확인하고 대칭 전개 결과를
 미리 볼 수 있습니다. 원자 수와 셀을 확인한 뒤 **준비된 P1 구조 적용**을 누르면
 원본과 변환 이력을 보관한 채 준비된 구조를 분석합니다. 층 선택·진공 추가·구조
 최적화는 수행하지 않습니다. 부분 점유와 무질서 구조는 지원하지 않습니다.
+직접 분석은 대칭 전개를 마친 완전 점유·질서 P1 구조에만 적용됩니다.
+별칭·점유율 규칙은 직접 분석과 같습니다. 비 P1 구조의 다중도는 대칭 전개한 위치
+수와 일치해야 하며, 반드시 1일 필요는 없습니다. 점유율 항목이 없을 때만 안내와
+함께 1을 적용하고, `?`나 `.`을 명시한 값은 거부합니다.
 
 ## File limits and installation
 
@@ -105,7 +119,7 @@ of raw text. The project workspace extension is capped at 96 MiB; the full JSON
 and compressed archive are each capped at 128 MiB. A compressed file's small
 size does not bypass the uncompressed limit.
 
-The default installation needs the geometry engine and browser workspace.
+The desktop installation includes Qt, the geometry engine and the optional browser workspace.
 Streamlit and Plotly are optional: install `calclens[legacy-ui]` (or, from this
 checkout, `python -m pip install '.[legacy-ui]'`) before using `--legacy-ui`.
 `requirements.lock` pins the default environment plus development tools;

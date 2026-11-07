@@ -712,3 +712,31 @@ def test_auxiliary_structure_fallback_never_relaxes_core_source_guards(api_serve
     entry = decoded(request(api_server, "GET", "/api/v1/bootstrap"))["entries"][0]
     assert entry["analysis"]["report"] is None
     assert "auxiliary_structure" not in entry["analysis"]
+
+
+@pytest.mark.parametrize("dotted", [False, True])
+def test_partial_occupancy_aliases_remain_rejected_through_import_reopen_and_preview(api_server, dotted):
+    source = (ROOT / "examples" / "partial_occupancy.cif").read_bytes()
+    if dotted:
+        source = source.replace(b"_atom_site_occupancy", b"_atom_site.occupancy")
+    imported = action(api_server, 0, {
+        "type": "import_cifs", "mode": "replace", "files": [{
+            "filename": "partial.cif", "data_base64": base64.b64encode(source).decode(),
+        }],
+    })
+    assert imported[0] == 200
+    snapshots = [decoded(imported), decoded(request(api_server, "GET", "/api/v1/bootstrap"))]
+    exported = request(api_server, "GET", "/api/v1/project/export")
+    assert exported[0] == 200
+    preview = request(api_server, "POST", "/api/v1/project/preview", exported[2], authorized=True,
+                      headers={"X-CalcLens-Revision": "1"})
+    assert preview[0] == 200
+    snapshots.append(decoded(preview))
+    for snapshot in snapshots:
+        entry = snapshot["entries"][0]
+        assert entry["analysis"]["report"] is None
+        assert "occupancy 1" in entry["analysis"]["error"]
+        assert "점유율 1" in entry["analysis"]["error_ko"]
+        assert "auxiliary_structure" not in entry["analysis"]
+        assert entry["reviewed"] is False
+    assert loads_project(exported[2]).entries[0].data == source

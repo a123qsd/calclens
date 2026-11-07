@@ -1,0 +1,509 @@
+{
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "release": "27.2.0"
+  },
+  "fixture_status": "deterministic numerical boundary fixtures, not physical electron-density calculations",
+  "timing_scope": "completed calls including CPU parity, transfers, context/helper overhead; probing/compilation excluded",
+  "devices": [
+    {
+      "id": "cpu",
+      "available": true,
+      "workload_verified": true,
+      "device_name": "arm",
+      "precision": "float64",
+      "workloads": [
+        "density_difference",
+        "planar_average",
+        "periodic_pair_norms"
+      ],
+      "reason": null
+    },
+    {
+      "id": "metal",
+      "available": true,
+      "workload_verified": true,
+      "device_name": "Apple M5",
+      "precision": "float32",
+      "workloads": [
+        "density_difference",
+        "planar_average",
+        "periodic_pair_norms"
+      ],
+      "reason": null
+    },
+    {
+      "id": "cuda",
+      "available": false,
+      "workload_verified": false,
+      "workloads": [
+        "density_difference",
+        "planar_average",
+        "periodic_pair_norms"
+      ],
+      "reason": "CUDA driver compute is supported on NVIDIA Windows/Linux hosts."
+    }
+  ],
+  "measurements": [
+    {
+      "workload": "planar_1e6",
+      "count": 1000000,
+      "requested_device": "cpu",
+      "effective_device": "cpu",
+      "seconds": [
+        0.004191708998405375,
+        0.002359209000132978,
+        0.0023659169964957982
+      ],
+      "median_seconds": 0.0023659169964957982,
+      "stages": [],
+      "execution": {
+        "requested_device": "cpu",
+        "effective_device": "cpu",
+        "device_name": "arm",
+        "precision": "float64",
+        "implementation": "NumPy CPU",
+        "elapsed_seconds": 0.002234291998320259,
+        "includes_cpu_parity_check": true,
+        "parity": {
+          "reference": "CPU NumPy float64",
+          "passed": true,
+          "max_absolute_error": 0.0,
+          "absolute_tolerance": 1.2499989999999998e-12,
+          "relative_tolerance": 1e-12,
+          "planar_absolute_tolerance": 7.500490000000003e-13,
+          "value_max_absolute_error": 0.0,
+          "planar_max_absolute_error": 0.0,
+          "note": "Numerical tolerance is not an electronic-structure convergence criterion."
+        },
+        "fallback_reasons": [],
+        "operation": "planar_average"
+      }
+    },
+    {
+      "workload": "planar_1e6",
+      "count": 1000000,
+      "requested_device": "metal",
+      "effective_device": "metal",
+      "seconds": [
+        0.05845862499700161,
+        0.057638292004412506,
+        0.05617887500557117
+      ],
+      "median_seconds": 0.057638292004412506,
+      "stages": [],
+      "execution": {
+        "requested_device": "metal",
+        "effective_device": "metal",
+        "device_name": "Apple M5",
+        "gpu_seconds": 0.00029475000337697566,
+        "plane_count": 100,
+        "precision": "float32",
+        "value_count": 0,
+        "elapsed_seconds": 0.05599233399698278,
+        "includes_cpu_parity_check": true,
+        "parity": {
+          "reference": "CPU NumPy float64",
+          "passed": true,
+          "max_absolute_error": 4.7229766875211965e-08,
+          "absolute_tolerance": 6.249995e-06,
+          "relative_tolerance": 5e-06,
+          "planar_absolute_tolerance": 3.750245000000002e-06,
+          "value_max_absolute_error": 0.0,
+          "planar_max_absolute_error": 4.7229766875211965e-08,
+          "note": "Numerical tolerance is not an electronic-structure convergence criterion."
+        },
+        "fallback_reasons": [],
+        "operation": "planar_average"
+      }
+    },
+    {
+      "workload": "planar_1e6",
+      "requested_device": "cuda",
+      "available": false,
+      "reason": "CUDA driver compute is supported on NVIDIA Windows/Linux hosts."
+    },
+    {
+      "workload": "planar_1e6",
+      "count": 1000000,
+      "requested_device": "auto",
+      "effective_device": "cpu",
+      "seconds": [
+        0.06263641699479194,
+        0.0028570830036187544,
+        0.002488124999217689
+      ],
+      "median_seconds": 0.0028570830036187544,
+      "stages": [],
+      "execution": {
+        "requested_device": "auto",
+        "effective_device": "cpu",
+        "device_name": "arm",
+        "precision": "float64",
+        "implementation": "NumPy CPU",
+        "elapsed_seconds": 0.0023525840006186627,
+        "includes_cpu_parity_check": true,
+        "parity": {
+          "reference": "CPU NumPy float64",
+          "passed": true,
+          "max_absolute_error": 0.0,
+          "absolute_tolerance": 1.2499989999999998e-12,
+          "relative_tolerance": 1e-12,
+          "planar_absolute_tolerance": 7.500490000000003e-13,
+          "value_max_absolute_error": 0.0,
+          "planar_max_absolute_error": 0.0,
+          "note": "Numerical tolerance is not an electronic-structure convergence criterion."
+        },
+        "fallback_reasons": [
+          "cuda: CUDA driver compute is supported on NVIDIA Windows/Linux hosts."
+        ],
+        "operation": "planar_average",
+        "auto_selection": {
+          "selected_device": "cpu",
+          "measurements": [
+            {
+              "device": "cpu",
+              "available": true,
+              "completed_seconds": 0.002749541999946814
+            },
+            {
+              "device": "metal",
+              "available": true,
+              "completed_seconds": 0.05876916700071888
+            },
+            {
+              "device": "cuda",
+              "available": false,
+              "reason": "CUDA driver compute is supported on NVIDIA Windows/Linux hosts."
+            }
+          ],
+          "method": "lowest measured completed local call, including CPU parity, copies and helper/context overhead",
+          "workload_key": "('planar', (100, 100, 100), 2)",
+          "calibration_failures": [
+            "cuda: CUDA driver compute is supported on NVIDIA Windows/Linux hosts."
+          ],
+          "calibration_reused": true
+        }
+      }
+    },
+    {
+      "workload": "difference_planar_1e6",
+      "count": 1000000,
+      "requested_device": "cpu",
+      "effective_device": "cpu",
+      "seconds": [
+        0.003568334002920892,
+        0.0029059159933240153,
+        0.002901874999224674
+      ],
+      "median_seconds": 0.0029059159933240153,
+      "stages": [],
+      "execution": {
+        "requested_device": "cpu",
+        "effective_device": "cpu",
+        "device_name": "arm",
+        "precision": "float64",
+        "implementation": "NumPy CPU",
+        "elapsed_seconds": 0.002523000002838671,
+        "includes_cpu_parity_check": true,
+        "parity": {
+          "reference": "CPU NumPy float64",
+          "passed": true,
+          "max_absolute_error": 0.0,
+          "absolute_tolerance": 3.1249974999999994e-13,
+          "relative_tolerance": 1e-12,
+          "planar_absolute_tolerance": 1.8751225000000006e-13,
+          "value_max_absolute_error": 0.0,
+          "planar_max_absolute_error": 0.0,
+          "note": "Numerical tolerance is not an electronic-structure convergence criterion."
+        },
+        "fallback_reasons": [],
+        "operation": "density_difference_and_planar"
+      }
+    },
+    {
+      "workload": "difference_planar_1e6",
+      "count": 1000000,
+      "requested_device": "metal",
+      "effective_device": "metal",
+      "seconds": [
+        0.09803608299989719,
+        0.0944782500009751,
+        0.09274912499677157
+      ],
+      "median_seconds": 0.0944782500009751,
+      "stages": [],
+      "execution": {
+        "requested_device": "metal",
+        "effective_device": "metal",
+        "device_name": "Apple M5",
+        "gpu_seconds": 0.0004039999985252507,
+        "plane_count": 100,
+        "precision": "float32",
+        "value_count": 1000000,
+        "elapsed_seconds": 0.0923232499990263,
+        "includes_cpu_parity_check": true,
+        "parity": {
+          "reference": "CPU NumPy float64",
+          "passed": true,
+          "max_absolute_error": 4.46968079215182e-08,
+          "absolute_tolerance": 1.56249875e-06,
+          "relative_tolerance": 5e-06,
+          "planar_absolute_tolerance": 9.375612500000005e-07,
+          "value_max_absolute_error": 4.46968079215182e-08,
+          "planar_max_absolute_error": 1.1807441718802991e-08,
+          "note": "Numerical tolerance is not an electronic-structure convergence criterion."
+        },
+        "fallback_reasons": [],
+        "operation": "density_difference_and_planar"
+      }
+    },
+    {
+      "workload": "difference_planar_1e6",
+      "requested_device": "cuda",
+      "available": false,
+      "reason": "CUDA driver compute is supported on NVIDIA Windows/Linux hosts."
+    },
+    {
+      "workload": "difference_planar_1e6",
+      "count": 1000000,
+      "requested_device": "auto",
+      "effective_device": "cpu",
+      "seconds": [
+        0.10417158299969742,
+        0.0037497079974855296,
+        0.003379750000021886
+      ],
+      "median_seconds": 0.0037497079974855296,
+      "stages": [],
+      "execution": {
+        "requested_device": "auto",
+        "effective_device": "cpu",
+        "device_name": "arm",
+        "precision": "float64",
+        "implementation": "NumPy CPU",
+        "elapsed_seconds": 0.0029715839991695248,
+        "includes_cpu_parity_check": true,
+        "parity": {
+          "reference": "CPU NumPy float64",
+          "passed": true,
+          "max_absolute_error": 0.0,
+          "absolute_tolerance": 3.1249974999999994e-13,
+          "relative_tolerance": 1e-12,
+          "planar_absolute_tolerance": 1.8751225000000006e-13,
+          "value_max_absolute_error": 0.0,
+          "planar_max_absolute_error": 0.0,
+          "note": "Numerical tolerance is not an electronic-structure convergence criterion."
+        },
+        "fallback_reasons": [
+          "cuda: CUDA driver compute is supported on NVIDIA Windows/Linux hosts."
+        ],
+        "operation": "density_difference_and_planar",
+        "auto_selection": {
+          "selected_device": "cpu",
+          "measurements": [
+            {
+              "device": "cpu",
+              "available": true,
+              "completed_seconds": 0.003423792004468851
+            },
+            {
+              "device": "metal",
+              "available": true,
+              "completed_seconds": 0.09886933399684494
+            },
+            {
+              "device": "cuda",
+              "available": false,
+              "reason": "CUDA driver compute is supported on NVIDIA Windows/Linux hosts."
+            }
+          ],
+          "method": "lowest measured completed local call, including CPU parity, copies and helper/context overhead",
+          "workload_key": "('difference_planar', (100, 100, 100), 2)",
+          "calibration_failures": [
+            "cuda: CUDA driver compute is supported on NVIDIA Windows/Linux hosts."
+          ],
+          "calibration_reused": true
+        }
+      }
+    },
+    {
+      "workload": "periodic_pairs_400_sites",
+      "count": 79800,
+      "requested_device": "cpu",
+      "effective_device": "cpu",
+      "seconds": [
+        0.1868212909976137,
+        0.1761494579986902,
+        0.16007812500174623
+      ],
+      "median_seconds": 0.1761494579986902,
+      "stages": [
+        {
+          "minimum_image_selection_seconds": 0.040588457995909266,
+          "distance_evaluation_seconds": 0.000606916997639928,
+          "total_seconds": 0.17862862499896437
+        },
+        {
+          "minimum_image_selection_seconds": 0.027661874999466818,
+          "distance_evaluation_seconds": 0.0005719580003642477,
+          "total_seconds": 0.16647179100255016
+        },
+        {
+          "minimum_image_selection_seconds": 0.027370625000912696,
+          "distance_evaluation_seconds": 0.0006041669985279441,
+          "total_seconds": 0.15075845799583476
+        }
+      ],
+      "execution": {
+        "requested_device": "cpu",
+        "effective_device": "cpu",
+        "device_name": "arm",
+        "precision": "float64",
+        "implementation": "NumPy CPU norms",
+        "elapsed_seconds": 0.0006041669985279441,
+        "includes_cpu_parity_check": true,
+        "fallback_reasons": [],
+        "operation": "norms_of_CPU_selected_periodic_displacements",
+        "parity": {
+          "reference": "CPU NumPy float64",
+          "passed": true,
+          "max_absolute_error_angstrom": 0.0,
+          "relative_tolerance": 1e-12,
+          "absolute_tolerance_angstrom": 1e-12
+        }
+      }
+    },
+    {
+      "workload": "periodic_pairs_400_sites",
+      "count": 79800,
+      "requested_device": "metal",
+      "effective_device": "metal",
+      "seconds": [
+        0.22257258399622515,
+        0.22276625000085915,
+        0.2094890829976066
+      ],
+      "median_seconds": 0.22257258399622515,
+      "stages": [
+        {
+          "minimum_image_selection_seconds": 0.027398833000916056,
+          "distance_evaluation_seconds": 0.042493916997045744,
+          "total_seconds": 0.21331266700144624
+        },
+        {
+          "minimum_image_selection_seconds": 0.034475249995011836,
+          "distance_evaluation_seconds": 0.04135762499936391,
+          "total_seconds": 0.21360704099788563
+        },
+        {
+          "minimum_image_selection_seconds": 0.03413037500286009,
+          "distance_evaluation_seconds": 0.040934000004199333,
+          "total_seconds": 0.19917508299840847
+        }
+      ],
+      "execution": {
+        "requested_device": "metal",
+        "effective_device": "metal",
+        "device_name": "Apple M5",
+        "gpu_seconds": 1.8250000721309334e-05,
+        "plane_count": 0,
+        "precision": "float32",
+        "value_count": 79800,
+        "elapsed_seconds": 0.040934000004199333,
+        "includes_cpu_parity_check": true,
+        "fallback_reasons": [],
+        "operation": "norms_of_CPU_selected_periodic_displacements",
+        "parity": {
+          "reference": "CPU NumPy float64",
+          "passed": true,
+          "max_absolute_error_angstrom": 1.1236563146610479e-06,
+          "relative_tolerance": 2e-06,
+          "absolute_tolerance_angstrom": 1e-08
+        }
+      }
+    },
+    {
+      "workload": "periodic_pairs_400_sites",
+      "requested_device": "cuda",
+      "available": false,
+      "reason": "CUDA driver compute is supported on NVIDIA Windows/Linux hosts."
+    },
+    {
+      "workload": "periodic_pairs_400_sites",
+      "count": 79800,
+      "requested_device": "auto",
+      "effective_device": "cpu",
+      "seconds": [
+        0.2139532080036588,
+        0.18244699999922886,
+        0.16286262500216253
+      ],
+      "median_seconds": 0.18244699999922886,
+      "stages": [
+        {
+          "minimum_image_selection_seconds": 0.0270053749991348,
+          "distance_evaluation_seconds": 0.04272833399591036,
+          "total_seconds": 0.20359604099940043
+        },
+        {
+          "minimum_image_selection_seconds": 0.03467541699501453,
+          "distance_evaluation_seconds": 0.0006799589973525144,
+          "total_seconds": 0.17393354199884925
+        },
+        {
+          "minimum_image_selection_seconds": 0.026738874999864493,
+          "distance_evaluation_seconds": 0.0006942500040167943,
+          "total_seconds": 0.1527826660021674
+        }
+      ],
+      "execution": {
+        "requested_device": "auto",
+        "effective_device": "cpu",
+        "device_name": "arm",
+        "precision": "float64",
+        "implementation": "NumPy CPU norms",
+        "elapsed_seconds": 0.0006942500040167943,
+        "includes_cpu_parity_check": true,
+        "fallback_reasons": [
+          "cuda: CUDA driver compute is supported on NVIDIA Windows/Linux hosts."
+        ],
+        "operation": "norms_of_CPU_selected_periodic_displacements",
+        "parity": {
+          "reference": "CPU NumPy float64",
+          "passed": true,
+          "max_absolute_error_angstrom": 0.0,
+          "relative_tolerance": 1e-12,
+          "absolute_tolerance_angstrom": 1e-12
+        },
+        "auto_selection": {
+          "selected_device": "cpu",
+          "measurements": [
+            {
+              "device": "cpu",
+              "available": true,
+              "completed_seconds": 0.0006772920023649931
+            },
+            {
+              "device": "metal",
+              "available": true,
+              "completed_seconds": 0.041309499996714294
+            },
+            {
+              "device": "cuda",
+              "available": false,
+              "reason": "CUDA driver compute is supported on NVIDIA Windows/Linux hosts."
+            }
+          ],
+          "method": "lowest measured completed local call, including CPU parity, copies and helper/context overhead",
+          "workload_key": "('vector_norms', (79800, 3))",
+          "calibration_failures": [
+            "cuda: CUDA driver compute is supported on NVIDIA Windows/Linux hosts."
+          ],
+          "calibration_reused": true
+        }
+      }
+    }
+  ]
+}

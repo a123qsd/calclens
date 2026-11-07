@@ -1,5 +1,9 @@
 # CalcLens
 
+**0.9.0 데스크톱 안내** · Windows EXE 또는 Apple Silicon용 `CalcLens.app`을 열면 파일과 구조 뷰가 앱 안에 표시됩니다. 자동 복구, 전자 자료, Apple Metal·CUDA·원격 계산, Gaussian 로그 및 실제 수렴 예제를 사용할 수 있습니다. [데스크톱 실행·사용 안내](docs/DESKTOP.md)
+
+[Windows x64 EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+
 창안·기획·개발 총괄 및 유지관리: [a123qsd](https://github.com/a123qsd).
 [프로젝트 출처와 역할](AUTHORS.md) · [인용 정보](CITATION.cff)
 
@@ -27,7 +31,7 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 [새 작업 안내](docs/WORKSPACE_SAVE.md)와 [실제 H2O 계산 사례](docs/ELECTRONIC_CASE.md)를 참고하세요.
 파일 형식·좌표 및 단위 조건은 [보조 자료 안내](docs/VIEWER_DATA.md)를 참고하세요.
 
-![CalcLens 입체 구조 작업공간](docs/assets/calclens-workspace-0.8.0-ko.png)
+![CalcLens 입체 구조 작업공간](docs/assets/calclens-native-0.9.0-ko.png)
 
 [이전 Streamlit 화면 사용 영상](docs/assets/calclens-demo.webm) ·
 [공개 흑연 구조 검사 사례](docs/CASE_STUDY.md)
@@ -38,21 +42,11 @@ CIF 파일에서 원자 위치와 셀을 그려 보고, 주기 경계를 넘는 
 
 ## 빠르게 실행하기
 
-Windows x64에서는
-[한국어 EXE](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-ko.exe)를
-받아 더블클릭하세요. Python과 필요한 라이브러리가 포함되어 있습니다.
-실행 관리 창에서 브라우저 화면을 열고 **CalcLens 열기**, **진단 기록**, **종료**를
-사용할 수 있습니다. 관리 창을 닫으면 서버도 종료되며, 브라우저 탭만 닫으면
-계속 실행됩니다. 반복 실행 시간을 줄이려면
-[한국어 폴더 ZIP](https://github.com/a123qsd/calclens/releases/download/v0.8.0/CalcLens-0.8.0-windows-x64-ko-folder.zip)을
-모두 풀고 안에 있는 EXE를 실행하세요. 실행 파일에는 코드 서명이 없습니다.
-종료 방법과 파일 확인, 라이선스·소스 자료는 [Windows 안내](packaging/windows/README.ko.md)에 있습니다.
+Windows x64에서는 EXE를 두 번 클릭하세요. Apple Silicon Mac에서는 DMG를 열고 CalcLens를 응용 프로그램 폴더로 옮긴 뒤 실행하세요. 두 배포판 모두 Python을 포함합니다. 앱을 열면 기본 그래핀 예제가 표시됩니다.
 
-[v0.8.0 자료 페이지](https://github.com/a123qsd/calclens/releases/tag/v0.8.0-resources)에서 한국어 기본 소스 ZIP을 받으려면
-[다운로드·설치 안내](docs/DOWNLOADS.md#한국어)를 따르세요.
-[한국어 안내 파일](https://github.com/a123qsd/calclens/releases/download/v0.8.0-resources/CalcLens-Guide.ko.md)만
-따로 받을 수도 있습니다. 이 소스 ZIP에는 Python 3.12 또는 3.13과 의존성 설치가 필요합니다.
-화면 파일은 포함되어 있어 실행에 Node.js는 필요하지 않습니다.
+[Windows x64 EXE](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-Windows-x64.exe) · [Apple Silicon Mac DMG](https://github.com/a123qsd/calclens/releases/download/v0.9.0/CalcLens-0.9.0-macOS-Apple-Silicon.dmg) · [전체 배포 파일](https://github.com/a123qsd/calclens/releases/tag/v0.9.0)
+
+[소스 ZIP](https://github.com/a123qsd/calclens/archive/refs/tags/v0.9.0.zip) · [다운로드·설치 안내](docs/DOWNLOADS.md#한국어)
 
 Git으로 소스를 내려받는 경우에는 다음 명령을 실행합니다.
 설치 명령 예시는 Python 3.12를 사용합니다.

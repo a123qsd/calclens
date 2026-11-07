@@ -1,0 +1,184 @@
+{
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "release": "27.2.0"
+  },
+  "source": {
+    "shape": [
+      30,
+      30,
+      30
+    ],
+    "origin_angstrom": [
+      3.883291289870506,
+      3.126291118597914,
+      3.883291289870506
+    ],
+    "voxel_vectors_angstrom": [
+      [
+        0.14597988375412338,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.19818691985018064,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.166221441248374
+      ]
+    ],
+    "atom_numbers": [
+      8,
+      1,
+      1
+    ],
+    "atom_positions_angstrom": [
+      [
+        6.000000133482506,
+        6.000000133482506,
+        6.000000133482506
+      ],
+      [
+        6.000000133482506,
+        6.756999775577888,
+        6.587000009043666
+      ],
+      [
+        6.000000133482506,
+        5.242999962209914,
+        6.587000009043666
+      ]
+    ],
+    "kind": "density",
+    "units": "e/angstrom^3",
+    "original_units": "e/bohr^3",
+    "source_sha256": "1a7a1b3ffff50ba1d5cfb73ac010638a8c367766b96c33374c7e811e7aab0c0a",
+    "source_name": "density.cube",
+    "atom_record_charges": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "operation": "planar_average",
+  "timing_scope": "end-to-end completed result including CPU parity, host/device transfers and helper process launch; compilation/probe excluded from warm samples",
+  "devices": [
+    {
+      "id": "cpu",
+      "available": true,
+      "workload_verified": true,
+      "device_name": "arm",
+      "precision": "float64",
+      "workloads": [
+        "density_difference",
+        "planar_average",
+        "periodic_pair_norms"
+      ],
+      "reason": null
+    },
+    {
+      "id": "metal",
+      "available": true,
+      "workload_verified": true,
+      "device_name": "Apple M5",
+      "precision": "float32",
+      "workloads": [
+        "density_difference",
+        "planar_average",
+        "periodic_pair_norms"
+      ],
+      "reason": null
+    },
+    {
+      "id": "cuda",
+      "available": false,
+      "workload_verified": false,
+      "workloads": [
+        "density_difference",
+        "planar_average",
+        "periodic_pair_norms"
+      ],
+      "reason": "CUDA driver compute is supported on NVIDIA Windows/Linux hosts."
+    }
+  ],
+  "measurements": [
+    {
+      "requested_device": "cpu",
+      "effective_device": "cpu",
+      "seconds": [
+        0.00029758299933746457,
+        0.00013729099737247452,
+        0.00011995800014119595
+      ],
+      "median_seconds": 0.00013729099737247452,
+      "execution": {
+        "requested_device": "cpu",
+        "effective_device": "cpu",
+        "device_name": "arm",
+        "precision": "float64",
+        "implementation": "NumPy CPU",
+        "elapsed_seconds": 8.800000068731606e-05,
+        "includes_cpu_parity_check": true,
+        "parity": {
+          "reference": "CPU NumPy float64",
+          "passed": true,
+          "max_absolute_error": 0.0,
+          "absolute_tolerance": 4.8151458602667e-11,
+          "relative_tolerance": 1e-12,
+          "planar_absolute_tolerance": 4.751938481222907e-13,
+          "value_max_absolute_error": 0.0,
+          "planar_max_absolute_error": 0.0,
+          "note": "Numerical tolerance is not an electronic-structure convergence criterion."
+        },
+        "fallback_reasons": [],
+        "operation": "planar_average"
+      },
+      "integral_e": 9.17823560231891
+    },
+    {
+      "requested_device": "metal",
+      "effective_device": "metal",
+      "seconds": [
+        0.03477004099840997,
+        0.03780312500020955,
+        0.04106208300072467
+      ],
+      "median_seconds": 0.03780312500020955,
+      "execution": {
+        "requested_device": "metal",
+        "effective_device": "metal",
+        "device_name": "Apple M5",
+        "gpu_seconds": 0.00033025000448105857,
+        "plane_count": 30,
+        "precision": "float32",
+        "value_count": 0,
+        "elapsed_seconds": 0.04092287499952363,
+        "includes_cpu_parity_check": true,
+        "parity": {
+          "reference": "CPU NumPy float64",
+          "passed": true,
+          "max_absolute_error": 1.0024376773110077e-08,
+          "absolute_tolerance": 0.000240757293013335,
+          "relative_tolerance": 5e-06,
+          "planar_absolute_tolerance": 2.3759692406114536e-06,
+          "value_max_absolute_error": 0.0,
+          "planar_max_absolute_error": 1.0024376773110077e-08,
+          "note": "Numerical tolerance is not an electronic-structure convergence criterion."
+        },
+        "fallback_reasons": [],
+        "operation": "planar_average"
+      },
+      "integral_e": 9.17823575286955
+    },
+    {
+      "requested_device": "cuda",
+      "available": false,
+      "reason": "CUDA driver compute is supported on NVIDIA Windows/Linux hosts."
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+# Constructed vacuum variant; no relaxation or experimental structure claim.
+# Source SHA-256: 4a30fe10bbd80c39d123ab2dbbb0276df03463bc8144f8da9b2352ee3b2c827c
+# Atom order and internal Cartesian geometry retained across the normal boundary.
+data_vacuum_variant
+_cell_length_a 2.500000000000
+_cell_length_b 2.500000000000
+_cell_length_c 8.000000000000
+_cell_angle_alpha 90.000000000000
+_cell_angle_beta 90.000000000000
+_cell_angle_gamma 120.000000000000
+_space_group_IT_number 1
+_space_group_name_H-M_alt 'P 1'
+loop_
+_space_group_symop_operation_xyz
+'x,y,z'
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+B1 B 0.000000000000 0.000000000000 0.500000000000 1
+N2 N 0.333333333333 0.666666666667 0.500000000000 1

@@ -1,0 +1,367 @@
+{
+  "schema_version": 1,
+  "kind": "research_case_verification",
+  "cif_cases": [
+    {
+      "id": "planar_hbn",
+      "class": "planar",
+      "status": "checked",
+      "source_sha256": "4a30fe10bbd80c39d123ab2dbbb0276df03463bc8144f8da9b2352ee3b2c827c",
+      "independent": {
+        "atom_count": 2,
+        "minimum_distance_angstrom": 1.443375672972621,
+        "minimum_witness": {
+          "distance_angstrom": 1.443375672972621,
+          "atom_indices_zero_based": [
+            0,
+            1
+          ],
+          "periodic_shift": [
+            0,
+            -1,
+            0
+          ],
+          "vector_angstrom": [
+            1.2499999999987499,
+            -0.7216878364863105,
+            0.0
+          ]
+        },
+        "nuclei_gap_angstrom": 20.0,
+        "nuclei_thickness_angstrom": 0.0
+      },
+      "maximum_absolute_metric_difference": 2.220446049250313e-16,
+      "issue_codes": [
+        "GEOMETRY_ONLY",
+        "VACUUM_CONVERGENCE"
+      ]
+    },
+    {
+      "id": "buckled_silicene",
+      "class": "buckled",
+      "status": "checked",
+      "source_sha256": "0cb7c821a175121fdc561f7cbc1fde647d8420967e7b1e1fd705ce4e3ce5e803",
+      "independent": {
+        "atom_count": 2,
+        "minimum_distance_angstrom": 2.2755512152714554,
+        "minimum_witness": {
+          "distance_angstrom": 2.2755512152714554,
+          "atom_indices_zero_based": [
+            0,
+            1
+          ],
+          "periodic_shift": [
+            0,
+            -1,
+            0
+          ],
+          "vector_angstrom": [
+            1.9299999999980697,
+            -1.1142860195348634,
+            0.4599999999999993
+          ]
+        },
+        "nuclei_gap_angstrom": 19.54,
+        "nuclei_thickness_angstrom": 0.46000000000000085
+      },
+      "maximum_absolute_metric_difference": 4.440892098500626e-16,
+      "issue_codes": [
+        "GEOMETRY_ONLY",
+        "VACUUM_CONVERGENCE"
+      ]
+    },
+    {
+      "id": "bilayer_graphene",
+      "class": "multilayer",
+      "status": "checked",
+      "source_sha256": "3365a22b31d049482c5dd0cd395c351f20102f404c0b65e8034e2e4b835ec9d9",
+      "independent": {
+        "atom_count": 4,
+        "minimum_distance_angstrom": 1.420281662205059,
+        "minimum_witness": {
+          "distance_angstrom": 1.420281662205059,
+          "atom_indices_zero_based": [
+            0,
+            1
+          ],
+          "periodic_shift": [
+            0,
+            -1,
+            0
+          ],
+          "vector_angstrom": [
+            1.2299999999987699,
+            -0.7101408311025295,
+            0.0
+          ]
+        },
+        "nuclei_gap_angstrom": 16.65,
+        "nuclei_thickness_angstrom": 3.3500000000000014
+      },
+      "maximum_absolute_metric_difference": 0.0,
+      "issue_codes": [
+        "GEOMETRY_ONLY",
+        "VACUUM_CONVERGENCE"
+      ]
+    },
+    {
+      "id": "hbn_h_adsorbate",
+      "class": "adsorbate",
+      "status": "checked",
+      "source_sha256": "0aea2f729b0b80521daf407581d86571906ba220ff142a3e59beaa3d7ccaaf60",
+      "independent": {
+        "atom_count": 3,
+        "minimum_distance_angstrom": 1.200000000000001,
+        "minimum_witness": {
+          "distance_angstrom": 1.200000000000001,
+          "atom_indices_zero_based": [
+            0,
+            2
+          ],
+          "periodic_shift": [
+            0,
+            0,
+            0
+          ],
+          "vector_angstrom": [
+            0.0,
+            0.0,
+            1.200000000000001
+          ]
+        },
+        "nuclei_gap_angstrom": 18.799999999999997,
+        "nuclei_thickness_angstrom": 1.2000000000000028
+      },
+      "maximum_absolute_metric_difference": 0.0,
+      "issue_codes": [
+        "GEOMETRY_ONLY",
+        "VACUUM_CONVERGENCE"
+      ]
+    },
+    {
+      "id": "graphene_vacancy_2x2",
+      "class": "defect",
+      "status": "checked",
+      "source_sha256": "4cad40f03715f660c904b873c2f6515b472c509c12add62b7ad152f6b747def3",
+      "independent": {
+        "atom_count": 7,
+        "minimum_distance_angstrom": 1.420281662205059,
+        "minimum_witness": {
+          "distance_angstrom": 1.420281662205059,
+          "atom_indices_zero_based": [
+            1,
+            2
+          ],
+          "periodic_shift": [
+            0,
+            0,
+            0
+          ],
+          "vector_angstrom": [
+            2.4603534024928797e-12,
+            1.420281662205059,
+            0.0
+          ]
+        },
+        "nuclei_gap_angstrom": 20.0,
+        "nuclei_thickness_angstrom": 0.0
+      },
+      "maximum_absolute_metric_difference": 2.220446049250313e-16,
+      "issue_codes": [
+        "GEOMETRY_ONLY",
+        "VACUUM_CONVERGENCE"
+      ]
+    },
+    {
+      "id": "wrapped_mos2",
+      "class": "wrapped_boundary",
+      "status": "checked",
+      "source_sha256": "7c885f2787fecda66284d1a64fcdd04de915c08ca998b457b792dc546b89c1b0",
+      "independent": {
+        "atom_count": 3,
+        "minimum_distance_angstrom": 2.409232242851082,
+        "minimum_witness": {
+          "distance_angstrom": 2.409232242851082,
+          "atom_indices_zero_based": [
+            0,
+            2
+          ],
+          "periodic_shift": [
+            0,
+            -1,
+            -1
+          ],
+          "vector_angstrom": [
+            1.58999999999841,
+            -0.917986928010587,
+            -1.5599999999999992
+          ]
+        },
+        "nuclei_gap_angstrom": 16.880000000000003,
+        "nuclei_thickness_angstrom": 3.1199999999999974
+      },
+      "maximum_absolute_metric_difference": 2.6645352591003757e-15,
+      "issue_codes": [
+        "GEOMETRY_ONLY",
+        "VACUUM_CONVERGENCE"
+      ]
+    },
+    {
+      "id": "boundary_overlap",
+      "class": "overlap",
+      "status": "checked",
+      "source_sha256": "74f16fda1c57f6d0e78455bc959d841aff2676c4dddd0763984a8f0d26b568a3",
+      "independent": {
+        "atom_count": 3,
+        "minimum_distance_angstrom": 0.0,
+        "minimum_witness": {
+          "distance_angstrom": 0.0,
+          "atom_indices_zero_based": [
+            0,
+            2
+          ],
+          "periodic_shift": [
+            0,
+            0,
+            0
+          ],
+          "vector_angstrom": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "nuclei_gap_angstrom": 20.0,
+        "nuclei_thickness_angstrom": 0.0
+      },
+      "maximum_absolute_metric_difference": 0.0,
+      "issue_codes": [
+        "OVERLAPPING_SITES",
+        "SHORT_DISTANCE",
+        "GEOMETRY_ONLY",
+        "VACUUM_CONVERGENCE"
+      ]
+    },
+    {
+      "id": "reject_partial_occupancy",
+      "class": "rejection",
+      "status": "expected_rejection",
+      "reason": "Only fully occupied sites (occupancy 1) are supported."
+    },
+    {
+      "id": "reject_unexpanded_symmetry",
+      "class": "rejection",
+      "status": "expected_rejection",
+      "reason": "Only explicitly expanded P1 (space group 1) CIFs are supported."
+    },
+    {
+      "id": "reject_modulated",
+      "class": "rejection",
+      "status": "expected_rejection",
+      "reason": "Modulated, superspace, and composite-structure CIF metadata are unsupported; average site coordinates are not an explicit ordinary periodic structure."
+    }
+  ],
+  "gaussian_cases": [
+    {
+      "path": "dvb_dispersion_bp86_d3zero.out",
+      "sha256": "a6dc80ba77c392977249474d814044769c0877ecd86a468eefe492e4c730066e",
+      "program": {
+        "name": "Gaussian",
+        "version": "16",
+        "revision": "ES64L-G16RevA.03 25-Dec-2016"
+      },
+      "status": "normal",
+      "route": "#p bp86/sto-3g empiricaldispersion=gd3",
+      "optimization": "not_requested",
+      "scf_energy_count": 1,
+      "frequency_count": 0,
+      "final_scf_energy": {
+        "kind": "SCF",
+        "method_label": "RB-P86",
+        "value": -382.328035056,
+        "unit": "hartree",
+        "value_ev": -10403.675834578455,
+        "cycles": 13,
+        "line": 492
+      }
+    },
+    {
+      "path": "dvb_gopt.out",
+      "sha256": "f4e280b32b0d9f25ac7a21cfe47e810fe5cecb8b669e8d9751329a0ffded260d",
+      "program": {
+        "name": "Gaussian",
+        "version": "16",
+        "revision": "ES64L-G16RevA.03 25-Dec-2016"
+      },
+      "status": "normal",
+      "route": "#p b3lyp/sto-3g opt",
+      "optimization": "completed",
+      "scf_energy_count": 5,
+      "frequency_count": 0,
+      "final_scf_energy": {
+        "kind": "SCF",
+        "method_label": "RB3LYP",
+        "value": -382.308266602,
+        "unit": "hartree",
+        "value_ev": -10403.137907541175,
+        "cycles": 7,
+        "line": 2785
+      }
+    },
+    {
+      "path": "dvb_ir.out",
+      "sha256": "bc1a21de15ada135d5188b11d44226389022d92488ddfa8163ba7d4d713e5061",
+      "program": {
+        "name": "Gaussian",
+        "version": "16",
+        "revision": "ES64L-G16RevA.03 25-Dec-2016"
+      },
+      "status": "normal",
+      "route": "#p b3lyp/sto-3g guess=read freq=hpmodes geom=allcheck",
+      "optimization": "completed",
+      "scf_energy_count": 1,
+      "frequency_count": 54,
+      "final_scf_energy": {
+        "kind": "SCF",
+        "method_label": "RB3LYP",
+        "value": -382.308266602,
+        "unit": "hartree",
+        "value_ev": -10403.137907541175,
+        "cycles": 1,
+        "line": 457
+      }
+    }
+  ],
+  "convergence": {
+    "status": "accepted",
+    "summary": "Sampled energies from 8 \u00c5 onward meet 1 meV/atom against the 16 \u00c5 reference.",
+    "comparisons": [
+      {
+        "id": "vacuum_08A",
+        "vacuum_angstrom": 8.0,
+        "reference_id": "vacuum_16A",
+        "delta_mev_per_atom": 0.5394506307823121,
+        "within_tolerance": true
+      },
+      {
+        "id": "vacuum_12A",
+        "vacuum_angstrom": 12.0,
+        "reference_id": "vacuum_16A",
+        "delta_mev_per_atom": 0.24838587609110618,
+        "within_tolerance": true
+      },
+      {
+        "id": "vacuum_16A",
+        "vacuum_angstrom": 16.0,
+        "reference_id": "vacuum_16A",
+        "delta_mev_per_atom": 0.0,
+        "within_tolerance": true
+      }
+    ]
+  },
+  "limits": [
+    "Automated controlled tests, not independent human researcher trials.",
+    "Independent geometry uses a literal-table fixture reader, not a general CIF reader.",
+    "Electronic matrix checks share PySCF integrals/components."
+  ]
+}

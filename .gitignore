@@ -13,5 +13,5 @@ build/
 report.json
 report.csv
 uploads/
-node_modules/
+node_modules
 

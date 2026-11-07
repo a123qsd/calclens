@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "kind": "vacuum_convergence_series",
+  "name": "Constructed h-BN monolayer, exploratory Gamma LDA/SZV vacuum series",
+  "source_cif": {
+    "path": "source.cif",
+    "sha256": "4a30fe10bbd80c39d123ab2dbbb0276df03463bc8144f8da9b2352ee3b2c827c",
+    "origin": "CalcLens examples/hbn.cif, original idealized geometry; a=2.5 \u00c5",
+    "license": "LicenseRef-CalcLens-Free-Use (repository LICENSE)",
+    "source_url": "https://github.com/a123qsd/calclens"
+  },
+  "fixed_conditions": {
+    "program": "PySCF",
+    "program_version": "2.12.0",
+    "method": "RKS",
+    "xc": "LDA,VWN",
+    "basis": "gth-szv",
+    "pseudopotential": "gth-pade",
+    "charge": 0,
+    "multiplicity": 1,
+    "kpoint_grid": [
+      1,
+      1,
+      1
+    ],
+    "kpoint_convention": "Gamma only",
+    "periodic_dimensions": 3,
+    "coulomb_boundary": "3D periodic supercell; no truncated Coulomb potential",
+    "density_fitting": "FFTDF",
+    "fft_mesh": [
+      15,
+      15,
+      151
+    ],
+    "xc_grid": "uniform cell grid, same mesh as FFTDF",
+    "precision": 1e-08,
+    "scf_energy_tolerance_hartree": 1e-09,
+    "scf_gradient_tolerance": 1e-06,
+    "maximum_scf_cycles": 60,
+    "threads": 1,
+    "geometry_optimized": false,
+    "smearing": null,
+    "energy_quantity": "electronic_total"
+  },
+  "variable": {
+    "name": "vacuum_angstrom",
+    "normal_axis": "c",
+    "definition": "largest normal nuclei gap; planar layer thickness is zero"
+  },
+  "tolerance": {
+    "value": 1.0,
+    "unit": "meV/atom",
+    "minimum_successful_cases": 3,
+    "reference": "largest successful sampled vacuum"
+  },
+  "cases": [
+    {
+      "id": "vacuum_08A",
+      "vacuum_angstrom": 8.0,
+      "cif": {
+        "path": "vacuum_08A.cif",
+        "sha256": "e2d39f7285bfd329fbc53b5f73f92397f77fc300bfba5c2233c82a9bb0d9bbaf"
+      },
+      "output": {
+        "path": "vacuum_08A.log",
+        "sha256": "bb3b2462650a9c7383b4a91cfe92730673c235c8101a7db2e81e0e465a019cb1",
+        "kind": "pyscf_log"
+      },
+      "result": {
+        "path": "vacuum_08A.json",
+        "sha256": "43fc25f83aecdd3ad503e35216ddf19dce6d0fb763cd06f1d30e6c7dcbc77621"
+      }
+    },
+    {
+      "id": "vacuum_12A",
+      "vacuum_angstrom": 12.0,
+      "cif": {
+        "path": "vacuum_12A.cif",
+        "sha256": "9b308e9c5f5bf66f1b4e02443d83007d8847b3f216a18e17263b334a64f2e3b6"
+      },
+      "output": {
+        "path": "vacuum_12A.log",
+        "sha256": "164184e8ba939b4d1044669953b7dcf52cee2098bd1304e0c5af70e9c84f5293",
+        "kind": "pyscf_log"
+      },
+      "result": {
+        "path": "vacuum_12A.json",
+        "sha256": "79b9b7713c32f1d9b11b09d1a6d978d2fb7402ae2c1fadb593421ff45b624914"
+      }
+    },
+    {
+      "id": "vacuum_16A",
+      "vacuum_angstrom": 16.0,
+      "cif": {
+        "path": "vacuum_16A.cif",
+        "sha256": "48c9917959ec07d08ee69f698865cbc84bde0d806ed4bd9005b4019185d83f53"
+      },
+      "output": {
+        "path": "vacuum_16A.log",
+        "sha256": "effc90def07cbc5eeb7654959034a8a21ae3694638ac67aa4efcf8e14a9c06ff",
+        "kind": "pyscf_log"
+      },
+      "result": {
+        "path": "vacuum_16A.json",
+        "sha256": "beec0ae65dab92aca9a2803930d4699e19265cd8dfadea5f59e8b990b3b18dfe"
+      }
+    }
+  ],
+  "reproduction": {
+    "script": "scripts/prepare_convergence_case.py",
+    "command": "python scripts/prepare_convergence_case.py --run",
+    "python": "3.12.16",
+    "numpy": "2.5.4"
+  },
+  "limitations": [
+    "Real 3D periodic electronic outputs for an idealized 2D layer, not experimental/relaxed data.",
+    "Minimal gth-szv basis and Gamma-only sampling are deliberately inexpensive and unvalidated.",
+    "LDA,VWN is not a van der Waals treatment; energies do not establish physical accuracy.",
+    "Fixed FFT/xc point counts mean real-space z spacing changes with vacuum. No grid convergence study.",
+    "Only 8, 12, 16 \u00c5 are sampled; tolerance is a chosen 1 meV/atom demonstration criterion.",
+    "No force, band-gap, density-tail, geometry, basis, or k-point convergence claim.",
+    "NumPy matrix/component checks share PySCF integrals; no independent electronic engine validation."
+  ]
+}

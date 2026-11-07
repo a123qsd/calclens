@@ -8,6 +8,8 @@ It does not change any dependency's license or permission to sell that dependenc
 
 | Component | Role | Upstream license and source |
 | --- | --- | --- |
+| PySide6 Essentials / Shiboken6 and Qt 6.12 | Native desktop widgets, rendering and file dialogs | [Qt for Python licensing and source](https://doc.qt.io/qtforpython-6/licenses.html), [PySide source](https://code.qt.io/cgit/pyside/pyside-setup.git/), [Qt source archives](https://download.qt.io/archive/qt/6.12/) · the exact wheel and included libraries carry their own notices |
+| Pillow | Image handling dependency and packaging artwork | [License and source](https://github.com/python-pillow/Pillow) |
 | ASE | CIF token parsing, cells, periodic geometry | [LGPL-2.1-or-later](https://gitlab.com/ase/ase/-/blob/master/LICENSE), [source](https://gitlab.com/ase/ase) |
 | NumPy | Array operations and linear algebra | [BSD-3-Clause](https://numpy.org/doc/stable/license.html), [source](https://github.com/numpy/numpy) |
 | Streamlit | Optional legacy web interface | [Apache-2.0](https://github.com/streamlit/streamlit/blob/develop/LICENSE), [source](https://github.com/streamlit/streamlit) |
