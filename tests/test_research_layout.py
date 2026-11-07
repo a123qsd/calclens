@@ -8,7 +8,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QCheckBox, QComboBox, QLineEdit, QPushButton, QWidget
+from PySide6.QtWidgets import QApplication, QAbstractSpinBox, QCheckBox, QComboBox, QLineEdit, QPushButton, QWidget
 
 from slab_preflight.desktop import MainWindow
 
@@ -96,7 +96,7 @@ def assert_controls_fit(scroll, context):
         point = control.mapTo(body, control.rect().topLeft())
         assert point.x() >= 0, _layout_diagnostics(scroll, context)
         assert point.x() + control.width() <= viewport.width(), _layout_diagnostics(scroll, context)
-    for kind in (QCheckBox, QComboBox, QLineEdit):
+    for kind in (QCheckBox, QComboBox, QLineEdit, QAbstractSpinBox):
         for control in body.findChildren(kind):
             if control.isVisible():
                 point = control.mapTo(body, control.rect().topLeft())
@@ -122,11 +122,27 @@ def test_research_pages_fit_minimum_inspector_after_mode_and_font_changes(app, m
             for mode in (0, 1, 2, 3, 1):
                 panel.mode.setCurrentIndex(mode)
                 app.processEvents()
-                assert_controls_fit(panel.stack.currentWidget(), {
+                context = {
                     "language": language, "font_pixels": font_pixels, "inspector_requested": inspector_width,
                     "inspector_actual": window.tabs.width(), "panel_size": [panel.width(), panel.height()],
                     "mode": mode, "mode_name": panel.mode.currentText(), "location": "local",
-                })
+                }
+                assert_controls_fit(panel.stack.currentWidget(), context)
+                if mode == 0:
+                    assert panel.level.minimum() == pytest.approx(1e-8)
+                    assert panel.level.maximum() == 1e9 and panel.level.decimals() == 8
+                    previous = panel.level.value()
+                    panel.level.setValue(panel.level.maximum())
+                    app.processEvents()
+                    assert_controls_fit(panel.stack.currentWidget(), {**context, "value": "maximum"})
+                    editor = panel.level.lineEdit()
+                    editor.setFocus()
+                    editor.selectAll()
+                    editor.copy()
+                    assert app.clipboard().text() == panel.level.text()
+                    assert panel.level.value() == 1e9
+                    panel.level.setValue(previous)
+                    assert panel.level.value() == previous
             panel.devices.location.setCurrentIndex(panel.devices.location.findData("remote"))
             app.processEvents()
             assert_controls_fit(panel.stack.currentWidget(), {

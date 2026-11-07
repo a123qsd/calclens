@@ -364,6 +364,9 @@ class ResearchPanel(QWidget):
         self.level.setDecimals(8)
         self.level.setRange(0.00000001, 1e9)
         self.level.setValue(0.05)
+        # Native Windows reserves room for the entire formatted maximum.
+        # Let the editor scroll its full text without widening the whole page.
+        self.level.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
         self.opacity = QDoubleSpinBox()
         self.opacity.setRange(0.05, 1)
         self.opacity.setSingleStep(0.05)
